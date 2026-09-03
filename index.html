@@ -1,0 +1,3215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Personal Budget</title>
+<style>
+  :root{
+    --bg: #12141a;
+    --surface: #191c23;
+    --surface-raised: #21252e;
+    --border: #2c313b;
+    --text: #eceef1;
+    --text-dim: #8b93a3;
+    --text-faint: #7a8393;
+    --gold: #c9a227;
+    --gold-bright: #e6c158;
+    --blue-bright: #3b82f6;
+    --green: #22c55e;
+    --pink: #ec4899;
+    --red: #d9695f;
+    --amber: #d98b3d;
+    --sans: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --serif: var(--sans);
+    --mono: var(--sans);
+    --radius: 6px;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0; background:var(--bg); color:var(--text); font-family:var(--sans);
+    font-size:14px; line-height:1.5;
+    transition:background .15s, color .15s;
+  }
+  body[data-theme="light"]{
+    --bg:#f6f4ef;
+    --surface:#ffffff;
+    --surface-raised:#efece3;
+    --border:#dcd6c8;
+    --text:#1d2026;
+    --text-dim:#565f6f;
+    --text-faint:#6d7684;
+    --gold:#a9821f;
+    --gold-bright:#8a6a15;
+    --red:#c1453c;
+    --amber:#a6631b;
+  }
+  body[data-theme="light"] .modal-backdrop{ background:rgba(20,18,10,0.35); }
+  ::selection{ background:var(--gold); color:#12141a; }
+  a{ color:var(--gold-bright); }
+
+  /* Layout */
+  .app{ display:flex; min-height:100vh; }
+  .sidebar{
+    width:210px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; padding:20px 0;
+  }
+  .brand{
+    padding:0 20px 18px 20px; border-bottom:1px solid var(--border); margin-bottom:10px;
+  }
+  .brand .mark{ font-family:var(--serif); font-size:22px; letter-spacing:0.5px; color:var(--gold-bright); }
+  .brand .sub{ font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1.5px; margin-top:2px; }
+  .profile-switcher{
+    display:flex; gap:6px; padding:12px 14px; border-bottom:1px solid var(--border); align-items:center;
+  }
+  .profile-switcher select{ flex:1; font-size:12px; padding:6px 8px; min-width:0; }
+  .profile-switcher button{
+    all:unset; cursor:pointer; color:var(--text-dim); font-size:15px; padding:4px 8px; border-radius:4px;
+    background:var(--surface-raised); border:1px solid var(--border); line-height:1;
+  }
+  .profile-switcher button:hover{ color:var(--gold-bright); border-color:var(--gold); }
+  .cloud-status{ padding:10px 14px; border-bottom:1px solid var(--border); }
+  .cloud-status button{
+    all:unset; cursor:pointer; display:block; width:100%; box-sizing:border-box;
+    padding:6px 8px; border-radius:4px; font-size:12px; color:var(--text-dim);
+    background:var(--surface-raised); border:1px solid var(--border);
+  }
+  .cloud-status button:hover{ color:var(--gold-bright); border-color:var(--gold); }
+  nav.tabs{ display:flex; flex-direction:column; gap:2px; padding:0 10px; }
+  nav.tabs button{
+    all:unset; cursor:pointer; padding:10px 12px; border-radius:var(--radius); color:var(--text-dim);
+    font-size:13.5px; display:flex; align-items:center; gap:10px; transition:background .12s, color .12s;
+  }
+  nav.tabs button .num{ font-family:var(--mono); font-size:11px; color:var(--text-faint); width:16px; }
+  nav.tabs button:hover{ background:var(--surface-raised); color:var(--text); }
+  nav.tabs button.active{ background:var(--surface-raised); color:var(--gold-bright); }
+  nav.tabs button.active .num{ color:var(--gold); }
+
+  .sidebar-foot{ margin-top:auto; padding:14px 20px 0 20px; border-top:1px solid var(--border); }
+  .sidebar-foot button{
+    all:unset; cursor:pointer; font-size:11.5px; color:var(--text-faint); display:block; margin-bottom:6px;
+  }
+  .sidebar-foot button:hover{ color:var(--text-dim); }
+
+  .main{ flex:1; display:flex; flex-direction:column; min-width:0; }
+
+  /* Ticker */
+  .ticker{
+    display:flex; gap:0; background:var(--surface); border-bottom:1px solid var(--border);
+    overflow-x:auto;
+  }
+  .ticker .item{
+    padding:9px 16px; border-right:1px solid var(--border); flex-shrink:0; min-width:120px;
+  }
+  .ticker .label{ font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text-faint); margin-bottom:2px; }
+  .ticker .value{ font-family:var(--mono); font-size:15.5px; }
+  .ticker .value.pos{ color:var(--green); }
+  .ticker .value.neg{ color:var(--red); }
+  .ticker .value.neutral{ color:var(--gold-bright); }
+  .ticker .value.savings{ color:var(--blue-bright); }
+
+  .content{ flex:1; padding:20px 24px; overflow-y:auto; }
+  h1.page-title{
+    font-family:var(--serif); font-size:23px; font-weight:normal; margin:0 0 3px 0; color:var(--text);
+  }
+  .page-sub{ color:var(--text-dim); font-size:12.5px; margin-bottom:16px; }
+
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:13px 15px;
+  }
+  .card h3{ margin:0 0 8px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-dim); font-weight:600; }
+  .card.metric{ min-width:150px; flex:1; }
+  .card.metric .big{ font-family:var(--mono); font-size:21px; }
+  .card.metric .cap{ font-size:11px; color:var(--text-faint); margin-top:3px; }
+  .card-Income{ background:rgba(34,197,94,0.07); border-color:rgba(34,197,94,0.25); }
+  .card-Expenses{ background:rgba(236,72,153,0.07); border-color:rgba(236,72,153,0.25); }
+  .card-Savings{ background:rgba(59,120,176,0.08); border-color:rgba(59,120,176,0.25); }
+
+  select, input[type=text], input[type=number], input[type=date]{
+    background:var(--surface-raised); border:1px solid var(--border); color:var(--text);
+    padding:7px 10px; border-radius:var(--radius); font-family:var(--sans); font-size:13px;
+  }
+  select:focus, input:focus{ outline:2px solid var(--gold); outline-offset:1px; }
+  label.field{ display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--text-dim); }
+
+  button.btn{
+    all:unset; cursor:pointer; background:var(--gold); color:#181305; font-weight:600;
+    padding:8px 16px; border-radius:var(--radius); font-size:13px; text-align:center;
+  }
+  button.btn:hover{ background:var(--gold-bright); }
+  button.btn.secondary{ background:var(--surface-raised); color:var(--text); border:1px solid var(--border); }
+  button.btn.secondary:hover{ border-color:var(--gold); }
+  button.btn.danger{ background:transparent; color:var(--red); border:1px solid var(--red); }
+  button.btn.danger:hover{ background:var(--red); color:#12141a; }
+  button.btn:focus-visible, select:focus-visible, input:focus-visible{ outline:2px solid var(--gold); }
+
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.data th{
+    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-dim);
+    padding:6px 9px; border-bottom:1px solid var(--border); font-weight:700;
+  }
+  table.data td{ padding:6px 9px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  table.data tr:hover td{ background:rgba(201,162,39,0.04); }
+  td.num, th.num{ text-align:right; font-family:var(--mono); }
+  .muted{ color:var(--text-faint); }
+  .pos{ color:var(--green); }
+  .neg{ color:var(--red); }
+
+  .bar-wrap{ background:var(--surface-raised); border-radius:3px; height:6px; width:100%; overflow:hidden; margin-top:4px; }
+  .bar-fill{ height:100%; background:rgba(201,162,39,0.38); } /* light gold: comfortably under budget */
+  .bar-fill.near{ background:rgba(201,162,39,0.75); } /* medium gold: approaching budget */
+  .bar-fill.over{ background:var(--red); } /* exceeded budget */
+  .bar-fill.neutral{ background:var(--text-faint); } /* no budget set, relative bar only */
+
+  .week-row.over td{ color:var(--red); }
+  .week-badge{ font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px; }
+  .week-badge.over{ background:rgba(217,105,95,0.15); color:var(--red); }
+  .week-badge.under{ background:rgba(34,197,94,0.15); color:var(--green); }
+
+  .section-title{ font-family:var(--serif); font-size:15.5px; margin:18px 0 7px 0; color:var(--text); }
+  .section-title:first-child{ margin-top:0; }
+
+  .toolbar{ display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+  .toolbar .spacer{ flex:1; }
+
+  .pill{
+    display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:600;
+    text-transform:uppercase; letter-spacing:0.4px;
+  }
+  .pill.Income{ background:rgba(34,197,94,0.15); color:var(--green); }
+  .pill.Expenses{ background:rgba(236,72,153,0.15); color:var(--pink); }
+  .pill.Savings{ background:rgba(59,120,176,0.18); color:var(--blue-bright); }
+
+  .icon-btn{ all:unset; cursor:pointer; color:var(--text-faint); padding:3px 6px; border-radius:4px; }
+  .icon-btn:disabled{ opacity:0.25; cursor:default; }
+  .icon-btn:hover{ color:var(--red); background:rgba(217,105,95,0.1); }
+
+  .empty-state{ text-align:center; padding:50px 20px; color:var(--text-faint); }
+  .empty-state .glyph{ font-size:28px; margin-bottom:10px; color:var(--text-faint); }
+
+  .grid-cat{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; }
+  .nw-row{ display:grid; grid-template-columns:1fr auto auto; align-items:center; column-gap:10px; padding:7px 0; border-bottom:1px solid var(--border); }
+  .nw-row:last-child{ border-bottom:none; }
+  .nw-sub-wrap{ padding-left:12px; border-left:2px solid var(--border); margin-top:4px; margin-bottom:2px; display:flex; flex-direction:column; }
+  .nw-sub-wrap .nw-row{ padding:5px 0; }
+  .nw-balance{ text-align:right; font-family:var(--mono); white-space:nowrap; }
+  .nw-actions{ display:flex; gap:1px; justify-content:flex-end; flex-shrink:0; }
+  .dash-columns{ display:grid; grid-template-columns:0.8fr 0.85fr 1.1fr; gap:14px; align-items:start; }
+  .dash-col{ min-width:0; }
+  .cat-col h4{ font-size:12px; text-transform:uppercase; letter-spacing:0.6px; margin:0 0 10px 0; }
+  .cat-list{ display:flex; flex-direction:column; gap:6px; }
+  .cat-item{
+    display:flex; justify-content:space-between; align-items:center; background:var(--surface-raised);
+    padding:6px 10px; border-radius:4px; font-size:12.5px; border-left:3px solid var(--border); gap:8px;
+  }
+  .cat-item.Income{ border-left-color:var(--green); }
+  .cat-item.Expenses{ border-left-color:var(--pink); }
+  .cat-item.Savings{ border-left-color:var(--blue-bright); }
+  .cat-item .cat-actions{ display:flex; gap:2px; flex-shrink:0; }
+  .add-cat-row{ display:flex; gap:6px; margin-top:10px; }
+  .add-cat-row input{ flex:1; }
+
+  .plan-table-wrap{ overflow-x:auto; }
+  table.plan th, table.plan td{ white-space:nowrap; }
+  table.plan thead th:not(:first-child):not(:last-child){ text-align:center; }
+  table.plan tbody td:not(.catname):not(:last-child), table.plan tfoot td:not(:first-child):not(:last-child){ text-align:center; }
+  table.plan input[type=number]{ width:64px; padding:4px 6px; font-size:12px; text-align:right; }
+  table.plan td.catname{ min-width:230px; white-space:normal; border-left:3px solid var(--border); }
+  table.plan td.catname.Income{ border-left-color:var(--green); }
+  table.plan td.catname.Expenses{ border-left-color:var(--pink); }
+  table.plan td.catname.Savings{ border-left-color:var(--blue-bright); }
+  table.plan input.pinput-over{ background:rgba(217,105,95,0.28); border-color:var(--red); }
+  table.plan input.pinput-met{ background:rgba(34,197,94,0.28); border-color:var(--green); }
+  table.plan input.pinput-near{ background:rgba(201,162,39,0.28); border-color:var(--gold); }
+
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center;
+    z-index:50;
+  }
+  .modal{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px;
+    width:420px; max-width:90vw; max-height:85vh; overflow-y:auto;
+  }
+  .modal h2{ font-family:var(--serif); font-weight:normal; font-size:19px; margin:0 0 16px 0; }
+  .form-grid{ display:flex; flex-direction:column; gap:12px; }
+  .form-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+  .hidden{ display:none !important; }
+
+  .toast{
+    position:fixed; bottom:20px; right:20px; background:var(--surface-raised); border:1px solid var(--gold);
+    color:var(--text); padding:10px 16px; border-radius:var(--radius); font-size:13px; z-index:80;
+    box-shadow:0 4px 18px rgba(0,0,0,0.4);
+  }
+
+  ::-webkit-scrollbar{ width:9px; height:9px; }
+  ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:5px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+
+  @media (max-width: 1300px){
+    .dash-columns{ grid-template-columns:1fr; }
+  }
+
+  @media (max-width: 820px){
+    .sidebar{ width:64px; }
+    .brand .sub, .brand .mark, nav.tabs button span.label{ display:none; }
+    .grid-cat{ grid-template-columns:1fr; }
+    .dash-columns{ grid-template-columns:1fr; }
+    .content{ padding:18px; }
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module">
+  // Firebase is loaded as ES modules (no npm/build step needed) and exposes a small
+  // window.LedgerCloud API that the main app script (below, a plain non-module script tag) calls into.
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult,
+    onAuthStateChanged, signOut
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import {
+    getFirestore, doc, setDoc, getDoc, enableIndexedDbPersistence
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDD8qLHIX2BS56nRDwdJ7Daod_OcrCV3FY",
+    authDomain: "ledger-6508e.firebaseapp.com",
+    projectId: "ledger-6508e",
+    storageBucket: "ledger-6508e.firebasestorage.app",
+    messagingSenderId: "867974434456",
+    appId: "1:867974434456:web:fa3151ebe3e9f719584aed"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const auth = getAuth(fbApp);
+  const db = getFirestore(fbApp);
+  const provider = new GoogleAuthProvider();
+
+  // Lets edits queue locally (e.g. on a plane) and sync once back online. Safe to ignore
+  // if it fails (e.g. multiple tabs open, or an unsupported browser) — sync still works,
+  // just without the offline queue.
+  enableIndexedDbPersistence(db).catch(()=>{});
+
+  // Firestore rejects `undefined` fields, and won't accept a class instance directly —
+  // round-tripping through JSON guarantees a plain, clean object either way.
+  function clean(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+  window.LedgerCloud = {
+    signIn(){ signInWithRedirect(auth, provider); },
+    signOutUser(){ return signOut(auth); },
+    async pullMeta(uid){
+      const snap = await getDoc(doc(db, 'users', uid, 'meta', 'profiles'));
+      return snap.exists() ? snap.data() : null;
+    },
+    async pushMeta(uid, metaObj){
+      await setDoc(doc(db, 'users', uid, 'meta', 'profiles'), clean(metaObj));
+    },
+    async pullProfile(uid, profileId){
+      const snap = await getDoc(doc(db, 'users', uid, 'profiles', profileId));
+      return snap.exists() ? snap.data() : null;
+    },
+    async pushProfile(uid, profileId, dataObj){
+      await setDoc(doc(db, 'users', uid, 'profiles', profileId), clean(dataObj));
+    }
+  };
+
+  onAuthStateChanged(auth, (user)=>{
+    if(window.onLedgerAuthChange){
+      window.onLedgerAuthChange(user ? { uid:user.uid, email:user.email, name:user.displayName } : null);
+    }
+  });
+
+  getRedirectResult(auth).catch(err=> console.error('Sign-in redirect error', err));
+</script>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">Ledger</div>
+      <div class="sub">Personal Budget</div>
+    </div>
+    <div class="profile-switcher">
+      <select id="profileSelect"></select>
+      <button id="addProfileBtn" title="New profile">＋</button>
+    </div>
+    <div class="cloud-status" id="cloudStatusArea"></div>
+    <nav class="tabs" id="navTabs">
+      <button data-tab="dashboard" class="active"><span class="num">01</span><span class="label">Dashboard</span></button>
+      <button data-tab="transactions"><span class="num">02</span><span class="label">Transactions</span></button>
+      <button data-tab="planning"><span class="num">03</span><span class="label">Planning</span></button>
+      <button data-tab="networth"><span class="num">04</span><span class="label">Net Worth</span></button>
+      <button data-tab="bills"><span class="num">05</span><span class="label">Bills</span></button>
+      <button data-tab="settings"><span class="num">06</span><span class="label">Settings</span></button>
+    </nav>
+    <div class="sidebar-foot">
+      <button id="themeToggleBtn">☀ Light mode</button>
+      <button id="exportBtn">Export backup</button>
+      <button id="importBtn">Import backup</button>
+      <input type="file" id="importFile" accept="application/json" class="hidden">
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="ticker" id="ticker"></div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+
+<script>
+/* =========================================================
+   STATE
+========================================================= */
+const LEGACY_STORAGE_KEY = 'ledgerApp_v1';
+const PROFILES_KEY = 'ledgerApp_profiles_v1';
+const DATA_PREFIX = 'ledgerApp_data_v1_';
+const THEME_KEY = 'ledgerApp_theme_v1';
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const TYPES = ['Income','Expenses','Savings'];
+const NET_WORTH_GROUPS = ['Pocket Money','Emergency Fund','Investment','Retirement Savings','Family Saving Account','Co-saving Account','Insurance Account','Other'];
+const TODAY = new Date();
+
+function defaultState(){
+  return {
+    settings: {
+      startingYear: TODAY.getFullYear(),
+      shiftLateIncome: false,
+      shiftDay: 20,
+      savingsRateType: 'active', // 'active' (Savings/Income) or 'passive' ((Income-Expenses)/Income)
+      weeklyThreshold: 300,
+      weeklyExcludedCategories: ["Housing - Rent/Mortgage"],
+      autoSaveEnabled: false,
+      excludedFromSummary: ["Income|||Opening Balance"]
+    },
+    categories: {
+      Income: ["Opening Balance","Salary & Wages - Base pay","Salary & Wages - Overtime/Bonus","Salary & Wages - Allowances",
+        "Self-Employment - Business income","Government - Tax refund & Benefits","Investing - Interest & Dividends",
+        "Investing - Capital gains","Other - Gifts received","Other - Withdraw from savings","Superannuation"],
+      Expenses: ["Housing - Rent/Mortgage","Housing - Utilities (Electricity, gas, water, internet)",
+        "Food & Dining - Groceries","Food & Dining - Eating out","Transport",
+        "Health - Medical & Dental, Health Insurance","Bills & Subscriptions",
+        "Entertainment & Leisure (Hang out, Hobby)","Home & Furniture",
+        "Personal - Clothing, Personal care, Education","Other Money - Bank fees, Interest, Taxes, Gifts"],
+      Savings: ["Pocket Money","Emergency Fund (1M, 3M, 6M)","Investment (Short-term) - Medium Risk Funds",
+        "Investment (Mid-term) - Low Risk Funds","Investment (Long-term) - SSF, RMF",
+        "Retirement Savings - Superannuation","Family Saving Account","Co-saving Account","Insurance Account"]
+    },
+    planning: {},      // planning[year][type][category] = [12 numbers]
+    transactions: [],  // {id,date,type,category,amount,details}
+    accounts: [],      // {id,name,group,currency,openingBalance,openingDate,target,subCategories,history}
+    fxRates: { THB: null, USD: null, fetchedAt: null }, // auto-fetched, AUD as base
+    portfolioTarget: { amount: null, currency: 'AUD' }, // one target for the WHOLE net worth, independent of per-account targets
+    bills: [],         // {id,name,amount,frequency,lastPaidDate,notes,paidMonths:[]}
+    ui: { dashYear: TODAY.getFullYear(), dashMonth: TODAY.getMonth(), dashViewMode: 'month', planYear: TODAY.getFullYear(), activeTab:'dashboard',
+      trendSeries: { Budget:true, Income:true, Expenses:true, Savings:true },
+      lineSeries: { Income:true, Expenses:true, Savings:true } }
+  };
+}
+
+/* =========================================================
+   PROFILES (separate, unlinked books)
+========================================================= */
+function loadProfiles(){
+  try{
+    const raw = localStorage.getItem(PROFILES_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && Array.isArray(parsed.list) && parsed.list.length && parsed.activeId){
+        return parsed;
+      }
+    }
+  }catch(e){ console.error('Failed to read profiles', e); }
+
+  // First run, or corrupted profile index — migrate any legacy single-profile data
+  let legacy = null;
+  try{
+    const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if(raw) legacy = JSON.parse(raw);
+  }catch(e){ /* ignore */ }
+
+  const id = uid();
+  const profilesObj = { activeId: id, list: [{ id, name: legacy ? 'My Budget' : 'Default' }] };
+  localStorage.setItem(DATA_PREFIX + id, JSON.stringify(legacy || defaultState()));
+  localStorage.setItem(PROFILES_KEY, JSON.stringify(profilesObj));
+  return profilesObj;
+}
+
+function saveProfiles(){
+  try{ localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles)); }
+  catch(e){ console.error('Failed to save profiles', e); }
+  scheduleCloudPush();
+}
+
+function createProfile(name){
+  name = (name||'').trim();
+  if(!name){ toast('Give the profile a name.'); return; }
+  const id = uid();
+  profiles.list.push({ id, name });
+  profiles.activeId = id;
+  saveProfiles();
+  const fresh = defaultState();
+  localStorage.setItem(DATA_PREFIX + id, JSON.stringify(fresh));
+  state = fresh;
+  renderProfileSwitcher();
+  render();
+  toast(`Profile "${name}" created.`);
+}
+
+async function switchProfile(id){
+  if(id === profiles.activeId) return;
+  const meta = profiles.list.find(p=>p.id===id);
+  if(!meta) return;
+  profiles.activeId = id;
+  saveProfiles();
+  if(cloudUser){
+    try{
+      const cloudData = await window.LedgerCloud.pullProfile(cloudUser.uid, id);
+      state = cloudData ? mergeWithDefaults(cloudData) : loadState(id);
+    }catch(e){ console.error('Cloud pull on switch failed', e); state = loadState(id); }
+  } else {
+    state = loadState(id);
+  }
+  autoSaveHandle = null;
+  if(state.settings) state.settings.autoSaveEnabled = false;
+  renderProfileSwitcher();
+  render();
+  refreshFxRates(false);
+}
+
+function renameProfile(id, newName){
+  newName = (newName||'').trim();
+  if(!newName) return;
+  const meta = profiles.list.find(p=>p.id===id);
+  if(!meta) return;
+  meta.name = newName;
+  saveProfiles();
+  renderProfileSwitcher();
+}
+
+function deleteProfile(id){
+  if(profiles.list.length <= 1){ toast('At least one profile must remain.'); return; }
+  profiles.list = profiles.list.filter(p=>p.id!==id);
+  localStorage.removeItem(DATA_PREFIX + id);
+  if(profiles.activeId === id){
+    profiles.activeId = profiles.list[0].id;
+    state = loadState(profiles.activeId);
+  }
+  saveProfiles();
+  renderProfileSwitcher();
+  render();
+}
+
+function renderProfileSwitcher(){
+  const sel = document.getElementById('profileSelect');
+  if(!sel) return;
+  sel.innerHTML = profiles.list.map(p=>
+    `<option value="${p.id}" ${p.id===profiles.activeId?'selected':''}>${p.name}</option>`
+  ).join('');
+}
+
+let profiles = loadProfiles();
+let state = loadState(profiles.activeId);
+
+function mergeWithDefaults(parsed){
+  const base = defaultState();
+  const merged = {
+    ...base, ...parsed,
+    settings: {...base.settings, ...(parsed.settings||{})},
+    categories: {...base.categories, ...(parsed.categories||{})},
+    ui: {...base.ui, ...(parsed.ui||{})}
+  };
+  // One-time migration for profiles created before "Opening Balance" existed
+  if(!merged.categories.Income.includes('Opening Balance')){
+    merged.categories.Income = ['Opening Balance', ...merged.categories.Income];
+  }
+  merged.settings.excludedFromSummary = merged.settings.excludedFromSummary || [];
+  if(!merged.settings.excludedFromSummary.includes('Income|||Opening Balance')){
+    merged.settings.excludedFromSummary.push('Income|||Opening Balance');
+  }
+  // One-time migration: accounts used to store a live-mutated "balance" with a separate
+  // history log. Convert to openingBalance+openingDate so balances can be reconstructed
+  // as of any past date (needed for the accumulation-over-time chart).
+  (merged.accounts||[]).forEach(acc=>{
+    if(acc.openingDate === undefined){
+      const hist = acc.history||[];
+      const histSum = hist.reduce((s,h)=> s+(Number(h.delta)||0), 0);
+      acc.openingBalance = (Number(acc.balance)||0) - histSum;
+      acc.openingDate = hist.length ? hist.reduce((min,h)=> h.date<min?h.date:min, hist[0].date) : isoDate(TODAY);
+    }
+    if(acc.target === undefined) acc.target = null;
+    if(!acc.currency) acc.currency = 'AUD';
+    if(!Array.isArray(acc.subCategories)) acc.subCategories = [];
+    acc.subCategories.forEach(sub=>{
+      if(sub.openingDate===undefined) sub.openingDate = isoDate(TODAY);
+      if(sub.openingBalance===undefined) sub.openingBalance = 0;
+      if(sub.target===undefined) sub.target = null;
+      if(!sub.currency) sub.currency = acc.currency || 'AUD';
+      if(!Array.isArray(sub.history)) sub.history = [];
+    });
+  });
+  merged.fxRates = merged.fxRates || { THB: null, USD: null, fetchedAt: null };
+  merged.portfolioTarget = merged.portfolioTarget || { amount: null, currency: 'AUD' };
+  (merged.bills||[]).forEach(b=>{ if(!b.currency) b.currency = 'AUD'; });
+  return merged;
+}
+
+function loadState(profileId){
+  try{
+    const raw = localStorage.getItem(DATA_PREFIX + profileId);
+    if(!raw) return defaultState();
+    return mergeWithDefaults(JSON.parse(raw));
+  }catch(e){ console.error('Failed to load saved data, starting fresh.', e); return defaultState(); }
+}
+
+function saveState(){
+  try{ localStorage.setItem(DATA_PREFIX + profiles.activeId, JSON.stringify(state)); }
+  catch(e){ toast('Could not save — storage may be full.'); console.error(e); }
+  scheduleAutoSave();
+  scheduleCloudPush();
+}
+
+/* =========================================================
+   CLOUD SYNC (Firebase) — sync-on-open / sync-on-change, not
+   live collaborative editing. If the same profile is edited on
+   two devices before either syncs, the later push wins.
+========================================================= */
+let cloudUser = null; // {uid,email,name} or null when signed out
+let cloudSyncTimer = null;
+let cloudStatus = 'signed-out'; // 'signed-out' | 'pulling' | 'syncing' | 'synced' | 'error'
+
+function renderCloudStatus(){
+  const el = document.getElementById('cloudStatusArea');
+  if(!el) return;
+  if(!cloudUser){
+    el.innerHTML = `<button id="cloudSignInBtn">☁ Sign in with Google</button>`;
+    const btn = document.getElementById('cloudSignInBtn');
+    if(btn) btn.onclick = ()=> window.LedgerCloud.signIn();
+    return;
+  }
+  const statusText = {
+    pulling: 'Loading from cloud…',
+    syncing: 'Syncing…',
+    synced: 'Synced',
+    error: 'Sync failed — retrying'
+  }[cloudStatus] || '';
+  const statusColor = cloudStatus==='error' ? 'var(--red)' : (cloudStatus==='synced' ? 'var(--green)' : 'var(--text-faint)');
+  el.innerHTML = `
+    <div class="muted" style="font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${cloudUser.email||''}">${cloudUser.name || cloudUser.email || 'Signed in'}</div>
+    <div style="font-size:10.5px; margin:2px 0 6px 0; color:${statusColor};">${statusText}</div>
+    <button id="cloudSignOutBtn">Sign out</button>
+  `;
+  const out = document.getElementById('cloudSignOutBtn');
+  if(out) out.onclick = ()=> window.LedgerCloud.signOutUser();
+}
+
+/* Called by the Firebase module script whenever sign-in state changes */
+window.onLedgerAuthChange = async function(user){
+  cloudUser = user;
+  if(user){
+    cloudStatus = 'pulling';
+    renderCloudStatus();
+    try{
+      await pullFromCloudOrSeed();
+      cloudStatus = 'synced';
+    }catch(e){
+      console.error('Cloud pull failed', e);
+      cloudStatus = 'error';
+    }
+    renderProfileSwitcher();
+    render();
+  } else {
+    cloudStatus = 'signed-out';
+  }
+  renderCloudStatus();
+};
+
+/* On sign-in: if the cloud already has data, it becomes the source of truth (pulled down,
+   overwriting the local cache). If the cloud is empty — first time signing in — whatever's
+   local right now gets pushed up to seed it, so nothing already entered is lost. */
+async function pullFromCloudOrSeed(){
+  if(!cloudUser) return;
+  const cloudMeta = await window.LedgerCloud.pullMeta(cloudUser.uid);
+  if(cloudMeta && Array.isArray(cloudMeta.list) && cloudMeta.list.length){
+    profiles = cloudMeta;
+    try{ localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles)); }catch(e){}
+    const cloudProfileData = await window.LedgerCloud.pullProfile(cloudUser.uid, profiles.activeId);
+    state = cloudProfileData ? mergeWithDefaults(cloudProfileData) : loadState(profiles.activeId);
+    try{ localStorage.setItem(DATA_PREFIX + profiles.activeId, JSON.stringify(state)); }catch(e){}
+  } else {
+    await window.LedgerCloud.pushMeta(cloudUser.uid, profiles);
+    for(const p of profiles.list){
+      await window.LedgerCloud.pushProfile(cloudUser.uid, p.id, loadState(p.id));
+    }
+  }
+}
+
+function scheduleCloudPush(){
+  if(!cloudUser) return;
+  clearTimeout(cloudSyncTimer);
+  cloudStatus = 'syncing';
+  renderCloudStatus();
+  cloudSyncTimer = setTimeout(async ()=>{
+    try{
+      await window.LedgerCloud.pushProfile(cloudUser.uid, profiles.activeId, state);
+      await window.LedgerCloud.pushMeta(cloudUser.uid, profiles);
+      cloudStatus = 'synced';
+    }catch(e){
+      console.error('Cloud push failed', e);
+      cloudStatus = 'error';
+    }
+    renderCloudStatus();
+  }, 1500);
+}
+
+/* =========================================================
+   THEME
+========================================================= */
+function loadTheme(){
+  try{ return localStorage.getItem(THEME_KEY) || 'dark'; }catch(e){ return 'dark'; }
+}
+function applyTheme(t){
+  document.body.dataset.theme = t;
+  try{ localStorage.setItem(THEME_KEY, t); }catch(e){ /* ignore */ }
+  const btn = document.getElementById('themeToggleBtn');
+  if(btn) btn.textContent = t==='light' ? '● Dark mode' : '☀ Light mode';
+}
+
+/* =========================================================
+   AUTO-SAVE TO EXCEL
+   Default: prompts once via the File System Access API, starting
+   in the Downloads folder. Once granted, every autosave silently
+   overwrites that same file — no repeat prompts, no duplicate files.
+   Browsers without that API (Firefox/Safari) fall back to a normal
+   download each time, which the OS puts in the Downloads folder,
+   but which will accumulate as separate numbered files.
+========================================================= */
+let autoSaveHandle = null;       // FileSystemFileHandle, in-memory only (not persisted across reloads)
+let autoSaveTimer = null;
+const AUTO_SAVE_SUPPORTED = typeof window.showSaveFilePicker === 'function';
+
+function buildWorkbook(){
+  const wb = XLSX.utils.book_new();
+
+  // Transactions
+  const txRows = [['Date','Type','Category','Details','Amount','Balance']];
+  transactionsWithBalance().slice().reverse().forEach(t=> txRows.push([t.date, t.type, t.category, t.details||'', Number(t.amount), Number(t.balance)]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(txRows), 'Transactions');
+
+  // Planning (every year that has been set up)
+  const planRows = [];
+  Object.keys(state.planning).sort().forEach(yr=>{
+    planRows.push([`Planning ${yr}`]);
+    TYPES.forEach(type=>{
+      planRows.push([type, ...MONTHS, 'Total']);
+      state.categories[type].forEach(cat=>{
+        const arr = (state.planning[yr][type] && state.planning[yr][type][cat]) || new Array(12).fill(0);
+        const total = arr.reduce((a,b)=>a+(Number(b)||0),0);
+        planRows.push([cat, ...arr.map(v=>Number(v)||0), total]);
+      });
+      planRows.push([]);
+    });
+    planRows.push([]);
+  });
+  if(planRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(planRows), 'Planning');
+
+  // Net Worth accounts
+  const accRows = [['Name','Group','Currency','Balance','≈ AUD','Target']];
+  state.accounts.forEach(a=>{
+    const hasSubs = a.subCategories && a.subCategories.length>0;
+    accRows.push([a.name, a.group, hasSubs?'mixed':a.currency, hasSubs?'':computeAccountBalance(a), Math.round(accountBalanceAUD(a)), a.target||'']);
+    (a.subCategories||[]).forEach(sub=>{
+      const subCur = sub.currency||a.currency;
+      const subBal = unitBalanceAsOf(sub, isoDate(TODAY));
+      accRows.push([`  ↳ ${sub.name}`, '', subCur, subBal, Math.round(toAUD(subBal, subCur)), sub.target||'']);
+    });
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(accRows), 'Net Worth');
+
+  // Bills
+  const billRows = [['Name','Amount','Currency','Frequency','Last Paid','Notes']];
+  state.bills.forEach(b=> billRows.push([b.name, Number(b.amount)||0, b.currency||'AUD', b.frequency, b.lastPaidDate||'', b.notes||'']));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(billRows), 'Bills');
+
+  return wb;
+}
+
+function workbookBlob(){
+  const wb = buildWorkbook();
+  const out = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+  return new Blob([out], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+function suggestedXlsxName(){
+  const meta = profiles.list.find(p=>p.id===profiles.activeId);
+  const safeName = (meta ? meta.name : 'profile').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  return `ledger-${safeName}.xlsx`;
+}
+
+async function chooseAutoSaveLocation(){
+  if(!AUTO_SAVE_SUPPORTED){
+    toast('Your browser doesn\'t support picking a save file — auto-save will download a new file each time instead.');
+    state.settings.autoSaveEnabled = true;
+    saveState(); render();
+    return;
+  }
+  try{
+    autoSaveHandle = await window.showSaveFilePicker({
+      suggestedName: suggestedXlsxName(),
+      startIn: 'downloads',
+      types: [{ description:'Excel Workbook', accept:{ 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx'] } }]
+    });
+    state.settings.autoSaveEnabled = true;
+    saveState(); render();
+    toast('Auto-save linked — this file will update automatically.');
+  }catch(e){
+    if(e.name!=='AbortError') console.error(e);
+  }
+}
+
+function scheduleAutoSave(){
+  if(!state.settings || !state.settings.autoSaveEnabled) return;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(performAutoSave, 2500);
+}
+
+async function performAutoSave(){
+  try{
+    const blob = workbookBlob();
+    if(autoSaveHandle){
+      const writable = await autoSaveHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+    } else {
+      downloadBlob(blob, suggestedXlsxName());
+    }
+  }catch(e){
+    console.error('Auto-save failed', e);
+    toast('Auto-save failed — ' + (typeof XLSX==='undefined' ? 'the Excel library couldn\'t load (are you offline?).' : 'see console for details.'));
+  }
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `Ledger save/${filename}`; // most browsers create this subfolder under Downloads automatically
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function manualExportXlsx(){
+  try{
+    downloadBlob(workbookBlob(), suggestedXlsxName());
+    toast('Excel file downloaded.');
+  }catch(e){
+    console.error('Excel export failed', e);
+    toast('Could not build the Excel file — ' + (typeof XLSX==='undefined' ? 'the Excel library couldn\'t load (are you offline?).' : 'see console for details.'));
+  }
+}
+
+function uid(){ return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+
+function toast(msg){
+  const root = document.getElementById('toastRoot');
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  root.innerHTML = ''; root.appendChild(el);
+  setTimeout(()=>{ el.remove(); }, 2600);
+}
+
+function money(n, decimals){
+  const d = decimals===undefined ? 2 : decimals;
+  const v = Number(n)||0;
+  const sign = v < 0 ? '-' : '';
+  const abs = Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:d, maximumFractionDigits:d});
+  return `${sign}$${abs}`;
+}
+/* Whole-number version, used on the Dashboard where cents just add clutter */
+function moneyWhole(n){ return money(Math.round(Number(n)||0), 0); }
+function pct(a,b){ if(!b) return null; return a/b; }
+
+/* =========================================================
+   PLANNING HELPERS
+========================================================= */
+function ensurePlanningYear(year){
+  if(!state.planning[year]) state.planning[year] = {};
+  TYPES.forEach(t=>{
+    if(!state.planning[year][t]) state.planning[year][t] = {};
+    state.categories[t].forEach(cat=>{
+      if(!state.planning[year][t][cat]) state.planning[year][t][cat] = new Array(12).fill(0);
+    });
+  });
+  return state.planning[year];
+}
+
+function budgetFor(year, type, cat, monthIdx){
+  const p = ensurePlanningYear(year);
+  const arr = p[type][cat];
+  return arr ? (Number(arr[monthIdx])||0) : 0;
+}
+
+/* =========================================================
+   TRANSACTION HELPERS
+========================================================= */
+function effectiveDate(tx){
+  const d = new Date(tx.date+'T00:00:00');
+  if(tx.type==='Income' && state.settings.shiftLateIncome){
+    if(d.getDate() >= Number(state.settings.shiftDay)){
+      // Only the year/month bucket matters here — build it directly from year+month+1
+      // rather than mutating the day-of-month in place, which can silently overflow
+      // into a further month (e.g. Aug 31 + 1 month overflows to Oct, since September
+      // only has 30 days).
+      return new Date(d.getFullYear(), d.getMonth()+1, 1);
+    }
+  }
+  return d;
+}
+
+function trackedTotals(year, monthIdx){
+  const totals = {Income:{}, Expenses:{}, Savings:{}};
+  const excluded = new Set(state.settings.excludedFromSummary || []);
+  state.transactions.forEach(tx=>{
+    if(excluded.has(tx.type+'|||'+tx.category)) return;
+    const ed = effectiveDate(tx);
+    if(ed.getFullYear()===year && ed.getMonth()===monthIdx){
+      totals[tx.type][tx.category] = (totals[tx.type][tx.category]||0) + Number(tx.amount);
+    }
+  });
+  return totals;
+}
+
+function sumType(totalsForType){
+  return Object.values(totalsForType).reduce((a,b)=>a+b,0);
+}
+
+function sortedTransactions(){
+  return [...state.transactions].sort((a,b)=> a.date===b.date ? 0 : (a.date<b.date?-1:1));
+}
+
+function transactionsWithBalance(){
+  const asc = sortedTransactions();
+  let bal = 0;
+  const withBal = asc.map(tx=>{
+    bal += (tx.type==='Income' ? Number(tx.amount) : -Number(tx.amount));
+    return {...tx, balance: bal};
+  });
+  return withBal.reverse(); // newest first for display
+}
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+document.getElementById('navTabs').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-tab]');
+  if(!btn) return;
+  state.ui.activeTab = btn.dataset.tab;
+  saveState();
+  render();
+});
+
+function setActiveNav(){
+  document.querySelectorAll('#navTabs button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab===state.ui.activeTab);
+  });
+}
+
+document.getElementById('profileSelect').addEventListener('change', e=> switchProfile(e.target.value));
+document.getElementById('addProfileBtn').addEventListener('click', ()=> openProfileModal());
+document.getElementById('themeToggleBtn').addEventListener('click', ()=>{
+  applyTheme(document.body.dataset.theme==='light' ? 'dark' : 'light');
+});
+
+function openProfileModal(){
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="modal-backdrop" id="mb">
+      <div class="modal">
+        <h2>New profile</h2>
+        <div class="page-sub">A profile is a completely separate, unlinked book — its own categories, transactions, planning, accounts, and bills.</div>
+        <div class="form-grid">
+          <label class="field">Name <input type="text" id="pName" placeholder="e.g. Side Business"></label>
+        </div>
+        <div class="form-actions">
+          <button class="btn secondary" id="fCancel">Cancel</button>
+          <button class="btn" id="fSave">Create profile</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('fCancel').onclick = ()=> root.innerHTML='';
+  document.getElementById('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
+  document.getElementById('fSave').onclick = ()=>{
+    createProfile(document.getElementById('pName').value);
+    root.innerHTML='';
+  };
+}
+
+/* =========================================================
+   TICKER
+========================================================= */
+function renderTicker(){
+  const y = TODAY.getFullYear(), m = TODAY.getMonth();
+  const t = trackedTotals(y,m);
+  const inc = sumType(t.Income), exp = sumType(t.Expenses), sav = sumType(t.Savings);
+  const net = inc - exp - sav;
+  const rate = state.settings.savingsRateType==='active'
+    ? pct(sav, inc) : pct(inc-exp, inc);
+  const netWorth = netWorthAUD();
+
+  const el = document.getElementById('ticker');
+  el.innerHTML = `
+    <div class="item"><div class="label">Income MTD</div><div class="value pos">${moneyWhole(inc)}</div></div>
+    <div class="item"><div class="label">Expenses MTD</div><div class="value neg">${moneyWhole(exp)}</div></div>
+    <div class="item"><div class="label">Savings MTD</div><div class="value savings">${moneyWhole(sav)}</div></div>
+    <div class="item"><div class="label">Net Cash Flow</div><div class="value ${net>=0?'pos':'neg'}">${moneyWhole(net)}</div></div>
+    <div class="item"><div class="label">Savings Rate</div><div class="value savings">${rate===null?'—':(rate*100).toFixed(2)+'%'}</div></div>
+    <div class="item"><div class="label">Net Worth (AUD)</div><div class="value neutral">${moneyWhole(netWorth)}</div></div>
+  `;
+}
+
+/* =========================================================
+   RENDER ROUTER
+========================================================= */
+function render(){
+  setActiveNav();
+  renderTicker();
+  const c = document.getElementById('content');
+  const tab = state.ui.activeTab;
+  if(tab==='dashboard') renderDashboard(c);
+  else if(tab==='transactions') renderTransactions(c);
+  else if(tab==='planning') renderPlanning(c);
+  else if(tab==='networth') renderNetWorth(c);
+  else if(tab==='bills') renderBills(c);
+  else if(tab==='settings') renderSettings(c);
+}
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+/* Aggregate tracked totals across the selected period (a single month, or a whole year) */
+function periodTrackedTotals(year, viewMode, monthIdx){
+  if(viewMode==='year'){
+    const combined = {Income:{}, Expenses:{}, Savings:{}};
+    for(let mo=0; mo<12; mo++){
+      const t = trackedTotals(year, mo);
+      TYPES.forEach(type=> Object.entries(t[type]).forEach(([cat,val])=>{
+        combined[type][cat] = (combined[type][cat]||0) + val;
+      }));
+    }
+    return combined;
+  }
+  return trackedTotals(year, monthIdx);
+}
+
+/* Aggregate budget across the selected period */
+function periodBudget(year, type, cat, viewMode, monthIdx){
+  if(viewMode==='year'){
+    let sum = 0;
+    for(let mo=0; mo<12; mo++) sum += budgetFor(year, type, cat, mo);
+    return sum;
+  }
+  return budgetFor(year, type, cat, monthIdx);
+}
+
+/* Monday of the week containing the given Date */
+function mondayOf(d){
+  const dt = new Date(d);
+  const day = dt.getDay(); // 0=Sun..6=Sat
+  const diff = day===0 ? -6 : 1-day;
+  dt.setDate(dt.getDate()+diff);
+  dt.setHours(0,0,0,0);
+  return dt;
+}
+function isoDate(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function formatDateShort(dateISO){
+  const d = new Date(dateISO+'T00:00:00');
+  return `${d.getDate()}-${MONTHS[d.getMonth()]}-${String(d.getFullYear()).slice(2)}`;
+}
+
+/* Last N Monday-Sunday weeks, index 0 = current week, going backwards from there */
+function lastNWeeks(n){
+  const thisMonday = mondayOf(TODAY);
+  const weeks = [];
+  for(let i=0; i<n; i++){
+    const start = new Date(thisMonday); start.setDate(start.getDate() - 7*i);
+    const end = new Date(start); end.setDate(end.getDate()+6);
+    weeks.push({start, end});
+  }
+  return weeks;
+}
+
+/* Total Expenses in a Mon-Sun window, excluding whichever categories are configured to be left out */
+function weekExpenseTotal(start, end){
+  const s = isoDate(start), e = isoDate(end);
+  const excluded = state.settings.weeklyExcludedCategories || [];
+  return state.transactions
+    .filter(t=> t.type==='Expenses' && t.date>=s && t.date<=e && !excluded.includes(t.category))
+    .reduce((sum,t)=> sum+Number(t.amount), 0);
+}
+
+function weeklyExpenseRows(){
+  const weeks = lastNWeeks(6).map(w=> ({ start: isoDate(w.start), end: isoDate(w.end), total: weekExpenseTotal(w.start, w.end) }));
+  return weeks.slice(0,5).map((w,i)=>{
+    const prev = weeks[i+1];
+    let pctChange = null;
+    if(prev){
+      if(prev.total>0) pctChange = ((w.total-prev.total)/prev.total)*100;
+      else if(w.total>0) pctChange = null; // undefined (prior week had nothing to compare against)
+      else pctChange = 0;
+    }
+    return { ...w, pctChange };
+  });
+}
+
+const TYPE_BASE_HEX = { Income: '#22c55e', Expenses: '#ec4899', Savings: '#3b82f6' };
+
+/* Lighten (+) or darken (-) a hex color by a percentage */
+function shadeColor(hex, percent){
+  const num = parseInt(hex.replace('#',''), 16);
+  const amt = Math.round(2.55 * percent);
+  let r = (num >> 16) + amt, g = ((num >> 8) & 0x00FF) + amt, b = (num & 0x0000FF) + amt;
+  r = Math.max(0, Math.min(255, r)); g = Math.max(0, Math.min(255, g)); b = Math.max(0, Math.min(255, b));
+  return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+}
+
+/* Top 5 categories by tracked amount + an "Other" bucket for the rest, shaded from dark to light */
+function buildDonutSegments(type, rows){
+  const positive = rows.filter(r=>r.tracked>0).sort((a,b)=>b.tracked-a.tracked);
+  const top = positive.slice(0,5);
+  const restSum = positive.slice(5).reduce((s,r)=>s+r.tracked,0);
+  const segments = top.map((r,i)=>({ label:r.cat, value:r.tracked, color:shadeColor(TYPE_BASE_HEX[type], (i-2)*13) }));
+  if(restSum>0) segments.push({ label:'Other', value:restSum, color:'var(--text-faint)' });
+  return segments;
+}
+
+function renderDonut(segments){
+  const total = segments.reduce((s,x)=>s+x.value,0) || 1;
+  let acc = 0;
+  const stops = segments.map(s=>{
+    const startPct = (acc/total)*100; acc += s.value;
+    const endPct = (acc/total)*100;
+    return `${s.color} ${startPct.toFixed(2)}% ${endPct.toFixed(2)}%`;
+  }).join(', ');
+  return `
+    <div style="position:relative; width:92px; height:92px; flex-shrink:0;">
+      <div style="width:92px; height:92px; border-radius:50%; background:conic-gradient(${stops});"></div>
+      <div style="position:absolute; inset:13px; border-radius:50%; background:var(--surface);"></div>
+    </div>
+  `;
+}
+
+function donutLegendHTML(type, segments, totalTracked){
+  return `
+    <div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; padding-bottom:12px; margin-bottom:12px; border-bottom:1px solid var(--border);">
+      ${renderDonut(segments)}
+      <div style="flex:1; min-width:200px;">
+        <div class="muted" style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">${type} categories (tracked)</div>
+        ${segments.map(s=>`
+          <div style="display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:1px 0;">
+            <span style="display:flex; align-items:center; gap:6px; min-width:0; flex:1;">
+              <span style="width:8px; height:8px; border-radius:2px; background:${s.color}; flex-shrink:0; display:inline-block;"></span>
+              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${s.label}</span>
+            </span>
+            <span style="font-family:var(--mono); flex-shrink:0; width:60px; text-align:right;">${moneyWhole(s.value)}</span>
+            <span class="muted" style="font-family:var(--mono); flex-shrink:0; width:42px; text-align:right;">${totalTracked>0 ? ((s.value/totalTracked)*100).toFixed(0)+'%' : '—'}</span>
+          </div>
+        `).join('')}
+        <div style="display:flex; justify-content:space-between; border-top:1px solid var(--border); margin-top:4px; padding-top:4px; font-weight:600; font-size:12px;">
+          <span style="flex:1;">Total</span>
+          <span style="font-family:var(--mono); width:60px; text-align:right;">${moneyWhole(totalTracked)}</span>
+          <span style="font-family:var(--mono); width:42px; text-align:right;">100%</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* How far through the selected month/year "today" is, as a % */
+function periodProgressPct(year, viewMode, monthIdx){
+  const now = new Date(isoDate(TODAY)+'T00:00:00');
+  if(viewMode==='year'){
+    const start = new Date(year,0,1), end = new Date(year,11,31);
+    if(now < start) return 0;
+    if(now > end) return 100;
+    const totalDays = Math.round((end-start)/86400000)+1;
+    const elapsed = Math.round((now-start)/86400000)+1;
+    return Math.round((elapsed/totalDays)*100);
+  }
+  const start = new Date(year, monthIdx, 1), end = new Date(year, monthIdx+1, 0);
+  if(now < start) return 0;
+  if(now > end) return 100;
+  return Math.round((now.getDate()/end.getDate())*100);
+}
+
+/* Grouped bar chart: Budget (planned total) vs. tracked Income/Expenses/Savings, per month, toggleable */
+const GRAY_BASE_HEX = '#98a1af'; // neutral stand-in for non-selected months
+
+/* Round a value up to a "nice" number (1/2/5/10 x power of ten) for clean axis ticks */
+function niceCeil(v){
+  if(v<=0) return 1;
+  const exp = Math.floor(Math.log10(v));
+  const base = Math.pow(10, exp);
+  const frac = v/base;
+  let niceFrac;
+  if(frac<=1) niceFrac=1;
+  else if(frac<=2) niceFrac=2;
+  else if(frac<=5) niceFrac=5;
+  else niceFrac=10;
+  return niceFrac*base;
+}
+/* Compact axis label, e.g. 5400 -> "5.4k" */
+function formatAxisLabel(v){
+  if(Math.abs(v)>=1000) return (v/1000).toFixed(v%1000===0?0:1)+'k';
+  return String(Math.round(v));
+}
+
+/* Per-category bar tones: light = under-budget headroom, normal = actual within budget, dark = amount over budget */
+function barTones(type, isSelected){
+  const base = isSelected ? TYPE_BASE_HEX[type] : GRAY_BASE_HEX;
+  return { light: shadeColor(base, isSelected ? 42 : 18), normal: base, dark: shadeColor(base, isSelected ? -26 : -30) };
+}
+
+function monthlyTrendSVG(year, toggle, selectedMonthIdx, viewMode){
+  const types = ['Income','Expenses','Savings'];
+  const active = types.filter(k=> toggle[k]);
+  const showBudgetShading = toggle.Budget !== false;
+
+  const monthly = [];
+  for(let mo=0; mo<12; mo++){
+    const t = trackedTotals(year, mo);
+    const row = {};
+    types.forEach(type=>{
+      row[type] = {
+        tracked: sumType(t[type]),
+        budget: state.categories[type].reduce((s,cat)=> s+budgetFor(year,type,cat,mo), 0)
+      };
+    });
+    monthly.push(row);
+  }
+  const rawMax = Math.max(1, ...monthly.flatMap(mo=> active.map(k=> Math.max(mo[k].tracked, mo[k].budget))));
+  const maxVal = niceCeil(rawMax);
+  const width = 900, height = 178, padBottom = 22, padTop = 8, padLeft = 34;
+  const plotH = height - padBottom - padTop;
+  const plotW = width - padLeft;
+  const groupWidth = plotW/12;
+  const gap = 3;
+  const n = Math.max(1, active.length);
+  const barWidth = Math.max(3, (groupWidth - gap*(n+1)) / n);
+
+  // Y-axis gridlines + labels (0, 1/4, 1/2, 3/4, max)
+  let gridlines = '';
+  for(let i=0;i<=4;i++){
+    const val = maxVal * i/4;
+    const y = height - padBottom - (val/maxVal)*plotH;
+    gridlines += `<line x1="${padLeft}" y1="${y.toFixed(1)}" x2="${width}" y2="${y.toFixed(1)}" style="stroke:var(--border); stroke-width:1; opacity:${i===0?1:0.5};"></line>`;
+    gridlines += `<text x="${(padLeft-6).toFixed(1)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="9" style="fill:var(--text-faint); font-family:var(--sans);">${formatAxisLabel(val)}</text>`;
+  }
+
+  let bars = '';
+  monthly.forEach((mo, gi)=>{
+    const isSelected = viewMode==='year' ? true : gi===selectedMonthIdx;
+    active.forEach((type, si)=>{
+      const { tracked, budget } = mo[type];
+      const col = barTones(type, isSelected);
+      const x = padLeft + gi*groupWidth + gap + si*(barWidth+gap);
+
+      const segments = []; // stacked bottom-up: [{h, color, tip}]
+      const tipBase = `${MONTHS[gi]} ${type}: tracked ${moneyWhole(tracked)}${budget?' / budget '+moneyWhole(budget):''}`;
+      if(!showBudgetShading || budget<=0){
+        const h = (tracked/maxVal)*plotH;
+        if(h>0.1) segments.push({ h, color: col.normal, tip: tipBase });
+      } else if(tracked <= budget){
+        const hActual = (tracked/maxVal)*plotH;
+        const hHeadroom = ((budget-tracked)/maxVal)*plotH;
+        if(hActual>0.1) segments.push({ h:hActual, color: col.normal, tip: tipBase });
+        if(hHeadroom>0.1) segments.push({ h:hHeadroom, color: col.light, tip: `${tipBase} — ${moneyWhole(budget-tracked)} remaining` });
+      } else {
+        const hBudget = (budget/maxVal)*plotH;
+        const hExcess = ((tracked-budget)/maxVal)*plotH;
+        if(hBudget>0.1) segments.push({ h:hBudget, color: col.normal, tip: tipBase });
+        if(hExcess>0.1) segments.push({ h:hExcess, color: col.dark, tip: `${tipBase} — ${moneyWhole(tracked-budget)} over budget` });
+      }
+
+      let cursorY = height - padBottom;
+      segments.forEach(seg=>{
+        cursorY -= seg.h;
+        bars += `<rect x="${x.toFixed(1)}" y="${cursorY.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${seg.h.toFixed(1)}" rx="1.5" style="fill:${seg.color}; cursor:pointer;"><title>${seg.tip}</title></rect>`;
+      });
+    });
+  });
+  let labels = '';
+  MONTHS.forEach((mo,i)=>{
+    const x = padLeft + i*groupWidth + groupWidth/2;
+    const isSelected = viewMode==='year' ? true : i===selectedMonthIdx;
+    labels += `<text x="${x.toFixed(1)}" y="${height-6}" text-anchor="middle" font-size="9.5" style="fill:${isSelected?'var(--gold-bright)':'var(--text-faint)'}; font-family:var(--sans); font-weight:${isSelected?'700':'400'};">${mo}</text>`;
+  });
+  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block; max-height:200px;">
+    ${gridlines}
+    ${bars}
+    ${labels}
+  </svg>`;
+}
+
+/* Simple line chart: actual tracked amount per month, one line per type, with a guide marking the selected month */
+function monthlyLineSVG(year, toggle, selectedMonthIdx, viewMode){
+  const types = ['Income','Expenses','Savings'];
+  const colorFor = { Income:'var(--green)', Expenses:'var(--pink)', Savings:'var(--blue-bright)' };
+  const active = types.filter(k=> toggle[k]);
+
+  const monthly = [];
+  for(let mo=0; mo<12; mo++){
+    const t = trackedTotals(year, mo);
+    monthly.push({ Income:sumType(t.Income), Expenses:sumType(t.Expenses), Savings:sumType(t.Savings) });
+  }
+  const rawMax = Math.max(1, ...monthly.flatMap(mo=> active.map(k=>mo[k])));
+  const maxVal = niceCeil(rawMax);
+  const width = 900, height = 178, padTop = 12, padBottom = 22, padLeft = 34, padRight = 8;
+  const plotW = width - padLeft - padRight, plotH = height - padTop - padBottom;
+  const xFor = i => padLeft + (i/11)*plotW;
+  const yFor = v => padTop + plotH - (v/maxVal)*plotH;
+
+  // Y-axis gridlines + labels
+  let gridlines = '';
+  for(let i=0;i<=4;i++){
+    const val = maxVal * i/4;
+    const y = yFor(val);
+    gridlines += `<line x1="${padLeft}" y1="${y.toFixed(1)}" x2="${width}" y2="${y.toFixed(1)}" style="stroke:var(--border); stroke-width:1; opacity:${i===0?1:0.5};"></line>`;
+    gridlines += `<text x="${(padLeft-6).toFixed(1)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="9" style="fill:var(--text-faint); font-family:var(--sans);">${formatAxisLabel(val)}</text>`;
+  }
+
+  let paths = '', dots = '';
+  active.forEach(type=>{
+    const color = colorFor[type];
+    let d = '';
+    monthly.forEach((mo,i)=>{
+      const x = xFor(i), y = yFor(mo[type]);
+      d += (i===0 ? 'M' : 'L') + x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
+      dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.4" style="fill:${color}; cursor:pointer;"><title>${MONTHS[i]} ${type}: ${moneyWhole(mo[type])}</title></circle>`;
+    });
+    paths += `<path d="${d.trim()}" fill="none" style="stroke:${color}; stroke-width:2;"></path>`;
+  });
+
+  const guide = viewMode==='month'
+    ? `<line x1="${xFor(selectedMonthIdx).toFixed(1)}" y1="${padTop}" x2="${xFor(selectedMonthIdx).toFixed(1)}" y2="${height-padBottom}" style="stroke:var(--gold); stroke-width:1; stroke-dasharray:3,3; opacity:0.55;"></line>`
+    : '';
+
+  let labels = '';
+  MONTHS.forEach((mo,i)=>{
+    const isSelected = viewMode==='year' ? true : i===selectedMonthIdx;
+    labels += `<text x="${xFor(i).toFixed(1)}" y="${height-6}" text-anchor="middle" font-size="9.5" style="fill:${isSelected?'var(--gold-bright)':'var(--text-faint)'}; font-family:var(--sans); font-weight:${isSelected?'700':'400'};">${mo}</text>`;
+  });
+
+  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block; max-height:200px;">
+    ${gridlines}
+    ${guide}
+    ${paths}
+    ${dots}
+    ${labels}
+  </svg>`;
+}
+
+function renderDashboard(c){
+  const years = yearOptions();
+  const y = state.ui.dashYear, m = state.ui.dashMonth;
+  const viewMode = state.ui.dashViewMode || 'month';
+  const totals = periodTrackedTotals(y, viewMode, m);
+
+  // Prior period for comparison: previous month (month view) or previous year (year view)
+  let priorY = y, priorM = m;
+  if(viewMode==='year'){ priorY = y-1; }
+  else { priorM = m-1; if(priorM<0){ priorM = 11; priorY = y-1; } }
+  const priorTotals = periodTrackedTotals(priorY, viewMode, priorM);
+  function periodChangeHTML(type){
+    const cur = sumType(totals[type]);
+    const prior = sumType(priorTotals[type]);
+    if(prior<=0) return '';
+    const chg = ((cur-prior)/prior)*100;
+    const good = type==='Expenses' ? chg<0 : chg>0;
+    const cls = chg===0 ? 'muted' : (good ? 'pos' : 'neg');
+    return ` <span class="${cls}" style="font-size:13px; font-weight:600;">(${chg>=0?'+':''}${chg.toFixed(1)}%)</span>`;
+  }
+  const threshold = Number(state.settings.weeklyThreshold)||300;
+
+  const breakdownSections = TYPES.map(type=>{
+    const cats = state.categories[type];
+    const rows = cats.map(cat=>{
+      const tracked = totals[type][cat]||0;
+      const budget = periodBudget(y, type, cat, viewMode, m);
+      const p = pct(tracked, budget);
+      const remaining = budget - tracked;
+      return {cat, tracked, budget, p, remaining};
+    }).filter(r=> r.tracked!==0 || r.budget!==0)
+      .sort((a,b)=> b.tracked - a.tracked);
+
+    const totalTracked = sumType(totals[type]);
+    const totalBudget = cats.reduce((s,cat)=> s+periodBudget(y,type,cat,viewMode,m), 0);
+    const maxTracked = Math.max(1, ...rows.map(r=>r.tracked));
+
+    return `
+      <div class="section-title">${type} <span class="muted" style="font-size:13px;">— tracked ${moneyWhole(totalTracked)} / budget ${moneyWhole(totalBudget)}</span></div>
+      <div class="card card-${type}">
+        ${rows.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No ${type.toLowerCase()} recorded or budgeted for this ${viewMode}.</div>` : `
+        <div class="plan-table-wrap">
+        <table class="data">
+          <thead><tr><th>Category</th><th class="num">Tracked</th><th class="num">Budget</th><th class="num">%</th><th class="num">Remaining</th><th class="num">Excess</th></tr></thead>
+          <tbody>
+            ${rows.map(r=>{
+              let barClass = 'neutral', barWidth = Math.min(100, (r.tracked/maxTracked)*100);
+              if(r.budget>0){
+                const ratio = r.tracked / r.budget;
+                barWidth = Math.min(100, ratio*100);
+                barClass = ratio >= 1 ? 'over' : (ratio >= 0.8 ? 'near' : '');
+              }
+              return `
+              <tr>
+                <td>${r.cat}
+                  <div class="bar-wrap"><div class="bar-fill ${barClass}" style="width:${barWidth}%"></div></div>
+                </td>
+                <td class="num">${moneyWhole(r.tracked)}</td>
+                <td class="num muted">${r.budget ? moneyWhole(r.budget) : '—'}</td>
+                <td class="num">${r.p===null ? '—' : (r.p*100).toFixed(0)+'%'}</td>
+                <td class="num">${r.budget && r.remaining>0 ? moneyWhole(r.remaining) : '—'}</td>
+                <td class="num ${r.remaining<0?'neg':''}">${r.budget && r.remaining<0 ? moneyWhole(Math.abs(r.remaining)) : '—'}</td>
+              </tr>
+            `;}).join('')}
+          </tbody>
+        </table>
+        </div>`}
+      </div>
+    `;
+  }).join('');
+
+  const summaryDonuts = TYPES.map(type=>{
+    const cats = state.categories[type];
+    const rows = cats.map(cat=>({cat, tracked: totals[type][cat]||0}));
+    const totalTracked = sumType(totals[type]);
+    if(totalTracked<=0) return `<div class="section-title">${type} <span class="muted" style="font-size:13px;">— no ${type.toLowerCase()} tracked yet</span></div><div class="card card-${type}"><div class="empty-state"><div class="glyph">·</div>Nothing tracked for this ${viewMode} yet.</div></div>`;
+    return `
+      <div class="section-title">${type} <span class="muted" style="font-size:13px;">— categories tracked</span></div>
+      <div class="card card-${type}">${donutLegendHTML(type, buildDonutSegments(type, rows), totalTracked).replace('border-bottom:1px solid var(--border);','').replace('padding-bottom:12px; margin-bottom:12px;','')}</div>
+    `;
+  }).join('');
+
+  const rate = state.settings.savingsRateType==='active'
+    ? pct(sumType(totals.Savings), sumType(totals.Income))
+    : pct(sumType(totals.Income)-sumType(totals.Expenses), sumType(totals.Income));
+
+  const weeks = weeklyExpenseRows(); // index 0 = current week ... index 4 = 4 weeks ago
+  const currentWeek = weeks[0];
+  const priorFour = weeks.slice(1,5);
+  const avgLast4 = priorFour.reduce((s,w)=>s+w.total,0) / (priorFour.length || 1);
+  const vsAvgPct = avgLast4 > 0 ? ((currentWeek.total - avgLast4) / avgLast4) * 100 : null;
+
+  const periodProgress = periodProgressPct(y, viewMode, m);
+  const periodBalance = sumType(totals.Income) - sumType(totals.Expenses) - sumType(totals.Savings);
+  const trendSeries = state.ui.trendSeries || { Budget:true, Income:true, Expenses:true, Savings:true };
+  const lineSeries = state.ui.lineSeries || { Income:true, Expenses:true, Savings:true };
+
+  c.innerHTML = `
+    <h1 class="page-title">Dashboard</h1>
+    <div class="page-sub">Budget vs. actual for the selected ${viewMode}.</div>
+    <div class="toolbar">
+      <label class="field">View
+        <select id="dashViewMode">
+          <option value="month" ${viewMode==='month'?'selected':''}>Specific month</option>
+          <option value="year" ${viewMode==='year'?'selected':''}>Whole year</option>
+        </select>
+      </label>
+      <label class="field">Year
+        <select id="dashYear">${years.map(yr=>`<option value="${yr}" ${yr===y?'selected':''}>${yr}</option>`).join('')}</select>
+      </label>
+      <label class="field" id="dashMonthWrap" ${viewMode==='year'?'style="opacity:0.4;"':''}>Month
+        <select id="dashMonth" ${viewMode==='year'?'disabled':''}>${MONTHS.map((mo,i)=>`<option value="${i}" ${i===m?'selected':''}>${mo}</option>`).join('')}</select>
+      </label>
+      <div class="spacer"></div>
+      <button class="btn secondary" id="dashThisMonth">Jump to this month</button>
+    </div>
+
+    <div class="row" style="margin-bottom:8px; align-items:stretch;">
+      <div class="row" style="flex:3 1 420px; margin:0;">
+        <div class="card metric"><h3>Income</h3><div class="big pos">${moneyWhole(sumType(totals.Income))}${periodChangeHTML('Income')}</div><div class="cap">tracked this period vs prior ${viewMode}</div></div>
+        <div class="card metric"><h3>Expenses</h3><div class="big neg">${moneyWhole(sumType(totals.Expenses))}${periodChangeHTML('Expenses')}</div><div class="cap">tracked this period vs prior ${viewMode}</div></div>
+        <div class="card metric"><h3>Savings</h3><div class="big" style="color:var(--blue-bright)">${moneyWhole(sumType(totals.Savings))}${periodChangeHTML('Savings')}</div><div class="cap">tracked this period vs prior ${viewMode}</div></div>
+        <div class="card metric"><h3>Savings Rate</h3><div class="big" style="color:var(--blue-bright)">${rate===null?'—':(rate*100).toFixed(1)+'%'}</div><div class="cap">${state.settings.savingsRateType==='active'?'savings ÷ income':'(income − expenses) ÷ income'}</div></div>
+      </div>
+      <div class="card metric" style="flex:1 1 200px;">
+        <h3>This week's spending</h3>
+        <div class="big neg">${moneyWhole(currentWeek.total)}</div>
+        <div class="cap">${currentWeek.start} → ${currentWeek.end}</div>
+        <div style="margin-top:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span class="week-badge ${currentWeek.total>threshold?'over':'under'}">${currentWeek.total>threshold?'Over threshold':'Under threshold'}</span>
+          ${vsAvgPct===null ? '' : `<span class="muted" style="font-size:11.5px;">${vsAvgPct>=0?'+':''}${vsAvgPct.toFixed(0)}% vs 4-wk avg</span>`}
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-bottom:8px;">
+      <div class="card metric">
+        <h3>Period Progress</h3>
+        <div class="big" style="color:var(--gold-bright)">${periodProgress}%</div>
+        <div class="cap">of ${viewMode==='year'?'the year':'the month'} elapsed by date</div>
+        <div class="bar-wrap" style="margin-top:8px;"><div class="bar-fill" style="width:${periodProgress}%; background:var(--gold);"></div></div>
+      </div>
+      <div class="card metric">
+        <h3>Tracking Balance</h3>
+        <div class="big ${periodBalance<0?'neg':'pos'}">${moneyWhole(Math.abs(periodBalance))}</div>
+        <div class="cap">${periodBalance>=0 ? 'of tracked income left to allocate' : 'allocated more than tracked income'}</div>
+      </div>
+    </div>
+
+    <div class="section-title" style="font-size:13px; letter-spacing:1px; text-transform:uppercase; color:var(--text-dim); font-family:var(--sans);">Breakdown vs. Summary — ${viewMode==='year' ? y : MONTHS[m]+' '+y}</div>
+    <div class="dash-columns">
+      <div class="dash-col">
+        ${breakdownSections}
+      </div>
+      <div class="dash-col">
+        ${summaryDonuts}
+      </div>
+      <div class="dash-col">
+        <div class="section-title">Monthly trend <span class="muted" style="font-size:13px;">— tracked vs. budget across ${y}</span></div>
+        <div class="card">
+          <div class="toolbar" style="margin-bottom:6px;">
+            ${['Budget','Income','Expenses','Savings'].map(k=>{
+              const swatch = k==='Budget' ? 'var(--text-faint)' : k==='Income' ? 'var(--green)' : k==='Expenses' ? 'var(--pink)' : 'var(--blue-bright)';
+              const label = k==='Budget' ? 'Budget shading' : k;
+              return `<label style="display:flex; align-items:center; gap:6px; font-size:12.5px;">
+                <input type="checkbox" data-trendseries="${k}" ${trendSeries[k]?'checked':''}>
+                <span style="width:9px;height:9px;border-radius:2px;display:inline-block;background:${swatch};"></span>${label}
+              </label>`;
+            }).join('')}
+          </div>
+          ${monthlyTrendSVG(y, trendSeries, m, viewMode)}
+        </div>
+
+        <div class="section-title">Actuals over time <span class="muted" style="font-size:13px;">— tracked amount by month</span></div>
+        <div class="card">
+          <div class="toolbar" style="margin-bottom:6px;">
+            ${['Income','Expenses','Savings'].map(k=>{
+              const swatch = k==='Income' ? 'var(--green)' : k==='Expenses' ? 'var(--pink)' : 'var(--blue-bright)';
+              return `<label style="display:flex; align-items:center; gap:6px; font-size:12.5px;">
+                <input type="checkbox" data-lineseries="${k}" ${lineSeries[k]?'checked':''}>
+                <span style="width:9px;height:9px;border-radius:2px;display:inline-block;background:${swatch};"></span>${k}
+              </label>`;
+            }).join('')}
+          </div>
+          ${monthlyLineSVG(y, lineSeries, m, viewMode)}
+        </div>
+
+        <div class="section-title">Weekly expenses <span class="muted" style="font-size:13px;">— Mon-Sun, current week first</span></div>
+        <div class="card">
+          <div class="toolbar" style="margin-bottom:12px;">
+            <label class="field">Alert threshold
+              <input type="number" id="weekThreshold" step="10" min="0" value="${threshold}" style="width:90px;">
+            </label>
+          </div>
+          <div class="muted" style="font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Avg of prior 4 weeks</div>
+          <div style="font-size:16px; margin-bottom:10px;">${moneyWhole(avgLast4)}</div>
+          <table class="data">
+            <thead><tr><th>Start</th><th>End</th><th class="num">Spent</th><th class="num">vs Prior Wk</th><th>Status</th></tr></thead>
+            <tbody>
+              ${weeks.map((w,i)=>`
+                <tr class="week-row ${w.total>threshold?'over':''}">
+                  <td class="muted">${w.start}${i===0?' <span class="pill Income" style="margin-left:4px;">Now</span>':''}</td>
+                  <td class="muted">${w.end}</td>
+                  <td class="num">${moneyWhole(w.total)}</td>
+                  <td class="num ${w.pctChange===null?'muted':(w.pctChange>0?'neg':(w.pctChange<0?'pos':'muted'))}">${w.pctChange===null?'—':(w.pctChange>=0?'+':'')+w.pctChange.toFixed(2)+'%'}</td>
+                  <td><span class="week-badge ${w.total>threshold?'over':'under'}">${w.total>threshold?'Over':'Under'}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="section-title" style="font-size:13px; margin-top:16px;">Exclude from weekly total</div>
+          <div class="muted" style="font-size:11.5px; margin-bottom:8px;">Check any expense category (e.g. Rent) to leave it out of the weekly totals above.</div>
+          <div style="display:flex; flex-direction:column;">
+            ${state.categories.Expenses.map(cat=>{
+              const excluded = (state.settings.weeklyExcludedCategories||[]).includes(cat);
+              return `<label style="display:flex; align-items:center; gap:7px; font-size:12px; padding:3px 0;">
+                <input type="checkbox" data-weekexcl="${cat}" ${excluded?'checked':''}> ${cat}
+              </label>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('dashViewMode').onchange = e=>{ state.ui.dashViewMode = e.target.value; saveState(); render(); };
+  document.getElementById('dashYear').onchange = e=>{ state.ui.dashYear = Number(e.target.value); saveState(); render(); };
+  document.getElementById('dashMonth').onchange = e=>{ state.ui.dashMonth = Number(e.target.value); saveState(); render(); };
+  document.getElementById('dashThisMonth').onclick = ()=>{ state.ui.dashYear=TODAY.getFullYear(); state.ui.dashMonth=TODAY.getMonth(); state.ui.dashViewMode='month'; saveState(); render(); };
+  document.getElementById('weekThreshold').onchange = e=>{ state.settings.weeklyThreshold = Number(e.target.value)||300; saveState(); render(); };
+  c.querySelectorAll('[data-weekexcl]').forEach(cb=>{
+    cb.onchange = ()=>{
+      const cat = cb.dataset.weekexcl;
+      const list = new Set(state.settings.weeklyExcludedCategories||[]);
+      if(cb.checked) list.add(cat); else list.delete(cat);
+      state.settings.weeklyExcludedCategories = [...list];
+      saveState(); render();
+    };
+  });
+  c.querySelectorAll('[data-trendseries]').forEach(cb=>{
+    cb.onchange = ()=>{
+      state.ui.trendSeries = state.ui.trendSeries || { Budget:true, Income:true, Expenses:true, Savings:true };
+      state.ui.trendSeries[cb.dataset.trendseries] = cb.checked;
+      saveState(); render();
+    };
+  });
+  c.querySelectorAll('[data-lineseries]').forEach(cb=>{
+    cb.onchange = ()=>{
+      state.ui.lineSeries = state.ui.lineSeries || { Income:true, Expenses:true, Savings:true };
+      state.ui.lineSeries[cb.dataset.lineseries] = cb.checked;
+      saveState(); render();
+    };
+  });
+}
+
+function yearOptions(){
+  const start = state.settings.startingYear;
+  const years = new Set([start, TODAY.getFullYear()]);
+  Object.keys(state.planning).forEach(y=>years.add(Number(y)));
+  state.transactions.forEach(tx=>years.add(new Date(tx.date).getFullYear()));
+  const arr = [...years].sort((a,b)=>a-b);
+  // pad a few future years for planning convenience
+  const maxY = Math.max(...arr);
+  for(let y=maxY+1; y<=maxY+3; y++) arr.push(y);
+  return arr;
+}
+
+/* =========================================================
+   TRANSACTIONS
+========================================================= */
+function renderTransactions(c){
+  const filterType = state.ui.txFilterType || 'All';
+  const filterMonth = state.ui.txFilterMonth ?? 'All';
+  const search = state.ui.txSearch || '';
+
+  let rows = transactionsWithBalance();
+  if(filterType!=='All') rows = rows.filter(r=>r.type===filterType);
+  if(filterMonth!=='All'){
+    rows = rows.filter(r=> r.date.slice(0,7) === filterMonth);
+  }
+  if(search) rows = rows.filter(r=> (r.details||'').toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase()));
+
+  const monthsPresent = [...new Set(state.transactions.map(t=>t.date.slice(0,7)))].sort().reverse();
+
+  // Top summary stats
+  const todayISO = isoDate(TODAY);
+  const sortedAll = sortedTransactions(); // ascending by date
+  const lastRecord = sortedAll.length ? sortedAll[sortedAll.length-1] : null;
+  const totalRecords = state.transactions.length;
+  const thisYearRecords = state.transactions.filter(t=> t.date.slice(0,4)===String(TODAY.getFullYear())).length;
+  const allTimeBalance = state.transactions.reduce((s,t)=>{
+    if(t.type==='Income') return s+Number(t.amount);
+    return s-Number(t.amount);
+  }, 0);
+  const daysAgo = lastRecord ? Math.round((new Date(todayISO+'T00:00:00') - new Date(lastRecord.date+'T00:00:00'))/86400000) : null;
+
+  c.innerHTML = `
+    <h1 class="page-title">Transactions</h1>
+    <div class="page-sub">Every income, expense, and savings entry — the source of truth for the dashboard.</div>
+
+    <div class="row" style="margin-bottom:14px;">
+      <div class="card metric">
+        <h3>Date of Today</h3>
+        <div class="big" style="font-size:17px;">${formatDateShort(todayISO)}</div>
+      </div>
+      <div class="card metric">
+        <h3>Date of Last Record</h3>
+        <div class="big" style="font-size:17px;">${lastRecord ? formatDateShort(lastRecord.date) : '—'}</div>
+        <div class="cap">${lastRecord ? `${daysAgo} days ago` : 'No records yet'}</div>
+      </div>
+      <div class="card metric">
+        <h3>No of Tracked Record</h3>
+        <div class="big" style="font-size:17px;">${totalRecords}</div>
+        <div class="cap">${thisYearRecords} this year</div>
+      </div>
+      <div class="card metric">
+        <h3>Lifetime Tracking Balance</h3>
+        <div class="big ${allTimeBalance<0?'neg':'pos'}" style="font-size:17px;">${moneyWhole(Math.abs(allTimeBalance))}</div>
+        <div class="cap">${allTimeBalance>=0 ? 'of tracked income left to be allocated' : 'allocated more than tracked income'}</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <select id="txType">
+        <option ${filterType==='All'?'selected':''}>All</option>
+        ${TYPES.map(t=>`<option ${filterType===t?'selected':''}>${t}</option>`).join('')}
+      </select>
+      <select id="txMonth">
+        <option value="All" ${filterMonth==='All'?'selected':''}>All months</option>
+        ${monthsPresent.map(mo=>`<option value="${mo}" ${filterMonth===mo?'selected':''}>${mo}</option>`).join('')}
+      </select>
+      <input type="text" id="txSearch" placeholder="Search details or category…" value="${search}">
+      <div class="spacer"></div>
+      <button class="btn secondary" id="exportCsvBtn">Export CSV</button>
+      <button class="btn" id="addTxBtn">+ Add transaction</button>
+    </div>
+    ${rows.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No transactions match. Add one to get started.</div>` : `
+    <table class="data">
+      <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Details</th><th class="num">Amount</th><th class="num">Balance</th><th></th></tr></thead>
+      <tbody>
+        ${rows.map(r=>`
+          <tr>
+            <td class="muted">${r.date}</td>
+            <td><span class="pill ${r.type}">${r.type}</span></td>
+            <td>${r.category}</td>
+            <td class="muted">${r.details||''}</td>
+            <td class="num ${r.type==='Income'?'pos':'neg'}">${r.type==='Income'?'+':'−'}${money(r.amount)}</td>
+            <td class="num">${money(r.balance)}</td>
+            <td>
+              <button class="icon-btn" style="color:var(--gold);" data-edit="${r.id}" title="Edit">✎</button>
+              <button class="icon-btn" data-del="${r.id}" title="Delete">✕</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`}
+  `;
+
+  document.getElementById('txType').onchange = e=>{ state.ui.txFilterType=e.target.value; saveState(); render(); };
+  document.getElementById('txMonth').onchange = e=>{ state.ui.txFilterMonth=e.target.value; saveState(); render(); };
+  document.getElementById('txSearch').oninput = e=>{ state.ui.txSearch=e.target.value; saveState(); render(); };
+  document.getElementById('addTxBtn').onclick = ()=> openTxModal();
+  document.getElementById('exportCsvBtn').onclick = exportTransactionsCSV;
+  c.querySelectorAll('[data-edit]').forEach(b=> b.onclick = ()=> openTxModal(b.dataset.edit));
+  c.querySelectorAll('[data-del]').forEach(b=> b.onclick = ()=>{
+    if(confirm('Delete this transaction?')){
+      state.transactions = state.transactions.filter(t=>t.id!==b.dataset.del);
+      saveState(); render();
+    }
+  });
+}
+
+function csvEscape(v){
+  const s = String(v==null ? '' : v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+}
+
+function exportTransactionsCSV(){
+  const rows = [...transactionsWithBalance()].reverse(); // oldest first for a natural ledger read
+  const header = ['Date','Type','Category','Details','Amount','Balance'];
+  const lines = [header.join(',')];
+  rows.forEach(r=>{
+    lines.push([r.date, r.type, r.category, csvEscape(r.details||''), r.amount, r.balance.toFixed(2)].join(','));
+  });
+  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  downloadBlob(blob, `transactions-${isoDate(TODAY)}.csv`);
+  toast('CSV exported.');
+}
+
+function openTxModal(editId){
+  const root = document.getElementById('modalRoot');
+  const existing = editId ? state.transactions.find(t=>t.id===editId) : null;
+  const type = existing ? existing.type : 'Expenses';
+  root.innerHTML = `
+    <div class="modal-backdrop" id="mb">
+      <div class="modal">
+        <h2>${existing ? 'Edit transaction' : 'Add transaction'}</h2>
+        <div class="form-grid">
+          <label class="field">Date <input type="date" id="fDate" value="${existing ? existing.date : isoDate(TODAY)}"></label>
+          <label class="field">Type
+            <select id="fType">${TYPES.map(t=>`<option ${t===type?'selected':''}>${t}</option>`).join('')}</select>
+          </label>
+          <label class="field">Category <select id="fCat"></select></label>
+          <label class="field">Amount <input type="number" id="fAmt" min="0" step="0.01" inputmode="decimal" placeholder="0.00" value="${existing ? existing.amount : ''}"></label>
+          <label class="field">Details <input type="text" id="fDetails" placeholder="Merchant, note…" value="${existing ? (existing.details||'') : ''}"></label>
+        </div>
+        <div class="form-actions">
+          <button class="btn secondary" id="fCancel">Cancel</button>
+          <button class="btn" id="fSave">${existing ? 'Save changes' : 'Save'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  function fillCats(){
+    const t = document.getElementById('fType').value;
+    document.getElementById('fCat').innerHTML = state.categories[t].map(cat=>`<option ${existing && existing.category===cat ? 'selected':''}>${cat}</option>`).join('');
+  }
+  fillCats();
+  document.getElementById('fType').onchange = fillCats;
+  document.getElementById('fCancel').onclick = ()=> root.innerHTML='';
+  document.getElementById('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
+  document.getElementById('fSave').onclick = ()=>{
+    const date = document.getElementById('fDate').value;
+    const t = document.getElementById('fType').value;
+    const cat = document.getElementById('fCat').value;
+    const amt = Number(document.getElementById('fAmt').value);
+    const details = document.getElementById('fDetails').value.trim();
+    if(!date || !amt || amt<=0){ toast('Enter a date and an amount greater than 0.'); return; }
+    if(existing){
+      Object.assign(existing, {date, type:t, category:cat, amount:amt, details});
+      toast('Transaction updated.');
+    } else {
+      state.transactions.push({id:uid(), date, type:t, category:cat, amount:amt, details});
+      toast('Transaction added.');
+    }
+    saveState(); root.innerHTML=''; render();
+  };
+}
+
+/* =========================================================
+   PLANNING
+========================================================= */
+function renderPlanning(c){
+  const y = state.ui.planYear;
+  const years = yearOptions();
+  ensurePlanningYear(y);
+
+  // Actual tracked amounts per type/month, used to highlight budget cells
+  const monthlyActuals = {};
+  TYPES.forEach(t=>{
+    monthlyActuals[t] = [];
+    for(let mi=0; mi<12; mi++) monthlyActuals[t].push(trackedTotals(y, mi)[t]);
+  });
+
+  function typeTable(type){
+    const excluded = new Set(state.settings.excludedFromSummary || []);
+    const cats = state.categories[type];
+    const monthTotals = new Array(12).fill(0);
+    const rows = cats.map(cat=>{
+      const isSpecial = excluded.has(`${type}|||${cat}`);
+      const arr = state.planning[y][type][cat];
+      arr.forEach((v,i)=> monthTotals[i]+= Number(v)||0);
+      const rowTotal = arr.reduce((a,b)=>a+(Number(b)||0),0);
+      const cells = arr.map((v,i)=>{
+        const budget = Number(v)||0;
+        const actual = monthlyActuals[type][i][cat] || 0;
+        let cls = '';
+        if(budget>0 && actual>0){
+          const isOnBudget = Math.abs(actual-budget) < 0.005;
+          if(type==='Expenses') cls = actual>budget && !isOnBudget ? 'pinput-over' : (isOnBudget ? 'pinput-met' : (actual/budget>=0.8 ? 'pinput-near' : ''));
+          else cls = actual>=budget ? 'pinput-met' : (actual/budget>=0.8 ? 'pinput-near' : '');
+        }
+        return `<td><input type="number" step="1" class="${cls}" value="${v||''}" placeholder="0" data-m="${i}" title="Actual so far: ${moneyWhole(actual)}"></td>`;
+      }).join('');
+      return `<tr data-cat="${cat}" data-type="${type}">
+        <td class="catname ${type}">${cat}${isSpecial?' <span class="muted" title="Special — excluded from graphs/donuts/breakdown totals" style="font-size:11px;">☆</span>':''}</td>
+        ${cells}
+        <td class="num" style="font-weight:600;">${moneyWhole(rowTotal)}</td>
+      </tr>`;
+    }).join('');
+    const grandTotal = monthTotals.reduce((a,b)=>a+b,0);
+    return `
+      <div class="section-title" style="color:${type==='Income'?'var(--green)':type==='Expenses'?'var(--pink)':'var(--blue-bright)'};">${type}</div>
+      <div class="card card-${type}"><div class="plan-table-wrap">
+      <table class="data plan">
+        <thead><tr><th>Category</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th class="num">Total</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr style="font-weight:600;"><td>Total</td>${monthTotals.map(v=>`<td class="num">${moneyWhole(v)}</td>`).join('')}<td class="num">${moneyWhole(grandTotal)}</td></tr></tfoot>
+      </table>
+      </div></div>
+    `;
+  }
+
+  // To-be-allocated: Income - Expenses - Savings, per month
+  const incT = new Array(12).fill(0), expT = new Array(12).fill(0), savT = new Array(12).fill(0);
+  state.categories.Income.forEach(cat=> state.planning[y].Income[cat].forEach((v,i)=> incT[i]+=Number(v)||0));
+  state.categories.Expenses.forEach(cat=> state.planning[y].Expenses[cat].forEach((v,i)=> expT[i]+=Number(v)||0));
+  state.categories.Savings.forEach(cat=> state.planning[y].Savings[cat].forEach((v,i)=> savT[i]+=Number(v)||0));
+  const toAllocate = incT.map((v,i)=> v - expT[i] - savT[i]);
+  const toAllocateTotal = toAllocate.reduce((a,b)=>a+b,0);
+
+  c.innerHTML = `
+    <h1 class="page-title">Planning</h1>
+    <div class="page-sub">Set your monthly budget per category. Add categories in Settings. The ☆ marks a category as Special — its transactions still count toward Transactions/Balance, but are left out of graphs, donuts, and breakdown totals (useful for things like an opening balance).</div>
+    <div class="toolbar">
+      <label class="field">Year
+        <select id="planYear">${years.map(yr=>`<option value="${yr}" ${yr===y?'selected':''}>${yr}</option>`).join('')}</select>
+      </label>
+      <div class="spacer"></div>
+      <div class="muted" style="font-size:11.5px; display:flex; gap:14px; align-items:center;">
+        <span><span style="display:inline-block;width:9px;height:9px;background:rgba(217,105,95,0.45);border-radius:2px;margin-right:4px;"></span>Expenses over budget</span>
+        <span><span style="display:inline-block;width:9px;height:9px;background:rgba(34,197,94,0.45);border-radius:2px;margin-right:4px;"></span>Income/Savings goal met</span>
+        <span><span style="display:inline-block;width:9px;height:9px;background:rgba(201,162,39,0.4);border-radius:2px;margin-right:4px;"></span>Approaching (80%+)</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>To be allocated (Income − Expenses − Savings)</h3>
+      <div class="plan-table-wrap">
+      <table class="data plan">
+        <thead><tr><th>Category</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th class="num">Total</th></tr></thead>
+        <tbody><tr>
+          <td class="catname">To be allocated</td>
+          ${toAllocate.map(v=>{
+            const isZero = Math.abs(v) < 0.005;
+            return isZero
+              ? `<td class="pos" style="text-align:center;">Done ✓</td>`
+              : `<td class="${v<0?'neg':'pos'}" style="text-align:center; font-family:var(--mono);">${moneyWhole(v)}</td>`;
+          }).join('')}
+          <td class="num" style="font-weight:600;">${moneyWhole(toAllocateTotal)}</td>
+        </tr></tbody>
+      </table>
+      </div>
+      <div class="muted" style="font-size:11.5px; margin-top:8px;">"Done ✓" means every dollar of planned income that month is allocated to Expenses or Savings.</div>
+    </div>
+    ${typeTable('Income')}
+    ${typeTable('Expenses')}
+    ${typeTable('Savings')}
+  `;
+
+  document.getElementById('planYear').onchange = e=>{ state.ui.planYear = Number(e.target.value); saveState(); render(); };
+  c.querySelectorAll('table.plan tbody input').forEach(inp=>{
+    inp.onchange = ()=>{
+      const tr = inp.closest('tr');
+      const type = tr.dataset.type, cat = tr.dataset.cat, m = Number(inp.dataset.m);
+      ensurePlanningYear(y);
+      state.planning[y][type][cat][m] = Number(inp.value)||0;
+      saveState(); render();
+    };
+  });
+}
+
+/* =========================================================
+   NET WORTH
+========================================================= */
+/* Sum of all Savings-type transactions in a given category, all-time (by actual transaction date) */
+const NET_WORTH_CURRENCIES = ['AUD','THB','USD'];
+const CURRENCY_SYMBOLS = { AUD:'$', THB:'฿', USD:'US$' };
+
+/* A "unit" is either an account (no sub-categories) or a sub-category — both have
+   openingBalance + openingDate + history, and can be reconstructed as of any date.
+   Balances are always in the account's own currency; convert with toAUD() for totals/graphs. */
+function unitBalanceAsOf(unit, dateISO){
+  const opening = Number(unit.openingBalance)||0;
+  const histSum = (unit.history||[]).filter(h=> h.date<=dateISO).reduce((s,h)=> s+(Number(h.delta)||0), 0);
+  return opening + histSum;
+}
+
+function accountBalanceAsOf(account, dateISO){
+  if(account.subCategories && account.subCategories.length){
+    return account.subCategories.reduce((s,sub)=> s+unitBalanceAsOf(sub, dateISO), 0);
+  }
+  return unitBalanceAsOf(account, dateISO);
+}
+
+/* An account's live balance, in its own currency — its opening balance + adjustments
+   since, or, if split into sub-categories, their sum. */
+function computeAccountBalance(a){
+  return accountBalanceAsOf(a, isoDate(TODAY));
+}
+
+/* Convert an amount from a given currency into AUD using the latest fetched FX rates.
+   Falls back to 1:1 if rates haven't loaded yet (e.g. offline on first run). */
+function toAUD(amount, currency){
+  if(!currency || currency==='AUD') return amount;
+  const rate = state.fxRates && state.fxRates[currency];
+  return rate ? amount/rate : amount;
+}
+
+/* Inverse of toAUD — convert an AUD amount into another currency (e.g. for a portfolio target set in THB). */
+function fromAUD(amountAUD, currency){
+  if(!currency || currency==='AUD') return amountAUD;
+  const rate = state.fxRates && state.fxRates[currency];
+  return rate ? amountAUD*rate : amountAUD;
+}
+
+function accountBalanceAUD(a, dateISO){
+  const d = dateISO || isoDate(TODAY);
+  if(a.subCategories && a.subCategories.length){
+    return a.subCategories.reduce((s,sub)=> s + toAUD(unitBalanceAsOf(sub, d), sub.currency||a.currency), 0);
+  }
+  return toAUD(unitBalanceAsOf(a, d), a.currency);
+}
+
+function moneyCur(amount, currency){
+  const sym = CURRENCY_SYMBOLS[currency] || '$';
+  const v = Number(amount)||0;
+  const sign = v<0 ? '-' : '';
+  const abs = Math.abs(Math.round(v)).toLocaleString();
+  return `${sign}${sym}${abs}`;
+}
+
+function netWorthAUD(){
+  return state.accounts.reduce((sum,a)=> sum + accountBalanceAUD(a), 0);
+}
+
+function netWorthAsOf(dateISO){
+  return state.accounts.reduce((sum,a)=> sum + accountBalanceAUD(a, dateISO), 0);
+}
+
+/* Fetch AUD->THB/USD rates from a free, no-key, CORS-enabled API. Refreshes at most
+   once every 24h unless forced (e.g. a manual "Refresh rates" click). */
+async function refreshFxRates(force){
+  const stale = !state.fxRates || !state.fxRates.fetchedAt || (Date.now() - new Date(state.fxRates.fetchedAt).getTime()) > 24*60*60*1000;
+  if(!force && !stale) return;
+
+  // Try frankfurter.app first, then a second free API if that fails for any reason.
+  const attempts = [
+    async ()=>{
+      const res = await fetch('https://api.frankfurter.app/latest?from=AUD&to=THB,USD');
+      if(!res.ok) throw new Error('frankfurter.app HTTP '+res.status);
+      const data = await res.json();
+      if(!data.rates || !data.rates.THB || !data.rates.USD) throw new Error('frankfurter.app: unexpected response');
+      return { THB: data.rates.THB, USD: data.rates.USD };
+    },
+    async ()=>{
+      const res = await fetch('https://open.er-api.com/v6/latest/AUD');
+      if(!res.ok) throw new Error('open.er-api.com HTTP '+res.status);
+      const data = await res.json();
+      if(!data.rates || !data.rates.THB || !data.rates.USD) throw new Error('open.er-api.com: unexpected response');
+      return { THB: data.rates.THB, USD: data.rates.USD };
+    }
+  ];
+
+  let lastError = null;
+  for(const attempt of attempts){
+    try{
+      const rates = await attempt();
+      state.fxRates = { THB: rates.THB, USD: rates.USD, fetchedAt: new Date().toISOString() };
+      saveState();
+      if(state.ui.activeTab==='networth') render();
+      if(force) toast('Exchange rates updated.');
+      return;
+    }catch(e){ lastError = e; }
+  }
+
+  console.error('Could not refresh FX rates from any source', lastError);
+  if(force){
+    const hint = location.protocol==='file:'
+      ? ' This page is open as a local file — some browsers block outside network requests from local files. Try "Enter rates manually" below, or open this file through a local web server instead.'
+      : '';
+    toast(`Could not refresh exchange rates (${lastError && lastError.message ? lastError.message : 'unknown error'}).${hint}`);
+  }
+}
+
+function openManualFxModal(){
+  const root = document.getElementById('modalRoot');
+  const fx = state.fxRates || {};
+  root.innerHTML = `
+    <div class="modal-backdrop" id="mb">
+      <div class="modal">
+        <h2>Enter exchange rates manually</h2>
+        <div class="page-sub">Units of each currency per 1 AUD. Use this if automatic refresh doesn't work in your browser/network.</div>
+        <div class="form-grid">
+          <label class="field">THB per 1 AUD <input type="number" id="mfxThb" step="0.0001" min="0.0001" value="${fx.THB||''}" placeholder="e.g. 21.5"></label>
+          <label class="field">USD per 1 AUD <input type="number" id="mfxUsd" step="0.0001" min="0.0001" value="${fx.USD||''}" placeholder="e.g. 0.65"></label>
+        </div>
+        <div class="form-actions">
+          <button class="btn secondary" id="fCancel">Cancel</button>
+          <button class="btn" id="fSave">Save</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('fCancel').onclick = ()=> root.innerHTML='';
+  document.getElementById('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
+  document.getElementById('fSave').onclick = ()=>{
+    const thb = Number(document.getElementById('mfxThb').value);
+    const usd = Number(document.getElementById('mfxUsd').value);
+    if(!thb || !usd || thb<=0 || usd<=0){ toast('Enter a positive rate for both currencies.'); return; }
+    state.fxRates = { THB: thb, USD: usd, fetchedAt: new Date().toISOString() };
+    saveState(); root.innerHTML=''; render(); toast('Exchange rates saved.');
+  };
+}
+
+function openPortfolioTargetModal(){
+  const root = document.getElementById('modalRoot');
+  const pt = state.portfolioTarget || { amount:null, currency:'AUD' };
+  root.innerHTML = `
+    <div class="modal-backdrop" id="mb">
+      <div class="modal">
+        <h2>Portfolio target</h2>
+        <div class="page-sub">One overall goal for your whole net worth (all accounts combined), in whichever currency makes sense to you — separate from any individual account targets.</div>
+        <div class="form-grid">
+          <label class="field">Target amount <input type="number" id="ptAmount" min="0" step="0.01" inputmode="decimal" value="${pt.amount||''}" placeholder="e.g. 3000000"></label>
+          <label class="field">Currency
+            <select id="ptCurrency">${NET_WORTH_CURRENCIES.map(cur=>`<option ${cur===pt.currency?'selected':''}>${cur}</option>`).join('')}</select>
+          </label>
+        </div>
+        <div class="form-actions">
+          ${pt.amount ? `<button class="btn danger" id="fRemove">Remove target</button>` : ''}
+          <button class="btn secondary" id="fCancel">Cancel</button>
+          <button class="btn" id="fSave">Save</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('fCancel').onclick = ()=> root.innerHTML='';
+  document.getElementById('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
+  const removeBtn = document.getElementById('fRemove');
+  if(removeBtn) removeBtn.onclick = ()=>{
+    state.portfolioTarget = { amount:null, currency: pt.currency };
+    saveState(); root.innerHTML=''; render(); toast('Portfolio target removed.');
+  };
+  document.getElementById('fSave').onclick = ()=>{
+    const amount = Number(document.getElementById('ptAmount').value);
+    if(!amount || amount<=0){ toast('Enter an amount greater than 0.'); return; }
+    state.portfolioTarget = { amount, currency: document.getElementById('ptCurrency').value };
+    saveState(); root.innerHTML=''; render(); toast('Portfolio target saved.');
+  };
+}
+
+/* For an account split into sub-categories (mixed currencies), the target needs its
+   own currency choice — a bare prompt() can't capture two fields, so this gets a modal. */
+function openAccountTargetModal(accId){
+  const acc = state.accounts.find(a=>a.id===accId);
+  if(!acc) return;
+  const root = document.getElementById('modalRoot');
+  const curNow = acc.targetCurrency || 'AUD';
+  root.innerHTML = `
+    <div class="modal-backdrop" id="mb">
+      <div class="modal">
+        <h2>Target — ${acc.name}</h2>
+        <div class="page-sub">This account is split into sub-categories in different currencies, so pick which currency this target is in — it'll compare against the account's AUD total, converted.</div>
+        <div class="form-grid">
+          <label class="field">Target amount <input type="number" id="atAmount" min="0" step="0.01" inputmode="decimal" value="${acc.target||''}" placeholder="e.g. 30000"></label>
+          <label class="field">Currency
+            <select id="atCurrency">${NET_WORTH_CURRENCIES.map(cur=>`<option ${cur===curNow?'selected':''}>${cur}</option>`).join('')}</select>
+          </label>
+        </div>
+        <div class="form-actions">
+          ${acc.target ? `<button class="btn danger" id="fRemove">Remove target</button>` : ''}
+          <button class="btn secondary" id="fCancel">Cancel</button>
+          <button class="btn" id="fSave">Save</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('fCancel').onclick = ()=> root.innerHTML='';
+  document.getElementById('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
+  const removeBtn = document.getElementById('fRemove');
+  if(removeBtn) removeBtn.onclick = ()=>{
+    acc.target = null;
+    saveState(); root.innerHTML=''; render(); toast('Target removed.');
+  };
+  document.getElementById('fSave').onclick = ()=>{
+    const amount = Number(document.getElementById('atAmount').value);
+    if(!amount || amount<=0){ toast('Enter an amount greater than 0.'); return; }
+    acc.target = amount;
+    acc.targetCurrency = document.getElementById('atCurrency').value;
+    saveState(); root.innerHTML=''; render(); toast('Target saved.');
+  };
+}
+
+
+
+const NET_WORTH_PALETTE = ['#c9a227','#3b82f6','#22c55e','#ec4899','#a855f7','#f59e0b','#14b8a6','#64748b'];
+
+function targetRowHTML(editKey, balance, target, currency){
+  const editBtn = `<button class="icon-btn" data-edittarget="${editKey}" style="font-size:10px; padding:1px 3px; flex-shrink:0;" title="${target?'Edit':'Set'} target">${target?'✎':'+ target'}</button>`;
+  if(!target || target<=0){
+    return `<div style="display:flex; align-items:center; gap:4px; margin-top:2px;">${editBtn}</div>`;
+  }
+  const pct = (balance/target)*100;
+  const displayPct = Math.max(0, Math.min(100, pct));
+  const reached = pct>=100;
+  return `
+    <div style="display:flex; align-items:center; gap:6px; margin-top:2px; max-width:260px;" title="${reached?'Goal reached':moneyCur(Math.max(0,target-balance),currency)+' to go'}">
+      <div class="bar-wrap" style="flex:1;"><div class="bar-fill" style="width:${displayPct}%; background:${reached?'var(--green)':'var(--blue-bright)'};"></div></div>
+      <span class="muted" style="font-size:10px; white-space:nowrap; flex-shrink:0;">${reached?'✓ ':''}${pct.toFixed(0)}% of ${moneyCur(target,currency)}</span>
+      ${editBtn}
+    </div>
+  `;
+}
+
+function buildNetWorthDonutSegments(){
+  const totals = {};
+  state.accounts.forEach(a=>{
+    const g = a.group || 'Other';
+    totals[g] = (totals[g]||0) + accountBalanceAUD(a);
+  });
+  return Object.entries(totals).filter(([g,v])=>v>0).sort((a,b)=>b[1]-a[1])
+    .map(([g,v],i)=>({ label:g, value:v, color: NET_WORTH_PALETTE[i%NET_WORTH_PALETTE.length] }));
+}
+
+function netWorthDonutHTML(){
+  const segments = buildNetWorthDonutSegments();
+  const total = segments.reduce((s,x)=>s+x.value,0);
+  if(total<=0) return `<div class="empty-state"><div class="glyph">·</div>Add an account to see your allocation.</div>`;
+  return `
+    <div style="display:flex; gap:20px; align-items:flex-start;">
+      ${renderDonut(segments)}
+      <div style="width:260px; max-width:100%;">
+        <div class="muted" style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Allocation by group</div>
+        ${segments.map(s=>`
+          <div style="display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:1px 0;">
+            <span style="display:flex; align-items:center; gap:6px; min-width:0; flex:1;">
+              <span style="width:8px; height:8px; border-radius:2px; background:${s.color}; flex-shrink:0; display:inline-block;"></span>
+              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${s.label}</span>
+            </span>
+            <span style="font-family:var(--mono); flex-shrink:0; width:70px; text-align:right;">${moneyWhole(s.value)}</span>
+            <span class="muted" style="font-family:var(--mono); flex-shrink:0; width:42px; text-align:right;">${((s.value/total)*100).toFixed(0)}%</span>
+          </div>
+        `).join('')}
+        <div style="display:flex; justify-content:space-between; border-top:1px solid var(--border); margin-top:4px; padding-top:4px; font-weight:600; font-size:12px;">
+          <span style="flex:1;">Total</span><span style="font-family:var(--mono); width:70px; text-align:right;">${moneyWhole(total)}</span><span style="width:42px; text-align:right;">100%</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* Investment accounts broken down by their sub-categories (or by account, if unsplit) —
+   with a filter to show all Investment accounts combined, or just one of them. */
+function buildInvestmentDonutSegments(filterAccId){
+  const invAccounts = state.accounts.filter(a=>(a.group||'Other')==='Investment');
+  const selected = (!filterAccId || filterAccId==='all') ? invAccounts : invAccounts.filter(a=>a.id===filterAccId);
+  const raw = [];
+  selected.forEach(a=>{
+    if(a.subCategories && a.subCategories.length){
+      a.subCategories.forEach(sub=>{
+        const bal = toAUD(unitBalanceAsOf(sub, isoDate(TODAY)), sub.currency||a.currency);
+        if(bal>0) raw.push({ label: sub.name, value: bal });
+      });
+    } else {
+      const bal = accountBalanceAUD(a);
+      if(bal>0) raw.push({ label: a.name, value: bal });
+    }
+  });
+  return raw.sort((a,b)=>b.value-a.value)
+    .map((s,i)=>({ label:s.label, value:s.value, color: NET_WORTH_PALETTE[i%NET_WORTH_PALETTE.length] }));
+}
+
+function investmentDonutHTML(){
+  const invAccounts = state.accounts.filter(a=>(a.group||'Other')==='Investment');
+  if(invAccounts.length===0) return '';
+  const filter = state.ui.investmentDonutFilter || 'all';
+  const segments = buildInvestmentDonutSegments(filter);
+  const total = segments.reduce((s,x)=>s+x.value,0);
+
+  const options = [{ id:'all', label:'Both / All' }, ...invAccounts.map(a=>({ id:a.id, label:a.name }))];
+
+  return `
+    <div class="section-title">Investment breakdown</div>
+    <div class="card">
+      <div class="toolbar" style="margin-bottom:12px; flex-wrap:wrap;">
+        ${options.map(o=>`
+          <label style="display:flex; align-items:center; gap:5px; font-size:12px;">
+            <input type="radio" name="invDonutFilter" value="${o.id}" data-invdonutfilter="${o.id}" ${filter===o.id?'checked':''}> ${o.label}
+          </label>
+        `).join('')}
+      </div>
+      ${total<=0 ? `<div class="empty-state"><div class="glyph">·</div>Nothing to show for this selection yet.</div>` : `
+      <div style="display:flex; gap:20px; align-items:flex-start;">
+        ${renderDonut(segments)}
+        <div style="width:260px; max-width:100%;">
+          <div class="muted" style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">${options.find(o=>o.id===filter).label}</div>
+          ${segments.map(s=>`
+            <div style="display:flex; justify-content:space-between; gap:10px; font-size:12px; padding:1px 0;">
+              <span style="display:flex; align-items:center; gap:6px; min-width:0; flex:1;">
+                <span style="width:8px; height:8px; border-radius:2px; background:${s.color}; flex-shrink:0; display:inline-block;"></span>
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${s.label}</span>
+              </span>
+              <span style="font-family:var(--mono); flex-shrink:0; width:70px; text-align:right;">${moneyWhole(s.value)}</span>
+              <span class="muted" style="font-family:var(--mono); flex-shrink:0; width:42px; text-align:right;">${((s.value/total)*100).toFixed(0)}%</span>
+            </div>
+          `).join('')}
+          <div style="display:flex; justify-content:space-between; border-top:1px solid var(--border); margin-top:4px; padding-top:4px; font-weight:600; font-size:12px;">
+            <span style="flex:1;">Total</span><span style="font-family:var(--mono); width:70px; text-align:right;">${moneyWhole(total)}</span><span style="width:42px; text-align:right;">100%</span>
+          </div>
+        </div>
+      </div>
+      `}
+    </div>
+  `;
+}
+
+/* Stacked bar chart: net worth by group, one bar per month, over the trailing 12 months */
+/* Earliest date any account/sub-category actually started being tracked */
+function earliestTrackingDateISO(){
+  let earliest = null;
+  state.accounts.forEach(a=>{
+    const units = (a.subCategories && a.subCategories.length) ? a.subCategories : [a];
+    units.forEach(u=>{
+      if(u.openingDate && (!earliest || u.openingDate<earliest)) earliest = u.openingDate;
+    });
+  });
+  return earliest;
+}
+
+function netWorthStackedSVG(toggle){
+  const groupsPresent = [...new Set(state.accounts.map(a=>a.group||'Other'))];
+  const active = groupsPresent.filter(g=> toggle[g]!==false);
+  const groupColor = {};
+  buildNetWorthDonutSegments().forEach(s=> groupColor[s.label]=s.color);
+  groupsPresent.forEach((g,i)=>{ if(!groupColor[g]) groupColor[g]=NET_WORTH_PALETTE[i%NET_WORTH_PALETTE.length]; });
+
+  // Only show months since the earliest account actually started being tracked —
+  // never invent history before that, and cap at 12 months for chart readability.
+  const earliestISO = earliestTrackingDateISO();
+  const earliestDate = earliestISO ? new Date(earliestISO+'T00:00:00') : TODAY;
+  const monthsSinceStart = (TODAY.getFullYear()-earliestDate.getFullYear())*12 + (TODAY.getMonth()-earliestDate.getMonth()) + 1;
+  const numMonths = Math.max(1, Math.min(12, monthsSinceStart));
+
+  const monthEnds = [];
+  for(let i=numMonths-1;i>=0;i--){
+    monthEnds.push(new Date(TODAY.getFullYear(), TODAY.getMonth()-i+1, 0));
+  }
+  const monthly = monthEnds.map(d=>{
+    const dISO = isoDate(d);
+    const row = {};
+    active.forEach(g=>{
+      row[g] = state.accounts.filter(a=>(a.group||'Other')===g).reduce((s,a)=> s+accountBalanceAUD(a,dISO), 0);
+    });
+    return row;
+  });
+
+  const rawMax = Math.max(1, ...monthly.map(mo=> active.reduce((s,g)=>s+Math.max(0,mo[g]),0)));
+  const maxVal = niceCeil(rawMax);
+  const width = 900, height = 178, padBottom = 22, padTop = 8, padLeft = 34;
+  const plotH = height - padBottom - padTop;
+  const plotW = width - padLeft;
+  const groupWidth = plotW/numMonths;
+  const barWidth = Math.max(6, Math.min(70, groupWidth - 8));
+
+  let gridlines = '';
+  for(let i=0;i<=4;i++){
+    const val = maxVal*i/4;
+    const y = height - padBottom - (val/maxVal)*plotH;
+    gridlines += `<line x1="${padLeft}" y1="${y.toFixed(1)}" x2="${width}" y2="${y.toFixed(1)}" style="stroke:var(--border); stroke-width:1; opacity:${i===0?1:0.5};"></line>`;
+    gridlines += `<text x="${(padLeft-6).toFixed(1)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="9" style="fill:var(--text-faint); font-family:var(--sans);">${formatAxisLabel(val)}</text>`;
+  }
+
+  let bars = '';
+  monthly.forEach((mo,gi)=>{
+    const x = padLeft + gi*groupWidth + (groupWidth-barWidth)/2;
+    let cursorY = height - padBottom;
+    active.forEach(g=>{
+      const val = Math.max(0, mo[g]);
+      const h = (val/maxVal)*plotH;
+      if(h>0.1){
+        cursorY -= h;
+        bars += `<rect x="${x.toFixed(1)}" y="${cursorY.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" style="fill:${groupColor[g]};"><title>${MONTHS[monthEnds[gi].getMonth()]} ${monthEnds[gi].getFullYear()} — ${g}: ${moneyWhole(val)}</title></rect>`;
+      }
+    });
+  });
+
+  let labels = '';
+  monthEnds.forEach((d,i)=>{
+    const x = padLeft + i*groupWidth + groupWidth/2;
+    const isCurrent = i===numMonths-1;
+    labels += `<text x="${x.toFixed(1)}" y="${height-6}" text-anchor="middle" font-size="9" style="fill:${isCurrent?'var(--gold-bright)':'var(--text-faint)'}; font-family:var(--sans); font-weight:${isCurrent?'700':'400'};">${MONTHS[d.getMonth()]}</text>`;
+  });
+
+  return { svg: `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block; max-height:200px;">
+    ${gridlines}
+    ${bars}
+    ${labels}
+  </svg>`, groupsPresent, groupColor };
+}
+
+function renderNetWorth(c){
+  const total = netWorthAUD();
+  const prevMonthEnd = new Date(TODAY.getFullYear(), TODAY.getMonth(), 0);
+  const prevTotal = netWorthAsOf(isoDate(prevMonthEnd));
+  const growthPct = prevTotal>0 ? ((total-prevTotal)/prevTotal)*100 : null;
+  const growthHTML = growthPct===null ? '' : ` <span class="${growthPct>=0?'pos':'neg'}" style="font-size:14px; font-weight:600;">(${growthPct>=0?'+':''}${growthPct.toFixed(1)}%)</span>`;
+
+  const groups = {};
+  state.accounts.forEach(a=>{
+    const g = a.group || 'Other';
+    (groups[g] = groups[g]||[]).push(a);
+  });
+
+  const stackToggle = state.ui.netWorthStack || {};
+  const { svg: stackedSvg, groupsPresent } = netWorthStackedSVG(stackToggle);
+
+  const fx = state.fxRates || {};
+  const fxAgeHTML = fx.fetchedAt
+    ? `THB ${fx.THB?fx.THB.toFixed(2):'—'} · USD ${fx.USD?fx.USD.toFixed(3):'—'} per AUD — updated ${formatDateShort(isoDate(new Date(fx.fetchedAt)))}`
+    : `Rates not loaded yet`;
+
+  const groupHtml = Object.entries(groups).map(([g,accs])=>{
+    const groupTotalAUD = accs.reduce((s,a)=> s + accountBalanceAUD(a), 0);
+    return `
+    <div>
+      <div class="section-title">${g} <span class="muted" style="font-size:13px;">— ${moneyWhole(groupTotalAUD)}</span></div>
+      <div class="card">
+        ${accs.map(a=>{
+          const hasSubs = a.subCategories && a.subCategories.length>0;
+          const balAUD = accountBalanceAUD(a);
+          const bal = hasSubs ? null : computeAccountBalance(a);
+          const showAUD = !hasSubs && a.currency!=='AUD';
+          const targetCur = hasSubs ? (a.targetCurrency||'AUD') : a.currency;
+          const targetBal = hasSubs ? fromAUD(balAUD, targetCur) : bal;
+          return `
+          <div class="nw-row">
+            <div>
+              <div style="font-weight:600;">${a.name} <button class="icon-btn" data-renameacc="${a.id}" style="font-size:10px; padding:0 2px; color:var(--text-faint);" title="Rename">✎</button> <span class="muted" style="font-size:11px; font-weight:400;">${hasSubs ? 'mixed currencies' : a.currency}</span></div>
+              ${targetRowHTML(a.id, targetBal, a.target, targetCur)}
+            </div>
+            <div class="nw-balance">
+              <div style="font-size:14.5px;">${hasSubs ? moneyWhole(balAUD) : moneyCur(bal, a.currency)}${showAUD ? ` <span class="muted" style="font-size:11px;">(≈${moneyWhole(balAUD)})</span>` : ''}</div>
+              ${hasSubs ? `<div class="muted" style="font-size:10.5px;">AUD total</div>` : ''}
+            </div>
+            <div class="nw-actions">
+              ${!hasSubs ? `<button class="icon-btn" style="color:var(--gold);" data-adj="${a.id}" title="Manual adjustment">±</button>` : ''}
+              ${!hasSubs ? `<button class="icon-btn" data-hist="${a.id}" title="View history" style="font-size:11px;">🕐</button>` : ''}
+              <button class="icon-btn" data-addsub="${a.id}" title="Add sub-category" style="font-size:11px;">+Split</button>
+              <button class="icon-btn" data-delacc="${a.id}" title="Delete account">✕</button>
+            </div>
+          </div>
+          ${hasSubs ? `
+            <div class="nw-sub-wrap">
+              ${a.subCategories.map(sub=>{
+                const subCur = sub.currency || a.currency;
+                const subBal = unitBalanceAsOf(sub, isoDate(TODAY));
+                const subBalAUD = toAUD(subBal, subCur);
+                const subShowAUD = subCur!=='AUD';
+                return `
+                <div class="nw-row">
+                  <div>
+                    <div style="font-size:13px;">${sub.name} <button class="icon-btn" data-renamesub="${a.id}|||${sub.id}" style="font-size:9.5px; padding:0 2px; color:var(--text-faint);" title="Rename">✎</button> <span class="muted" style="font-size:10.5px;">${subCur}</span></div>
+                    ${targetRowHTML(`${a.id}|||${sub.id}`, subBal, sub.target, subCur)}
+                  </div>
+                  <div class="nw-balance">
+                    <div style="font-size:13px;">${moneyCur(subBal, subCur)}${subShowAUD ? ` <span class="muted" style="font-size:10.5px;">(≈${moneyWhole(subBalAUD)})</span>` : ''}</div>
+                  </div>
+                  <div class="nw-actions">
+                    <button class="icon-btn" style="color:var(--gold);" data-adjsub="${a.id}|||${sub.id}" title="Manual adjustment">±</button>
+                    <button class="icon-btn" data-histsub="${a.id}|||${sub.id}" title="View history" style="font-size:11px;">🕐</button>
+                    <button class="icon-btn" data-delsub="${a.id}|||${sub.id}" title="Remove split">✕</button>
+                  </div>
+                </div>
+              `;}).join('')}
+            </div>
+          ` : ''}
+        `;}).join('')}
+      </div>
+    </div>
+    `;
+  }).join('');
+
+  const pt = state.portfolioTarget || { amount: null, currency: 'AUD' };
+  const totalInTargetCur = fromAUD(total, pt.currency);
+  const ptPct = pt.amount ? (totalInTargetCur/pt.amount)*100 : null;
+
+  c.innerHTML = `
+    <h1 class="page-title">Net Worth</h1>
+    <div class="page-sub">Track savings and investment buckets in AUD, THB, or USD. Split an account into sub-categories (e.g. Core/Satellite) for net-worth-only detail. Everything converts to AUD for the charts below.</div>
+    <div class="row" style="margin-bottom:16px;">
+      <div class="card metric">
+        <h3>Total Net Worth</h3>
+        <div class="big" style="color:var(--gold-bright)">${moneyWhole(total)}${growthHTML}</div>
+        <div class="cap">across all accounts, vs last month</div>
+      </div>
+      <div class="card metric">
+        <h3>Portfolio Target</h3>
+        ${pt.amount ? `
+          <div class="big" style="color:var(--gold-bright)">${moneyCur(totalInTargetCur, pt.currency)}</div>
+          <div class="cap">of ${moneyCur(pt.amount, pt.currency)} target</div>
+          <div class="bar-wrap" style="margin-top:6px;"><div class="bar-fill" style="width:${Math.max(0,Math.min(100,ptPct))}%; background:${ptPct>=100?'var(--green)':'var(--blue-bright)'};"></div></div>
+          <div class="muted" style="font-size:11px; margin-top:3px;">${ptPct>=100?'Goal reached — ':''}${ptPct.toFixed(0)}%</div>
+        ` : `<div class="muted" style="font-size:12px; margin-top:4px;">Set one overall target for your whole net worth, in any currency — independent of individual account targets.</div>`}
+        <button class="btn secondary" id="editPortfolioTargetBtn" style="margin-top:8px; padding:5px 12px; font-size:12px;">${pt.amount?'Edit target':'Set portfolio target'}</button>
+      </div>
+      <div class="card metric">
+        <h3>Exchange rates</h3>
+        <div class="muted" style="font-size:12.5px; line-height:1.6;">${fxAgeHTML}</div>
+        <div class="toolbar" style="margin-top:8px;">
+          <button class="btn secondary" id="refreshFxBtn" style="padding:5px 12px; font-size:12px;">Refresh rates</button>
+          <button class="btn secondary" id="manualFxBtn" style="padding:5px 12px; font-size:12px;">Enter manually</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-columns" style="grid-template-columns:1fr 1fr;">
+      <div class="dash-col">
+        <div class="section-title">Allocation</div>
+        <div class="card">${netWorthDonutHTML()}</div>
+        ${investmentDonutHTML()}
+      </div>
+      <div class="dash-col">
+        <div class="section-title">Accumulation over time <span class="muted" style="font-size:13px;">— since you started tracking (up to 12 months), by group, in AUD</span></div>
+        <div class="card">
+          <div class="toolbar" style="margin-bottom:10px; flex-wrap:wrap;">
+            ${groupsPresent.map(g=>{
+              const checked = stackToggle[g]!==false;
+              return `<label style="display:flex; align-items:center; gap:6px; font-size:12px;">
+                <input type="checkbox" data-stacktoggle="${g}" ${checked?'checked':''}> ${g}
+              </label>`;
+            }).join('')}
+          </div>
+          ${state.accounts.length===0 ? `<div class="empty-state"><div class="glyph">·</div>Add an account to see accumulation over time.</div>` : stackedSvg}
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar"><div class="spacer"></div><button class="btn" id="addAccBtn">+ Add account</button></div>
+    ${state.accounts.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No accounts yet — add your emergency fund, super, or investment buckets.</div>` : `<div class="grid-cat" style="align-items:start;">${groupHtml}</div>`}
+  `;
+
+  document.getElementById('addAccBtn').onclick = openAccountModal;
+  document.getElementById('refreshFxBtn').onclick = ()=> refreshFxRates(true);
+  document.getElementById('manualFxBtn').onclick = openManualFxModal;
+  document.getElementById('editPortfolioTargetBtn').onclick = openPortfolioTargetModal;
+  c.querySelectorAll('[data-stacktoggle]').forEach(cb=>{
+    cb.onchange = ()=>{
+      state.ui.netWorthStack = state.ui.netWorthStack || {};
+      state.ui.netWorthStack[cb.dataset.stacktoggle] = cb.checked;
+      saveState(); render();
+    };
+  });
+  c.querySelectorAll('[data-invdonutfilter]').forEach(r=>{
+    r.onchange = ()=>{
+      state.ui.investmentDonutFilter = r.dataset.invdonutfilter;
+      saveState(); render();
+    };
+  });
+  c.querySelectorAll('[data-delacc]').forEach(b=> b.onclick = ()=>{
+    if(confirm('Delete this account?')){
+      state.accounts = state.accounts.filter(a=>a.id!==b.dataset.delacc);
+      saveState(); render();
+    }
+  });
+  c.querySelectorAll('[data-adj]').forEach(b=> b.onclick = ()=> openAdjustModal(b.dataset.adj));
+  c.querySelectorAll('[data-hist]').forEach(b=> b.onclick = ()=> openHistoryModal(b.dataset.hist));
+  c.querySelectorAll('[data-addsub]').forEach(b=> b.onclick = ()=> openSubCategoryModal(b.dataset.addsub));
+  c.querySelectorAll('[data-adjsub]').forEach(b=>{
+    b.onclick = ()=>{ const [accId,subId] = b.dataset.adjsub.split('|||'); openAdjustModal(accId, subId); };
+  });
+  c.querySelectorAll('[data-histsub]').forEach(b=>{
+    b.onclick = ()=>{ const [accId,subId] = b.dataset.histsub.split('|||'); openHistoryModal(accId, subId); };
+  });
+  c.querySelectorAll('[data-delsub]').forEach(b=>{
+    b.onclick = ()=>{
+      const [accId,subId] = b.dataset.delsub.split('|||');
+      const acc = state.accounts.find(a=>a.id===accId);
+      if(!acc) return;
+      if(confirm('Remove this split? Its balance will no longer be counted unless you delete/re-add carefully.')){
+        acc.subCategories = acc.subCategories.filter(s=>s.id!==subId);
+        saveState(); render();
+      }
+    };
+  });
+  c.querySelectorAll('[data-edittarget]').forEach(b=>{
+    b.onclick = ()=>{
+      const [accId, subId] = b.dataset.edittarget.split('|||');
+      const acc = state.accounts.find(a=>a.id===accId);
+      if(!acc) return;
+      const hasSubs = acc.subCategories && acc.subCategories.length>0;
+      if(!subId && hasSubs){
+        openAccountTargetModal(accId); // mixed currencies — needs a currency picker, not a bare prompt
+        return;
+      }
+      const unit = subId ? (acc.subCategories||[]).find(s=>s.id===subId) : acc;
+      if(!unit) return;
+      const cur = subId ? (unit.currency||acc.currency) : acc.currency;
+      const input = prompt(`Long-term target for ${subId?unit.name:acc.name} (in ${cur}). Leave blank to remove.`, unit.target||'');
+      if(input===null) return;
+      const val = input.trim()==='' ? null : Number(input);
+      unit.target = (val && val>0) ? val : null;
+      saveState(); render();
+    };
+  });
+  c.querySelectorAll('[data-renameacc]').forEach(b=>{
+    b.onclick = ()=>{
+      const acc = state.accounts.find(a=>a.id===b.dataset.renameacc);
+      if(!acc) return;
+      const input = prompt('Rename account:', acc.name);
+      if(input===null) return;
+      const name = input.trim();
+      if(!name){ toast('Name cannot be empty.'); return; }
+      acc.name = name;
+      saveState(); render();
+    };
+  });
+  c.querySelectorAll('[data-renamesub]').forEach(b=>{
+    b.onclick = ()=>{
+      const [accId, subId] = b.dataset.renamesub.split('|||');
+      const acc = state.accounts.find(a=>a.id===accId);
+      if(!acc) return;
+      const sub = (acc.subCategories||[]).find(s=>s.id===subId);
+      if(!sub) return;
+      const input = prompt('Rename split:', sub.name);
+      if(input===null) return;
+      const name = input.trim();
+      if(!name){ toast('Name cannot be empty.'); return; }
+      sub.name = name;
+      saveState(); render();
+    };
+  });
+}
+
+function openAccountModal(){
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="modal-backdrop" id="mb">
+      <div class="modal">
+        <h2>Add account</h2>
+        <div class="form-grid">
+          <label class="field">Name <input type="text" id="aName" placeholder="e.g. Emergency Fund"></label>
+          <label class="field">Group
+            <select id="aGroup">${NET_WORTH_GROUPS.map(g=>`<option>${g}</option>`).join('')}</select>
+          </label>
+          <label class="field">Currency
+            <select id="aCurrency">${NET_WORTH_CURRENCIES.map(cur=>`<option ${cur==='AUD'?'selected':''}>${cur}</option>`).join('')}</select>
+          </label>
+          <label class="field">Opening balance <input type="number" id="aBal" step="0.01" inputmode="decimal" value="0"></label>
+          <label class="field">As of date <input type="date" id="aDate" value="${isoDate(TODAY)}"></label>
+          <label class="field">Long-term target (optional, in the currency above) <input type="number" id="aTarget" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 15000"></label>
+        </div>
+        <div class="form-actions">
+          <button class="btn secondary" id="fCancel">Cancel</button>
+          <button class="btn" id="fSave">Save</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('fCancel').onclick = ()=> root.innerHTML='';
+  document.getElementById('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
+  document.getElementById('fSave').onclick = ()=>{
+    const name = document.getElementById('aName').value.trim();
+    if(!name){ toast('Give the account a name.'); return; }
+    state.accounts.push({
+      id:uid(), name, group: document.getElementById('aGroup').value,
+      currency: document.getElementById('aCurrency').value,
+      openingBalance: Number(document.getElementById('aBal').value)||0,
+      openingDate: document.getElementById('aDate').value || isoDate(TODAY),
+      target: Number(document.getElementById('aTarget').value)||null,
+      subCategories: [],
+      history: []
+    });
+    saveState(); root.innerHTML=''; render(); toast('Account added.');
+  };
+}
+
+function openSubCategoryModal(accId){
+  const acc = state.accounts.find(a=>a.id===accId);
+  if(!acc) return;
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="modal-backdrop" id="mb">
+      <div class="modal">
+        <h2>Split ${acc.name}</h2>
+        <div class="page-sub">Sub-categories are net-worth-only (e.g. Core / Satellite, or one per bank) — they don't connect to Transactions. Each can be in its own currency; the account's total converts everything to AUD automatically.</div>
+        <div class="form-grid">
+          <label class="field">Name <input type="text" id="subName" placeholder="e.g. Core, or KBank"></label>
+          <label class="field">Currency
+            <select id="subCurrency">${NET_WORTH_CURRENCIES.map(cur=>`<option ${cur===acc.currency?'selected':''}>${cur}</option>`).join('')}</select>
+          </label>
+          <label class="field">Opening balance <input type="number" id="subBal" step="0.01" inputmode="decimal" value="0"></label>
+          <label class="field">As of date <input type="date" id="subDate" value="${isoDate(TODAY)}"></label>
+          <label class="field">Long-term target (optional, in the currency above) <input type="number" id="subTarget" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 50000"></label>
+        </div>
+        <div class="form-actions">
+          <button class="btn secondary" id="fCancel">Cancel</button>
+          <button class="btn" id="fSave">Add split</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('fCancel').onclick = ()=> root.innerHTML='';
+  document.getElementById('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
+  document.getElementById('fSave').onclick = ()=>{
+    const name = document.getElementById('subName').value.trim();
+    if(!name){ toast('Give the split a name.'); return; }
+    acc.subCategories = acc.subCategories||[];
+    acc.subCategories.push({
+      id: uid(), name,
+      currency: document.getElementById('subCurrency').value,
+      openingBalance: Number(document.getElementById('subBal').value)||0,
+      openingDate: document.getElementById('subDate').value || isoDate(TODAY),
+      target: Number(document.getElementById('subTarget').value)||null,
+      history: []
+    });
+    saveState(); root.innerHTML=''; render(); toast(`"${name}" added under ${acc.name}.`);
+  };
+}
+
+function openAdjustModal(accId, subId){
+  const acc = state.accounts.find(a=>a.id===accId);
+  if(!acc) return;
+  const unit = subId ? (acc.subCategories||[]).find(s=>s.id===subId) : acc;
+  if(!unit) return;
+  const label = subId ? `${acc.name} — ${unit.name}` : acc.name;
+  const cur = subId ? (unit.currency||acc.currency) : acc.currency;
+  const currentBal = subId ? unitBalanceAsOf(unit, isoDate(TODAY)) : computeAccountBalance(acc);
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="modal-backdrop" id="mb">
+      <div class="modal">
+        <h2>Adjust — ${label}</h2>
+        <div class="page-sub">Current balance: ${moneyCur(currentBal, cur)}</div>
+        <div class="form-grid">
+          <label class="field">Change (use negative for withdrawal) <input type="number" id="delta" step="0.01" inputmode="decimal" placeholder="e.g. 200 or -50"></label>
+          <label class="field">Date <input type="date" id="adjDate" value="${isoDate(TODAY)}"></label>
+          <label class="field">Note <input type="text" id="note" placeholder="e.g. monthly contribution"></label>
+        </div>
+        <div class="form-actions">
+          <button class="btn secondary" id="fCancel">Cancel</button>
+          <button class="btn" id="fSave">Apply</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('fCancel').onclick = ()=> root.innerHTML='';
+  document.getElementById('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
+  document.getElementById('fSave').onclick = ()=>{
+    const delta = Number(document.getElementById('delta').value);
+    if(!delta){ toast('Enter a non-zero amount.'); return; }
+    unit.history = unit.history||[];
+    unit.history.push({
+      date: document.getElementById('adjDate').value || isoDate(TODAY),
+      delta, note: document.getElementById('note').value.trim()
+    });
+    saveState(); root.innerHTML=''; render(); toast('Balance updated.');
+  };
+}
+
+/* Full history for an account or sub-category: opening balance as the first row,
+   then every adjustment in date order, with a running balance and edit/delete per entry. */
+function openHistoryModal(accId, subId){
+  const acc = state.accounts.find(a=>a.id===accId);
+  if(!acc) return;
+  const unit = subId ? (acc.subCategories||[]).find(s=>s.id===subId) : acc;
+  if(!unit) return;
+  const label = subId ? `${acc.name} — ${unit.name}` : acc.name;
+  const cur = subId ? (unit.currency||acc.currency) : acc.currency;
+
+  function paint(){
+    const root = document.getElementById('modalRoot');
+    const histWithIdx = (unit.history||[]).map((h,i)=>({...h, _idx:i}));
+    histWithIdx.sort((a,b)=> a.date<b.date ? -1 : (a.date>b.date ? 1 : 0));
+
+    let running = Number(unit.openingBalance)||0;
+    const rows = [`
+      <tr>
+        <td class="muted">${unit.openingDate}</td>
+        <td class="num">${moneyCur(unit.openingBalance, cur)}</td>
+        <td class="muted" style="font-size:12px;">Opening balance</td>
+        <td class="num">${moneyCur(running, cur)}</td>
+        <td><button class="icon-btn" style="color:var(--gold);" data-histeditopen title="Edit opening balance">✎</button></td>
+      </tr>
+    `];
+    histWithIdx.forEach(h=>{
+      running += Number(h.delta)||0;
+      rows.push(`
+        <tr>
+          <td class="muted">${h.date}</td>
+          <td class="num ${h.delta>=0?'pos':'neg'}">${h.delta>=0?'+':''}${moneyCur(h.delta, cur)}</td>
+          <td class="muted" style="font-size:12px;">${h.note||''}</td>
+          <td class="num">${moneyCur(running, cur)}</td>
+          <td>
+            <button class="icon-btn" style="color:var(--gold);" data-histedit="${h._idx}" title="Edit">✎</button>
+            <button class="icon-btn" data-histdel="${h._idx}" title="Delete">✕</button>
+          </td>
+        </tr>
+      `);
+    });
+
+    root.innerHTML = `
+      <div class="modal-backdrop" id="mb">
+        <div class="modal" style="width:540px;">
+          <h2>History — ${label}</h2>
+          <div class="page-sub">Newest first. "Balance" is the running total after each entry.</div>
+          <div style="max-height:360px; overflow-y:auto;">
+            <table class="data">
+              <thead><tr><th>Date</th><th class="num">Amount</th><th>Note</th><th class="num">Balance</th><th></th></tr></thead>
+              <tbody>${rows.slice().reverse().join('')}</tbody>
+            </table>
+          </div>
+          <div class="form-actions">
+            <button class="btn secondary" id="fClose">Close</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById('fClose').onclick = ()=> root.innerHTML='';
+    document.getElementById('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
+
+    const openEditBtn = root.querySelector('[data-histeditopen]');
+    if(openEditBtn) openEditBtn.onclick = ()=>{
+      const newAmt = prompt(`Opening balance (in ${cur}):`, unit.openingBalance);
+      if(newAmt===null) return;
+      const newDate = prompt('Opening date (YYYY-MM-DD):', unit.openingDate);
+      if(newDate===null) return;
+      unit.openingBalance = Number(newAmt)||0;
+      if(newDate.trim()) unit.openingDate = newDate.trim();
+      saveState(); paint(); render();
+    };
+    root.querySelectorAll('[data-histedit]').forEach(b=>{
+      b.onclick = ()=>{
+        const idx = Number(b.dataset.histedit);
+        const h = unit.history[idx];
+        if(!h) return;
+        const newAmt = prompt(`Amount (use negative for withdrawal, in ${cur}):`, h.delta);
+        if(newAmt===null) return;
+        const newDate = prompt('Date (YYYY-MM-DD):', h.date);
+        if(newDate===null) return;
+        const newNote = prompt('Note:', h.note||'');
+        if(newNote===null) return;
+        h.delta = Number(newAmt)||0;
+        if(newDate.trim()) h.date = newDate.trim();
+        h.note = newNote.trim();
+        saveState(); paint(); render();
+      };
+    });
+    root.querySelectorAll('[data-histdel]').forEach(b=>{
+      b.onclick = ()=>{
+        if(confirm('Delete this entry? This cannot be undone.')){
+          const idx = Number(b.dataset.histdel);
+          unit.history.splice(idx,1);
+          saveState(); paint(); render();
+        }
+      };
+    });
+  }
+  paint();
+}
+
+/* =========================================================
+   BILLS
+========================================================= */
+function currentMonthKey(){ return isoDate(TODAY).slice(0,7); }
+
+function nextDueDate(bill){
+  if(!bill.lastPaidDate) return null;
+  const d = new Date(bill.lastPaidDate+'T00:00:00');
+  if(bill.frequency==='Annually'){
+    d.setFullYear(d.getFullYear()+1);
+    return d;
+  }
+  // Clamp to the target month's real last day (e.g. Jan 31 -> Feb 28/29, not overflowing into March).
+  const targetYear = d.getFullYear();
+  const targetMonth = d.getMonth()+1;
+  const lastDayOfTargetMonth = new Date(targetYear, targetMonth+1, 0).getDate();
+  const day = Math.min(d.getDate(), lastDayOfTargetMonth);
+  return new Date(targetYear, targetMonth, day);
+}
+
+function dueBadge(bill){
+  const nd = nextDueDate(bill);
+  if(!nd) return `<span class="muted">Not yet paid</span>`;
+  const days = Math.round((nd - new Date(isoDate(TODAY)+'T00:00:00')) / 86400000);
+  const dateStr = isoDate(nd);
+  if(days < 0) return `<span class="neg">${dateStr} — overdue ${Math.abs(days)}d</span>`;
+  if(days === 0) return `<span class="neg">${dateStr} — due today</span>`;
+  if(days <= 5) return `<span style="color:var(--amber);">${dateStr} — in ${days}d</span>`;
+  return `<span class="muted">${dateStr} — in ${days}d</span>`;
+}
+
+function renderBills(c){
+  const mk = currentMonthKey();
+  const monthlyEquivalent = state.bills.reduce((s,b)=>{
+    const amtAUD = toAUD(Number(b.amount)||0, b.currency||'AUD');
+    return s + (b.frequency==='Annually' ? amtAUD/12 : amtAUD);
+  },0);
+
+  c.innerHTML = `
+    <h1 class="page-title">Bills & Subscriptions</h1>
+    <div class="page-sub">Recurring costs, when they're next due, and whether they've been paid this month. Use ↑↓ to reorder.</div>
+    <div class="row" style="margin-bottom:16px;">
+      <div class="card metric"><h3>Monthly equivalent</h3><div class="big neg">${moneyWhole(monthlyEquivalent)}</div><div class="cap">annual bills ÷ 12 + monthly bills, in AUD</div></div>
+    </div>
+    <div class="toolbar"><div class="spacer"></div><button class="btn" id="addBillBtn">+ Add bill</button></div>
+    ${state.bills.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No recurring bills yet.</div>` : `
+    <table class="data">
+      <thead><tr><th></th><th>Name</th><th class="num">Amount</th><th>Frequency</th><th>Next due</th><th>Paid this month</th><th></th></tr></thead>
+      <tbody>
+        ${state.bills.map((b,idx)=>{
+          const paid = (b.paidMonths||[]).includes(mk);
+          return `
+          <tr>
+            <td style="white-space:nowrap;">
+              <button class="icon-btn" data-billup="${b.id}" title="Move up" ${idx===0?'disabled':''}>↑</button>
+              <button class="icon-btn" data-billdown="${b.id}" title="Move down" ${idx===state.bills.length-1?'disabled':''}>↓</button>
+            </td>
+            <td>${b.name}${b.notes?`<div class="muted" style="font-size:11.5px;">${b.notes}</div>`:''}</td>
+            <td class="num">${moneyCur(b.amount, b.currency||'AUD')}</td>
+            <td class="muted">${b.frequency}</td>
+            <td style="font-size:12.5px;">${dueBadge(b)}</td>
+            <td><input type="checkbox" data-paid="${b.id}" ${paid?'checked':''}></td>
+            <td>
+              <button class="icon-btn" style="color:var(--gold);" data-editbill="${b.id}" title="Edit">✎</button>
+              <button class="icon-btn" data-delbill="${b.id}" title="Delete">✕</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`}
+  `;
+
+  document.getElementById('addBillBtn').onclick = ()=> openBillModal();
+  c.querySelectorAll('[data-paid]').forEach(cb=> cb.onchange = ()=>{
+    const b = state.bills.find(x=>x.id===cb.dataset.paid);
+    b.paidMonths = b.paidMonths||[];
+    if(cb.checked){
+      if(!b.paidMonths.includes(mk)) b.paidMonths.push(mk);
+      b.lastPaidDate = isoDate(TODAY);
+    } else {
+      b.paidMonths = b.paidMonths.filter(x=>x!==mk);
+    }
+    saveState(); render();
+  });
+  c.querySelectorAll('[data-delbill]').forEach(b=> b.onclick = ()=>{
+    if(confirm('Delete this bill?')){
+      state.bills = state.bills.filter(x=>x.id!==b.dataset.delbill);
+      saveState(); render();
+    }
+  });
+  c.querySelectorAll('[data-editbill]').forEach(b=> b.onclick = ()=> openBillModal(b.dataset.editbill));
+  c.querySelectorAll('[data-billup]').forEach(b=>{
+    b.onclick = ()=>{
+      const idx = state.bills.findIndex(x=>x.id===b.dataset.billup);
+      if(idx>0){ [state.bills[idx-1], state.bills[idx]] = [state.bills[idx], state.bills[idx-1]]; saveState(); render(); }
+    };
+  });
+  c.querySelectorAll('[data-billdown]').forEach(b=>{
+    b.onclick = ()=>{
+      const idx = state.bills.findIndex(x=>x.id===b.dataset.billdown);
+      if(idx>=0 && idx<state.bills.length-1){ [state.bills[idx+1], state.bills[idx]] = [state.bills[idx], state.bills[idx+1]]; saveState(); render(); }
+    };
+  });
+}
+
+function openBillModal(editId){
+  const root = document.getElementById('modalRoot');
+  const existing = editId ? state.bills.find(b=>b.id===editId) : null;
+  root.innerHTML = `
+    <div class="modal-backdrop" id="mb">
+      <div class="modal">
+        <h2>${existing ? 'Edit bill' : 'Add bill'}</h2>
+        <div class="form-grid">
+          <label class="field">Name <input type="text" id="bName" placeholder="e.g. Netflix" value="${existing ? existing.name : ''}"></label>
+          <label class="field">Amount <input type="number" id="bAmt" min="0" step="0.01" inputmode="decimal" value="${existing ? existing.amount : ''}"></label>
+          <label class="field">Currency
+            <select id="bCurrency">${NET_WORTH_CURRENCIES.map(cur=>`<option ${existing ? (cur===(existing.currency||'AUD')?'selected':'') : (cur==='AUD'?'selected':'')}>${cur}</option>`).join('')}</select>
+          </label>
+          <label class="field">Frequency <select id="bFreq"><option ${existing&&existing.frequency==='Monthly'?'selected':''}>Monthly</option><option ${existing&&existing.frequency==='Annually'?'selected':''}>Annually</option></select></label>
+          <label class="field">Notes <input type="text" id="bNotes" placeholder="optional" value="${existing ? (existing.notes||'') : ''}"></label>
+        </div>
+        <div class="form-actions">
+          <button class="btn secondary" id="fCancel">Cancel</button>
+          <button class="btn" id="fSave">${existing ? 'Save changes' : 'Save'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('fCancel').onclick = ()=> root.innerHTML='';
+  document.getElementById('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
+  document.getElementById('fSave').onclick = ()=>{
+    const name = document.getElementById('bName').value.trim();
+    const bAmtVal = Number(document.getElementById('bAmt').value);
+    if(!name){ toast('Give the bill a name.'); return; }
+    if(!bAmtVal || bAmtVal<=0){ toast('Enter an amount greater than 0.'); return; }
+    const frequency = document.getElementById('bFreq').value;
+    const currency = document.getElementById('bCurrency').value;
+    const notes = document.getElementById('bNotes').value.trim();
+    if(existing){
+      Object.assign(existing, { name, amount:bAmtVal, currency, frequency, notes });
+      toast('Bill updated.');
+    } else {
+      state.bills.push({
+        id:uid(), name, amount:bAmtVal, currency, frequency, notes,
+        lastPaidDate:'', paidMonths:[]
+      });
+      toast('Bill added.');
+    }
+    saveState(); root.innerHTML=''; render();
+  };
+}
+
+/* =========================================================
+   SETTINGS
+========================================================= */
+function moveCategory(type, cat, direction){
+  const arr = state.categories[type];
+  const idx = arr.indexOf(cat);
+  if(idx===-1) return;
+  const swapIdx = idx + direction;
+  if(swapIdx<0 || swapIdx>=arr.length) return;
+  [arr[idx], arr[swapIdx]] = [arr[swapIdx], arr[idx]];
+  saveState(); render();
+}
+
+function toggleCategorySpecial(type, cat){
+  const key = type+'|||'+cat;
+  const list = new Set(state.settings.excludedFromSummary||[]);
+  if(list.has(key)) list.delete(key); else list.add(key);
+  state.settings.excludedFromSummary = [...list];
+  saveState(); render();
+}
+
+function renameCategory(type, oldName, newName){
+  newName = (newName||'').trim();
+  if(!newName || newName===oldName) return;
+  if(state.categories[type].includes(newName)){ toast('That category already exists.'); return; }
+  const idx = state.categories[type].indexOf(oldName);
+  if(idx===-1) return;
+  state.categories[type][idx] = newName;
+
+  // Carry the rename through everywhere the old name is referenced
+  Object.keys(state.planning).forEach(yr=>{
+    const bucket = state.planning[yr] && state.planning[yr][type];
+    if(bucket && bucket[oldName]){ bucket[newName] = bucket[oldName]; delete bucket[oldName]; }
+  });
+  state.transactions.forEach(tx=>{ if(tx.type===type && tx.category===oldName) tx.category = newName; });
+  if(type==='Expenses'){
+    state.settings.weeklyExcludedCategories = (state.settings.weeklyExcludedCategories||[]).map(c=> c===oldName ? newName : c);
+  }
+  if(type==='Savings'){
+    state.accounts.forEach(a=>{ if(a.linkedCategory===oldName) a.linkedCategory = newName; });
+  }
+  state.settings.excludedFromSummary = (state.settings.excludedFromSummary||[]).map(k=> k===`${type}|||${oldName}` ? `${type}|||${newName}` : k);
+
+  saveState(); render(); toast(`Renamed to "${newName}".`);
+}
+
+function renderSettings(c){
+  const s = state.settings;
+  c.innerHTML = `
+    <h1 class="page-title">Settings</h1>
+    <div class="page-sub">App-wide preferences, categories, and data management.</div>
+
+    <div class="section-title">General</div>
+    <div class="card">
+      <div class="form-grid">
+        <label class="field">Starting year (reference only)
+          <input type="number" id="sYear" value="${s.startingYear}">
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px;">
+          <input type="checkbox" id="sShift" ${s.shiftLateIncome?'checked':''}>
+          Treat income received on/after a certain day as next month's income
+        </label>
+        <label class="field">Shift starting on day
+          <input type="number" id="sShiftDay" min="1" max="31" value="${s.shiftDay}">
+        </label>
+        <label class="field">Savings rate calculation
+          <select id="sRateType">
+            <option value="active" ${s.savingsRateType==='active'?'selected':''}>Active — Savings ÷ Income</option>
+            <option value="passive" ${s.savingsRateType==='passive'?'selected':''}>Passive — (Income − Expenses) ÷ Income</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="section-title">Profiles</div>
+    <div class="card">
+      <div class="page-sub" style="margin-bottom:14px;">Each profile is a fully separate, unlinked book — its own categories, transactions, planning, accounts, and bills. Nothing is shared or converted between them.</div>
+      <table class="data">
+        <thead><tr><th>Name</th><th></th><th></th></tr></thead>
+        <tbody>
+          ${profiles.list.map(p=>`
+            <tr>
+              <td>${p.name}${p.id===profiles.activeId ? ' <span class="pill Savings" style="margin-left:6px;">Active</span>' : ''}</td>
+              <td>${p.id===profiles.activeId ? '' : `<button class="btn secondary" data-switchprofile="${p.id}" style="padding:5px 12px; font-size:12px;">Switch to</button>`}</td>
+              <td>
+                <button class="icon-btn" style="color:var(--gold);" data-renameprofile="${p.id}" title="Rename">✎</button>
+                <button class="icon-btn" data-delprofile="${p.id}" title="Delete">✕</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div class="toolbar" style="margin-top:14px;"><button class="btn secondary" id="addProfileBtn2">+ New profile</button></div>
+    </div>
+
+    <div class="section-title">Categories</div>
+    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">Use ↑↓ to reorder. The ☆ marks a category as <b>Special</b> — its transactions still count toward Transactions/Balance, but are left out of graphs, donuts, and breakdown totals (useful for things like an opening balance).</div>
+    <div class="card">
+      <div class="grid-cat">
+        ${TYPES.map(t=>`
+          <div class="cat-col">
+            <h4>${t}</h4>
+            <div class="cat-list" id="catList-${t}">
+              ${state.categories[t].map((cat,idx)=>{
+                const key = t+'|||'+cat;
+                const isSpecial = (state.settings.excludedFromSummary||[]).includes(key);
+                return `
+                <div class="cat-item ${t}">
+                  <div style="display:flex; align-items:center; gap:2px; min-width:0; overflow:hidden;">
+                    <button class="icon-btn" data-moveup="${key}" title="Move up" ${idx===0?'disabled':''}>↑</button>
+                    <button class="icon-btn" data-movedown="${key}" title="Move down" ${idx===state.categories[t].length-1?'disabled':''}>↓</button>
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-left:2px;">${cat}</span>
+                    ${isSpecial?'<span class="pill Savings" style="margin-left:6px; flex-shrink:0;">Special</span>':''}
+                  </div>
+                  <div class="cat-actions">
+                    <button class="icon-btn" data-togglespecial="${key}" title="${isSpecial?'Include in graphs/summary':'Exclude from graphs/summary'}">${isSpecial?'★':'☆'}</button>
+                    <button class="icon-btn" style="color:var(--gold);" data-editcat="${key}" title="Rename">✎</button>
+                    <button class="icon-btn" data-rmcat="${key}" title="Remove">✕</button>
+                  </div>
+                </div>
+              `;}).join('')}
+            </div>
+            <div class="add-cat-row">
+              <input type="text" id="newCat-${t}" placeholder="New category…">
+              <button class="btn secondary" data-addcat="${t}">Add</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="section-title">Auto-save to Excel</div>
+    <div class="card">
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:10px;">
+        <input type="checkbox" id="sAutoSave" ${state.settings.autoSaveEnabled?'checked':''}>
+        Automatically keep an Excel (.xlsx) copy of this profile up to date
+      </label>
+      <div class="muted" style="font-size:12px; margin-bottom:10px;">
+        ${AUTO_SAVE_SUPPORTED
+          ? (autoSaveHandle
+              ? `Linked to a file you chose — it updates automatically a couple of seconds after any change.`
+              : `Not linked yet. Turning this on (or clicking below) opens a save dialog starting in your Downloads folder — create or open a "Ledger save" folder there (or pick anywhere else you prefer) and save once; every change updates that same file automatically after that.`)
+          : `Your browser doesn't support linking directly to a file, so this will download a new .xlsx to your Downloads folder after each change (files will accumulate as separate copies). Chrome or Edge support updating a single file in place.`}
+      </div>
+      <div class="toolbar">
+        <button class="btn secondary" id="chooseAutoSaveBtn">${autoSaveHandle ? 'Change save location' : 'Choose save location'}</button>
+        <button class="btn secondary" id="exportXlsxBtn">Download Excel now</button>
+      </div>
+    </div>
+
+    <div class="section-title">Data</div>
+    <div class="card">
+      <div class="toolbar">
+        <button class="btn secondary" id="exportBtn2">Export this profile (.json)</button>
+        <button class="btn secondary" id="importBtn2">Import into this profile</button>
+        <button class="btn danger" id="resetBtn">Reset this profile's data</button>
+      </div>
+      <div class="muted" style="font-size:12px; margin-top:8px;">Data is stored only in this browser (localStorage), per profile. Export a backup regularly, especially before clearing browser data.</div>
+    </div>
+  `;
+
+  document.getElementById('sAutoSave').onchange = e=>{
+    if(e.target.checked && AUTO_SAVE_SUPPORTED && !autoSaveHandle){
+      chooseAutoSaveLocation();
+    } else {
+      state.settings.autoSaveEnabled = e.target.checked;
+      saveState(); render();
+      if(e.target.checked) performAutoSave();
+    }
+  };
+  document.getElementById('chooseAutoSaveBtn').onclick = chooseAutoSaveLocation;
+  document.getElementById('exportXlsxBtn').onclick = manualExportXlsx;
+
+  document.getElementById('sYear').onchange = e=>{ state.settings.startingYear = Number(e.target.value); saveState(); };
+  document.getElementById('sShift').onchange = e=>{ state.settings.shiftLateIncome = e.target.checked; saveState(); render(); };
+  document.getElementById('sShiftDay').onchange = e=>{ state.settings.shiftDay = Number(e.target.value); saveState(); render(); };
+  document.getElementById('sRateType').onchange = e=>{ state.settings.savingsRateType = e.target.value; saveState(); render(); };
+
+  document.getElementById('addProfileBtn2').onclick = openProfileModal;
+  c.querySelectorAll('[data-switchprofile]').forEach(btn=> btn.onclick = ()=> switchProfile(btn.dataset.switchprofile));
+  c.querySelectorAll('[data-renameprofile]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const meta = profiles.list.find(p=>p.id===btn.dataset.renameprofile);
+      if(!meta) return;
+      const newName = prompt(`Rename profile "${meta.name}" to:`, meta.name);
+      if(newName===null) return;
+      renameProfile(meta.id, newName);
+      render();
+    };
+  });
+  c.querySelectorAll('[data-delprofile]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const meta = profiles.list.find(p=>p.id===btn.dataset.delprofile);
+      if(!meta) return;
+      if(confirm(`Delete profile "${meta.name}" and all of its data? This cannot be undone.`)){
+        deleteProfile(meta.id);
+      }
+    };
+  });
+
+  c.querySelectorAll('[data-addcat]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const t = btn.dataset.addcat;
+      const inp = document.getElementById(`newCat-${t}`);
+      const val = inp.value.trim();
+      if(!val) return;
+      if(state.categories[t].includes(val)){ toast('That category already exists.'); return; }
+      state.categories[t].push(val);
+      saveState(); render();
+    };
+  });
+  c.querySelectorAll('[data-editcat]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const [t, cat] = btn.dataset.editcat.split('|||');
+      const newName = prompt(`Rename "${cat}" to:`, cat);
+      if(newName===null) return;
+      renameCategory(t, cat, newName);
+    };
+  });
+  c.querySelectorAll('[data-rmcat]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const [t, cat] = btn.dataset.rmcat.split('|||');
+      if(confirm(`Remove "${cat}" from ${t}? Existing transactions/planning entries referencing it will remain but won't appear in new dropdowns.`)){
+        state.categories[t] = state.categories[t].filter(x=>x!==cat);
+        if(t==='Expenses'){
+          state.settings.weeklyExcludedCategories = (state.settings.weeklyExcludedCategories||[]).filter(c=>c!==cat);
+        }
+        state.settings.excludedFromSummary = (state.settings.excludedFromSummary||[]).filter(k=>k!==`${t}|||${cat}`);
+        saveState(); render();
+      }
+    };
+  });
+  c.querySelectorAll('[data-moveup]').forEach(btn=>{
+    btn.onclick = ()=>{ const [t,cat] = btn.dataset.moveup.split('|||'); moveCategory(t, cat, -1); };
+  });
+  c.querySelectorAll('[data-movedown]').forEach(btn=>{
+    btn.onclick = ()=>{ const [t,cat] = btn.dataset.movedown.split('|||'); moveCategory(t, cat, 1); };
+  });
+  c.querySelectorAll('[data-togglespecial]').forEach(btn=>{
+    btn.onclick = ()=>{ const [t,cat] = btn.dataset.togglespecial.split('|||'); toggleCategorySpecial(t, cat); };
+  });
+
+  document.getElementById('exportBtn2').onclick = exportBackup;
+  document.getElementById('importBtn2').onclick = ()=> document.getElementById('importFile').click();
+  document.getElementById('resetBtn').onclick = ()=>{
+    if(confirm('This will permanently erase this profile\'s data (other profiles are untouched). Continue?')){
+      if(confirm('Are you absolutely sure? This cannot be undone.')){
+        state = defaultState();
+        saveState(); render(); toast('This profile has been reset.');
+      }
+    }
+  };
+}
+
+/* =========================================================
+   BACKUP / RESTORE
+========================================================= */
+function exportBackup(){
+  const meta = profiles.list.find(p=>p.id===profiles.activeId);
+  const safeName = (meta ? meta.name : 'profile').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  downloadBlob(blob, `ledger-${safeName}-${isoDate(TODAY)}.json`);
+  toast('Backup downloaded.');
+}
+
+document.getElementById('exportBtn').onclick = exportBackup;
+document.getElementById('importBtn').onclick = ()=> document.getElementById('importFile').click();
+document.getElementById('importFile').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!parsed.categories || !parsed.transactions){ throw new Error('Not a recognized backup file.'); }
+      if(confirm('Import will replace all data in the current profile. Continue?')){
+        state = {...defaultState(), ...parsed};
+        saveState(); render(); toast('Backup imported.');
+      }
+    }catch(err){
+      toast('Could not read that file — is it a Ledger backup?');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+/* =========================================================
+   INIT
+========================================================= */
+if(AUTO_SAVE_SUPPORTED && state.settings.autoSaveEnabled && !autoSaveHandle){
+  // The file handle can't survive a page reload — require a conscious re-link
+  // rather than silently falling back to downloading a new copy every change.
+  state.settings.autoSaveEnabled = false;
+}
+applyTheme(loadTheme());
+renderProfileSwitcher();
+renderCloudStatus();
+render();
+refreshFxRates(false);
+</script>
+</body>
+</html>
