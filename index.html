@@ -239,6 +239,16 @@
     padding:9px 12px; font-size:12.5px; color:var(--amber); margin-bottom:14px; line-height:1.5; }
   .liq-basis{ display:flex; gap:6px; align-items:center; font-size:12px; color:var(--text-faint); }
   .nw-speed{ padding:2px 5px; font-size:10.5px; width:auto; }
+  table.tiers{ width:100%; border-collapse:collapse; }
+  table.tiers th{ text-align:left; font-size:11.5px; color:var(--text-faint); font-weight:400;
+    padding:0 0 8px 0; border-bottom:1px solid var(--border); vertical-align:bottom; }
+  table.tiers th.r, table.tiers td.r{ text-align:right; }
+  table.tiers th .sub{ color:var(--text-dim); font-size:11px; margin-top:2px; }
+  table.tiers td{ padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
+  table.tiers tbody tr:last-child td{ border-bottom:none; }
+  table.tiers td .sub{ font-size:11px; color:var(--text-faint); margin-top:1px; }
+  table.tiers tr.tier-limit td{ background:rgba(201,162,39,0.06); }
+  table.tiers th:not(.r), table.tiers td:not(.r){ padding-right:12px; }
   .liq-set-grid{ display:grid; grid-template-columns:1fr 120px; gap:9px 14px; align-items:center; max-width:480px; }
   .liq-set-grid label{ font-size:13px; color:var(--text-dim); }
   @media (max-width: 600px){ .liq-set-grid{ grid-template-columns:1fr 96px; } }
@@ -537,6 +547,7 @@ function defaultState(){
       liquidity: {
         speeds: {},              // accountId -> 'today' | 'week' | 'month' | 'locked'
         spendBasis: 'actuals',   // 'actuals' (rolling 3 complete months) or 'budget'
+        runwayTier: 'week',      // which cash tier the runway limit is judged against
         thbSpendShare: 80,       // % of eventual retirement spending expected to be in THB
         limits: { runwayMonths: 6, fixedPct: 50, concPct: 60, bufferToday: 20000 }
       }
@@ -710,7 +721,7 @@ function mergeWithDefaults(parsed){
   // Liquidity settings arrived after some profiles were already saved — backfill them
   // without disturbing anything the user has already set.
   merged.settings.essentialCategories = merged.settings.essentialCategories || [];
-  const liqBase = { speeds:{}, spendBasis:'actuals', thbSpendShare:80,
+  const liqBase = { speeds:{}, spendBasis:'actuals', runwayTier:'week', thbSpendShare:80,
                     limits:{ runwayMonths:6, fixedPct:50, concPct:60, bufferToday:20000 } };
   const liq = merged.settings.liquidity || {};
   merged.settings.liquidity = {
@@ -3315,6 +3326,11 @@ function renderSettings(c){
         <label for="liqRunway">Runway on essentials, at least (months)</label>
         <input type="number" id="liqRunway" step="1" min="0" value="${L.limits.runwayMonths}">
 
+        <label for="liqTier">…counting cash reachable</label>
+        <select id="liqTier">
+          ${RUNWAY_TIERS.map(t=>`<option value="${t.key}" ${ (L.runwayTier||'week')===t.key ?'selected':''}>${t.label}</option>`).join('')}
+        </select>
+
         <label for="liqFixed">Essential costs, at most (% of income)</label>
         <input type="number" id="liqFixed" step="5" min="0" max="100" value="${L.limits.fixedPct}">
 
@@ -3451,6 +3467,8 @@ function renderSettings(c){
     el.onchange = ()=>{ apply(Number(el.value)||0); saveState(); };
   };
   liqField('liqRunway', v=> L.limits.runwayMonths = v);
+  const tierSel = document.getElementById('liqTier');
+  if(tierSel) tierSel.onchange = ()=>{ L.runwayTier = tierSel.value; saveState(); };
   liqField('liqFixed',  v=> L.limits.fixedPct     = Math.min(100, Math.max(0, v)));
   liqField('liqConc',   v=> L.limits.concPct      = Math.min(100, Math.max(0, v)));
   liqField('liqBuffer', v=> L.limits.bufferToday  = Math.max(0, v));
@@ -3610,6 +3628,19 @@ function liquidityConcentration(reachable){
 
 function months1(v){ return (v === Infinity || isNaN(v)) ? '—' : v.toFixed(1) + ' mo'; }
 
+/* The three spendable tiers, cheapest-to-touch first. Locked is never included:
+   the point of the tier view is to see how far you get WITHOUT reaching for the
+   money you'd rather leave alone. */
+const RUNWAY_TIERS = [
+  { key:'today', label:'Today only',        note:'cash in hand' },
+  { key:'week',  label:'+ within a week',   note:'plus anything that clears in days' },
+  { key:'month', label:'+ within a month',  note:'plus term deposits and slower assets' }
+];
+function tierLabel(key){
+  const t = RUNWAY_TIERS.find(x=> x.key===key);
+  return t ? t.label : key;
+}
+
 /* Green when the limit holds, amber within 10% of the line, pink once breached —
    a limit you're about to cross is more use than one you already have. */
 function limitPill(value, limit, higherIsBetter){
@@ -3629,6 +3660,10 @@ function renderLiquidity(c){
 
   const runCur = sp.total > 0 ? lad.reachable/sp.total : Infinity;
   const runEss = sp.essential > 0 ? lad.reachable/sp.essential : Infinity;
+  // The limit is judged against whichever tier you're willing to spend down,
+  // not automatically the largest one — untouched investments shouldn't flatter it.
+  const limitCash = lad.cum[L.runwayTier] !== undefined ? lad.cum[L.runwayTier] : lad.cum.week;
+  const runEssTier = sp.essential > 0 ? limitCash/sp.essential : Infinity;
   const fixedPct = sp.income > 0 ? sp.essential/sp.income*100 : 0;
   const gap = Math.abs((Number(L.thbSpendShare)||0) - fx.thbPct);
 
@@ -3660,23 +3695,37 @@ function renderLiquidity(c){
     ${notice.map(n=> `<div class="liq-banner">${n}</div>`).join('')}
 
     <div class="liq-q"><span class="n">1</span><span class="t">If income stopped today, how long could I live?</span></div>
-    <div class="liq-sub">Reachable cash divided by monthly spending. Savings contributions aren't counted &mdash; if income stops, saving stops with it. The gap between the two rates is slack you can create by choice.</div>
+    <div class="liq-sub">Each row adds a slower source of cash, so you can see how far you get before having to touch the money you'd rather leave invested. Locked accounts are excluded entirely. Savings contributions aren't counted as spending &mdash; if income stops, saving stops with it.</div>
     <div class="liq-body">
-      <div class="row">
-        <div class="card metric">
-          <h3>Spending as you do now</h3>
-          <div class="big">${months1(runCur)}</div>
-          <div class="cap">${moneyWhole(sp.total)} a month</div>
-        </div>
-        <div class="card metric">
-          <h3>Essentials only</h3>
-          <div class="big" style="color:var(--gold-bright);">${months1(runEss)}</div>
-          <div class="cap">${moneyWhole(sp.essential)} a month · ${sp.essCount} categor${sp.essCount===1?'y':'ies'}</div>
-        </div>
-        <div class="card metric">
-          <h3>Slack you could create</h3>
-          <div class="big">${(runCur===Infinity||runEss===Infinity)?'—':'+'+(runEss-runCur).toFixed(1)+' mo'}</div>
-          <div class="cap">by cutting ${moneyWhole(sp.total - sp.essential)} a month</div>
+      <div class="card">
+        <table class="tiers">
+          <thead>
+            <tr>
+              <th>What you'd spend down</th>
+              <th class="r">Cash</th>
+              <th class="r">All spending<div class="sub">${moneyWhole(sp.total)}/mo</div></th>
+              <th class="r">Essentials only<div class="sub">${moneyWhole(sp.essential)}/mo</div></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${RUNWAY_TIERS.map(t=>{
+              const cash = lad.cum[t.key];
+              const rc = sp.total > 0 ? cash/sp.total : Infinity;
+              const re = sp.essential > 0 ? cash/sp.essential : Infinity;
+              const isLimit = (L.runwayTier||'week') === t.key;
+              return `
+              <tr class="${isLimit?'tier-limit':''}">
+                <td>${t.label}${isLimit?' <span class="pill Savings" style="margin-left:5px;">limit</span>':''}<div class="sub">${t.note}</div></td>
+                <td class="r">${moneyWhole(cash)}</td>
+                <td class="r">${months1(rc)}</td>
+                <td class="r" style="color:var(--gold-bright);">${months1(re)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+        <div class="liq-note">
+          Essentials cover ${sp.essCount} categor${sp.essCount===1?'y':'ies'}; cutting the rest frees ${moneyWhole(sp.total - sp.essential)} a month.
+          ${lad.locked>0 ? `${moneyWhole(lad.locked)} is locked and left out of every row.` : ''}
         </div>
       </div>
     </div>
@@ -3721,9 +3770,9 @@ function renderLiquidity(c){
       <div class="card">
         <table class="limits">
           <tr>
-            <td>Runway on essentials, at least ${L.limits.runwayMonths} months</td>
-            <td class="lv">${runEss===Infinity?'—':runEss.toFixed(1)}</td>
-            <td class="ls">${limitPill(runEss===Infinity?0:runEss, L.limits.runwayMonths, true)}</td>
+            <td>Runway on essentials, at least ${L.limits.runwayMonths} months <span class="muted" style="font-size:11px;">(${tierLabel(L.runwayTier||'week').toLowerCase()})</span></td>
+            <td class="lv">${runEssTier===Infinity?'—':runEssTier.toFixed(1)}</td>
+            <td class="ls">${limitPill(runEssTier===Infinity?0:runEssTier, L.limits.runwayMonths, true)}</td>
           </tr>
           <tr>
             <td>Essential costs under ${L.limits.fixedPct}% of income</td>
@@ -3758,7 +3807,15 @@ function renderLiquidity(c){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V1.3', name: 'Liquidity and Versions', date: 'Sep 2026', current: true,
+    no: 'V1.4', name: 'Runway by cash tier', date: 'Sep 2026', current: true,
+    items: [
+      'Question 1 is now a table rather than three cards: runway is shown for each spendable tier — today only, plus within a week, plus within a month — against both all spending and essentials only.',
+      'Locked accounts are excluded from every row, so the table answers how far you get before touching money you\'d rather leave invested.',
+      'Settings → Liquidity: the runway limit is now judged against a tier you choose, defaulting to “+ within a week”, instead of always assuming you\'d spend down everything reachable. The chosen row is highlighted on the Liquidity tab.'
+    ]
+  },
+  {
+    no: 'V1.3', name: 'Liquidity and Versions', date: 'Sep 2026',
     items: [
       'New Liquidity tab answering four questions: runway if income stops, how fast cash can actually be raised, currency mismatch against future spending, and pass/close/breach against your own limits.',
       'Runway is measured two ways — all spending and essentials only — with the difference shown as slack you could create. Savings contributions are excluded, since saving stops when income does.',
