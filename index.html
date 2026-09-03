@@ -265,7 +265,7 @@
   // window.LedgerCloud API that the main app script (below, a plain non-module script tag) calls into.
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult,
+    getAuth, GoogleAuthProvider, signInWithPopup,
     onAuthStateChanged, signOut
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
   import {
@@ -296,7 +296,19 @@
   function clean(obj){ return JSON.parse(JSON.stringify(obj)); }
 
   window.LedgerCloud = {
-    signIn(){ signInWithRedirect(auth, provider); },
+    // signInWithPopup (not signInWithRedirect): our authDomain (ledger-6508e.firebaseapp.com)
+    // is a different domain than the app itself (jiva-99.github.io), and the redirect flow
+    // needs cross-domain storage access that Safari (and now Chrome/Firefox too) blocks by
+    // default — it silently fails instead of erroring. Popup avoids that handshake entirely,
+    // which is Firebase's own documented fix for this exact situation.
+    async signIn(){
+      try{
+        await signInWithPopup(auth, provider);
+      }catch(e){
+        console.error('Sign-in popup failed', e);
+        if(window.onLedgerSignInError) window.onLedgerSignInError(e);
+      }
+    },
     signOutUser(){ return signOut(auth); },
     async pullMeta(uid){
       const snap = await getDoc(doc(db, 'users', uid, 'meta', 'profiles'));
@@ -319,8 +331,6 @@
       window.onLedgerAuthChange(user ? { uid:user.uid, email:user.email, name:user.displayName } : null);
     }
   });
-
-  getRedirectResult(auth).catch(err=> console.error('Sign-in redirect error', err));
 </script>
 </head>
 <body>
@@ -622,6 +632,20 @@ function renderCloudStatus(){
 }
 
 /* Called by the Firebase module script whenever sign-in state changes */
+/* Called by the Firebase module script if the sign-in popup fails or is blocked/cancelled */
+window.onLedgerSignInError = function(err){
+  cloudSignInPending = false;
+  renderCloudStatus();
+  const code = err && err.code;
+  if(code === 'auth/popup-blocked'){
+    toast('Your browser blocked the sign-in popup — check your popup blocker settings and try again.');
+  } else if(code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request'){
+    // User closed it themselves — no need to nag with a toast.
+  } else {
+    toast('Sign-in failed: ' + (err && (err.message || code) || 'unknown error'));
+  }
+};
+
 window.onLedgerAuthChange = async function(user){
   cloudUser = user;
   cloudAuthChecked = true;
