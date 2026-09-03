@@ -613,7 +613,7 @@ function renderCloudStatus(){
   }[cloudStatus] || '';
   const statusColor = cloudStatus==='error' ? 'var(--red)' : (cloudStatus==='synced' ? 'var(--green)' : 'var(--text-faint)');
   el.innerHTML = `
-    <div class="muted" style="font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${cloudUser.email||''}">${cloudUser.name || cloudUser.email || 'Signed in'}</div>
+    <div class="muted" style="font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${cloudUser.email||''}"><span style="color:var(--green);">✓</span> ${cloudUser.name || cloudUser.email || 'Signed in'}</div>
     <div style="font-size:10.5px; margin:2px 0 6px 0; color:${statusColor};">${statusText}</div>
     <button id="cloudSignOutBtn">Sign out</button>
   `;
