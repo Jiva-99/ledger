@@ -212,6 +212,48 @@
   .grid-cat{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; }
   .nw-row{ display:grid; grid-template-columns:1fr auto auto; align-items:center; column-gap:10px; padding:7px 0; border-bottom:1px solid var(--border); }
   .nw-row:last-child{ border-bottom:none; }
+
+  /* ---- Liquidity ---- */
+  .liq-q{ display:flex; align-items:baseline; gap:9px; margin:24px 0 3px 0; }
+  .liq-q .n{ font-family:var(--mono); font-size:12px; color:var(--gold); width:14px; flex-shrink:0; }
+  .liq-q .t{ font-size:15.5px; }
+  .liq-sub{ font-size:12px; color:var(--text-faint); margin:0 0 10px 23px; max-width:74ch; line-height:1.55; }
+  .liq-body{ margin-left:23px; }
+  .rung{ display:flex; align-items:center; gap:12px; margin-bottom:9px; }
+  .rung:last-of-type{ margin-bottom:0; }
+  .rung .rl{ width:96px; flex-shrink:0; font-size:12.5px; color:var(--text-dim); }
+  .rung .track{ flex:1; height:20px; background:var(--bg); border-radius:3px; overflow:hidden; }
+  .rung .fill{ height:100%; background:var(--green); border-radius:3px; }
+  .rung.locked .fill{ background:#3d434f; }
+  .rung .rv{ width:104px; text-align:right; font-size:12.5px; }
+  table.limits{ width:100%; border-collapse:collapse; }
+  table.limits td{ padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; }
+  table.limits tr:last-child td{ border-bottom:none; }
+  table.limits td.lv{ text-align:right; color:var(--text-dim); width:92px; }
+  table.limits td.ls{ text-align:right; width:78px; }
+  .pill.pass{ background:rgba(34,197,94,0.15); color:var(--green); }
+  .pill.close{ background:rgba(217,139,61,0.18); color:var(--amber); }
+  .pill.breach{ background:rgba(236,72,153,0.15); color:var(--pink); }
+  .liq-note{ font-size:11.5px; color:var(--text-faint); margin-top:12px; padding-top:10px; border-top:1px solid var(--border); }
+  .liq-banner{ background:rgba(217,139,61,0.09); border:1px solid rgba(217,139,61,0.32); border-radius:var(--radius);
+    padding:9px 12px; font-size:12.5px; color:var(--amber); margin-bottom:14px; line-height:1.5; }
+  .liq-basis{ display:flex; gap:6px; align-items:center; font-size:12px; color:var(--text-faint); }
+  .nw-speed{ padding:2px 5px; font-size:10.5px; width:auto; }
+  .liq-set-grid{ display:grid; grid-template-columns:1fr 120px; gap:9px 14px; align-items:center; max-width:480px; }
+  .liq-set-grid label{ font-size:13px; color:var(--text-dim); }
+  @media (max-width: 600px){ .liq-set-grid{ grid-template-columns:1fr 96px; } }
+
+  /* ---- Versions ---- */
+  .ver{ border-left:2px solid var(--border); padding:0 0 16px 15px; position:relative; }
+  .ver:last-child{ padding-bottom:2px; }
+  .ver::before{ content:''; position:absolute; left:-5px; top:5px; width:8px; height:8px;
+    border-radius:50%; background:var(--text-faint); }
+  .ver.current::before{ background:var(--gold); }
+  .ver .vh{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:1px; }
+  .ver .vno{ font-size:14px; color:var(--gold-bright); }
+  .ver .vname{ font-size:13.5px; }
+  .ver .vdate{ font-size:11px; color:var(--text-faint); margin-left:auto; }
+  .ver ul{ margin:5px 0 0 0; padding-left:16px; font-size:12.5px; color:var(--text-dim); line-height:1.6; }
   .nw-sub-wrap{ padding-left:12px; border-left:2px solid var(--border); margin-top:4px; margin-bottom:2px; display:flex; flex-direction:column; }
   .nw-sub-wrap .nw-row{ padding:5px 0; }
   .nw-balance{ text-align:right; font-family:var(--mono); white-space:nowrap; }
@@ -307,7 +349,8 @@
     }
     #mobileTabBar button{
       all:unset; flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
-      cursor:pointer; font-size:9.5px; color:var(--text-faint); padding:6px 0; text-align:center;
+      cursor:pointer; font-size:9px; color:var(--text-faint); padding:6px 0; text-align:center;
+      min-width:0; overflow:hidden;
     }
     #mobileTabBar button .mtb-num{ font-family:var(--mono); font-size:10px; }
     #mobileTabBar button.active{ color:var(--gold-bright); }
@@ -433,7 +476,9 @@
       <button data-tab="planning"><span class="num">03</span><span class="label">Planning</span></button>
       <button data-tab="networth"><span class="num">04</span><span class="label">Net Worth</span></button>
       <button data-tab="bills"><span class="num">05</span><span class="label">Bills</span></button>
-      <button data-tab="settings"><span class="num">06</span><span class="label">Settings</span></button>
+      <button data-tab="liquidity"><span class="num">06</span><span class="label">Liquidity</span></button>
+      <button data-tab="settings"><span class="num">07</span><span class="label">Settings</span></button>
+      <button data-tab="versions"><span class="num">08</span><span class="label">Versions</span></button>
     </nav>
     <div class="sidebar-foot">
       <button id="themeToggleBtn">☀ Light mode</button>
@@ -454,7 +499,9 @@
     <button data-tab="planning"><span class="mtb-num">03</span><span>Plan</span></button>
     <button data-tab="networth"><span class="mtb-num">04</span><span>Worth</span></button>
     <button data-tab="bills"><span class="mtb-num">05</span><span>Bills</span></button>
-    <button data-tab="settings"><span class="mtb-num">06</span><span>Set</span></button>
+    <button data-tab="liquidity"><span class="mtb-num">06</span><span>Liquid</span></button>
+    <button data-tab="settings"><span class="mtb-num">07</span><span>Set</span></button>
+    <button data-tab="versions"><span class="mtb-num">08</span><span>Ver</span></button>
   </nav>
 </div>
 
@@ -484,7 +531,15 @@ function defaultState(){
       weeklyThreshold: 300,
       weeklyExcludedCategories: ["Housing - Rent/Mortgage"],
       autoSaveEnabled: false,
-      excludedFromSummary: ["Income|||Opening Balance"]
+      excludedFromSummary: ["Income|||Opening Balance"],
+      // Categories you'd keep paying if income stopped. Keys are "Expenses|||<category>".
+      essentialCategories: [],
+      liquidity: {
+        speeds: {},              // accountId -> 'today' | 'week' | 'month' | 'locked'
+        spendBasis: 'actuals',   // 'actuals' (rolling 3 complete months) or 'budget'
+        thbSpendShare: 80,       // % of eventual retirement spending expected to be in THB
+        limits: { runwayMonths: 6, fixedPct: 50, concPct: 60, bufferToday: 20000 }
+      }
     },
     categories: {
       Income: ["Opening Balance","Salary & Wages - Base pay","Salary & Wages - Overtime/Bonus","Salary & Wages - Allowances",
@@ -652,6 +707,17 @@ function mergeWithDefaults(parsed){
       if(!Array.isArray(sub.history)) sub.history = [];
     });
   });
+  // Liquidity settings arrived after some profiles were already saved — backfill them
+  // without disturbing anything the user has already set.
+  merged.settings.essentialCategories = merged.settings.essentialCategories || [];
+  const liqBase = { speeds:{}, spendBasis:'actuals', thbSpendShare:80,
+                    limits:{ runwayMonths:6, fixedPct:50, concPct:60, bufferToday:20000 } };
+  const liq = merged.settings.liquidity || {};
+  merged.settings.liquidity = {
+    ...liqBase, ...liq,
+    speeds: liq.speeds || {},
+    limits: { ...liqBase.limits, ...(liq.limits||{}) }
+  };
   merged.fxRates = merged.fxRates || { THB: null, USD: null, fetchedAt: null };
   merged.portfolioTarget = merged.portfolioTarget || { amount: null, currency: 'AUD' };
   (merged.bills||[]).forEach(b=>{ if(!b.currency) b.currency = 'AUD'; });
@@ -1140,7 +1206,9 @@ function render(){
   else if(tab==='planning') renderPlanning(c);
   else if(tab==='networth') renderNetWorth(c);
   else if(tab==='bills') renderBills(c);
+  else if(tab==='liquidity') renderLiquidity(c);
   else if(tab==='settings') renderSettings(c);
+  else if(tab==='versions') renderVersions(c);
 }
 
 /* =========================================================
@@ -2516,6 +2584,13 @@ function renderNetWorth(c){
             <div>
               <div style="font-weight:600;">${a.name} <button class="icon-btn" data-renameacc="${a.id}" style="font-size:10px; padding:0 2px; color:var(--text-faint);" title="Rename">✎</button> <span class="muted" style="font-size:11px; font-weight:400;">${hasSubs ? 'mixed currencies' : a.currency}</span></div>
               ${targetRowHTML(a.id, targetBal, a.target, targetCur)}
+              <div class="muted" style="font-size:10.5px; margin-top:3px; display:flex; align-items:center; gap:5px;">
+                <span>Cash speed</span>
+                <select class="nw-speed" data-speed="${a.id}" title="How quickly this money could actually be spent">
+                  <option value="" ${!accountSpeed(a)?'selected':''}>Not set</option>
+                  ${SPEED_ORDER.map(sp=>`<option value="${sp}" ${accountSpeed(a)===sp?'selected':''}>${SPEED_LABELS[sp]}</option>`).join('')}
+                </select>
+              </div>
             </div>
             <div class="nw-balance">
               <div style="font-size:14.5px;">${hasSubs ? moneyWhole(balAUD) : moneyCur(bal, a.currency)}${showAUD ? ` <span class="muted" style="font-size:11px;">(≈${moneyWhole(balAUD)})</span>` : ''}</div>
@@ -2642,6 +2717,14 @@ function renderNetWorth(c){
     }
   });
   c.querySelectorAll('[data-adj]').forEach(b=> b.onclick = ()=> openAdjustModal(b.dataset.adj));
+  c.querySelectorAll('[data-speed]').forEach(sel=>{
+    sel.onchange = ()=>{
+      const speeds = liqSettings().speeds || (liqSettings().speeds = {});
+      if(sel.value) speeds[sel.dataset.speed] = sel.value;
+      else delete speeds[sel.dataset.speed];
+      saveState();
+    };
+  });
   c.querySelectorAll('[data-hist]').forEach(b=> b.onclick = ()=> openHistoryModal(b.dataset.hist));
   c.querySelectorAll('[data-addsub]').forEach(b=> b.onclick = ()=> openSubCategoryModal(b.dataset.addsub));
   c.querySelectorAll('[data-adjsub]').forEach(b=>{
@@ -3131,11 +3214,13 @@ function renameCategory(type, oldName, newName){
     state.accounts.forEach(a=>{ if(a.linkedCategory===oldName) a.linkedCategory = newName; });
   }
   state.settings.excludedFromSummary = (state.settings.excludedFromSummary||[]).map(k=> k===`${type}|||${oldName}` ? `${type}|||${newName}` : k);
+  state.settings.essentialCategories = (state.settings.essentialCategories||[]).map(k=> k===`${type}|||${oldName}` ? `${type}|||${newName}` : k);
 
   saveState(); render(); toast(`Renamed to "${newName}".`);
 }
 
 function renderSettings(c){
+  const L = liqSettings();
   const s = state.settings;
   c.innerHTML = `
     <h1 class="page-title">Settings</h1>
@@ -3185,7 +3270,7 @@ function renderSettings(c){
     </div>
 
     <div class="section-title">Categories</div>
-    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">Use ↑↓ to reorder. The ☆ marks a category as <b>Special</b> — its transactions still count toward Transactions/Balance, but are left out of graphs, donuts, and breakdown totals (useful for things like an opening balance).</div>
+    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">Use ↑↓ to reorder. On expenses, ◆ marks a category as <b>Essential</b> — one you'd keep paying if your income stopped. That's what the Liquidity tab uses for the essentials-only runway; it changes nothing else. The ☆ marks a category as <b>Special</b> — its transactions still count toward Transactions/Balance, but are left out of graphs, donuts, and breakdown totals (useful for things like an opening balance).</div>
     <div class="card">
       <div class="grid-cat">
         ${TYPES.map(t=>`
@@ -3195,6 +3280,7 @@ function renderSettings(c){
               ${state.categories[t].map((cat,idx)=>{
                 const key = t+'|||'+cat;
                 const isSpecial = (state.settings.excludedFromSummary||[]).includes(key);
+                const isEss = t==='Expenses' && isEssentialCategory(cat);
                 return `
                 <div class="cat-item ${t}">
                   <div style="display:flex; align-items:center; gap:2px; min-width:0; overflow:hidden;">
@@ -3202,8 +3288,10 @@ function renderSettings(c){
                     <button class="icon-btn" data-movedown="${key}" title="Move down" ${idx===state.categories[t].length-1?'disabled':''}>↓</button>
                     <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-left:2px;">${cat}</span>
                     ${isSpecial?'<span class="pill Savings" style="margin-left:6px; flex-shrink:0;">Special</span>':''}
+                    ${isEss?'<span class="pill Income" style="margin-left:6px; flex-shrink:0;">Essential</span>':''}
                   </div>
                   <div class="cat-actions">
+                    ${t==='Expenses' ? `<button class="icon-btn" data-toggleessential="${cat}" title="${isEss?'Not essential — would be cut if income stopped':'Essential — would keep paying if income stopped'}" style="${isEss?'color:var(--green);':''}">${isEss?'◆':'◇'}</button>` : ''}
                     <button class="icon-btn" data-togglespecial="${key}" title="${isSpecial?'Include in graphs/summary':'Exclude from graphs/summary'}">${isSpecial?'★':'☆'}</button>
                     <button class="icon-btn" style="color:var(--gold);" data-editcat="${key}" title="Rename">✎</button>
                     <button class="icon-btn" data-rmcat="${key}" title="Remove">✕</button>
@@ -3217,6 +3305,27 @@ function renderSettings(c){
             </div>
           </div>
         `).join('')}
+      </div>
+    </div>
+
+    <div class="section-title">Liquidity</div>
+    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">Set these once. They drive the limit checks on the Liquidity tab, and nothing else in the app reads them.</div>
+    <div class="card">
+      <div class="liq-set-grid">
+        <label for="liqRunway">Runway on essentials, at least (months)</label>
+        <input type="number" id="liqRunway" step="1" min="0" value="${L.limits.runwayMonths}">
+
+        <label for="liqFixed">Essential costs, at most (% of income)</label>
+        <input type="number" id="liqFixed" step="5" min="0" max="100" value="${L.limits.fixedPct}">
+
+        <label for="liqConc">Largest single account, at most (% of reachable cash)</label>
+        <input type="number" id="liqConc" step="5" min="0" max="100" value="${L.limits.concPct}">
+
+        <label for="liqBuffer">Cash reachable today, at least (AUD)</label>
+        <input type="number" id="liqBuffer" step="1000" min="0" value="${L.limits.bufferToday}">
+
+        <label for="liqThb">Share of retirement spending in baht (%)</label>
+        <input type="number" id="liqThb" step="5" min="0" max="100" value="${L.thbSpendShare}">
       </div>
     </div>
 
@@ -3317,6 +3426,7 @@ function renderSettings(c){
           state.settings.weeklyExcludedCategories = (state.settings.weeklyExcludedCategories||[]).filter(c=>c!==cat);
         }
         state.settings.excludedFromSummary = (state.settings.excludedFromSummary||[]).filter(k=>k!==`${t}|||${cat}`);
+        state.settings.essentialCategories = (state.settings.essentialCategories||[]).filter(k=>k!==`${t}|||${cat}`);
         saveState(); render();
       }
     };
@@ -3330,6 +3440,21 @@ function renderSettings(c){
   c.querySelectorAll('[data-togglespecial]').forEach(btn=>{
     btn.onclick = ()=>{ const [t,cat] = btn.dataset.togglespecial.split('|||'); toggleCategorySpecial(t, cat); };
   });
+  c.querySelectorAll('[data-toggleessential]').forEach(btn=>{
+    btn.onclick = ()=> toggleCategoryEssential(btn.dataset.toggleessential);
+  });
+
+  // Liquidity limits — written straight back on change, no separate save step
+  const liqField = (id, apply)=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.onchange = ()=>{ apply(Number(el.value)||0); saveState(); };
+  };
+  liqField('liqRunway', v=> L.limits.runwayMonths = v);
+  liqField('liqFixed',  v=> L.limits.fixedPct     = Math.min(100, Math.max(0, v)));
+  liqField('liqConc',   v=> L.limits.concPct      = Math.min(100, Math.max(0, v)));
+  liqField('liqBuffer', v=> L.limits.bufferToday  = Math.max(0, v));
+  liqField('liqThb',    v=> L.thbSpendShare       = Math.min(100, Math.max(0, v)));
 
   document.getElementById('exportBtn2').onclick = exportBackup;
   document.getElementById('importBtn2').onclick = ()=> document.getElementById('importFile').click();
@@ -3341,6 +3466,361 @@ function renderSettings(c){
       }
     }
   };
+}
+
+/* =========================================================
+   LIQUIDITY
+   Four questions the balance sheet should answer: how long you'd last if
+   income stopped, how much cash you could actually raise and how fast,
+   whether the currency you hold matches the currency you'll spend, and
+   whether you're still inside the limits you set yourself.
+========================================================= */
+const SPEED_ORDER  = ['today','week','month','locked'];
+const SPEED_LABELS = { today:'Today', week:'This week', month:'This month', locked:'Locked' };
+const DEFAULT_SPEED = 'month';   // used for accounts not yet tagged; flagged in the UI
+
+function liqSettings(){ return state.settings.liquidity; }
+
+/* An expense category you'd keep paying if income stopped. Stored as
+   "Expenses|||<category>" so it survives a rename the same way the ☆ flag does. */
+function isEssentialCategory(cat){
+  return (state.settings.essentialCategories||[]).includes('Expenses|||' + cat);
+}
+function toggleCategoryEssential(cat){
+  const key = 'Expenses|||' + cat;
+  const list = new Set(state.settings.essentialCategories || []);
+  list.has(key) ? list.delete(key) : list.add(key);
+  state.settings.essentialCategories = [...list];
+  saveState(); render();
+}
+
+/* An account's tagged cash speed, or null when it hasn't been set yet. */
+function accountSpeed(a){
+  const s = (liqSettings().speeds||{})[a.id];
+  return SPEED_ORDER.includes(s) ? s : null;
+}
+
+/* The last n COMPLETE calendar months, newest first. The current month is
+   deliberately excluded — it's only part-way through, so averaging it in
+   would understate spending and flatter the runway. */
+function completeMonths(n){
+  const out = [];
+  let y = TODAY.getFullYear(), m = TODAY.getMonth() - 1;
+  for(let i=0; i<n; i++){
+    if(m < 0){ m = 11; y--; }
+    out.push({ year:y, month:m });
+    m--;
+  }
+  return out;
+}
+
+/* Monthly spending, split into everything vs essentials only, plus monthly income.
+   Two bases: a rolling average of the last three complete months of actuals
+   (the default — how you really live), or the year's budget (how you planned to). */
+function liquiditySpending(){
+  const basis = liqSettings().spendBasis === 'budget' ? 'budget' : 'actuals';
+  const perCat = {};
+  let income = 0, label = '';
+
+  if(basis === 'budget'){
+    const y = state.ui.planYear || TODAY.getFullYear();
+    const plan = (state.planning||{})[y] || {};
+    Object.entries(plan.Expenses || {}).forEach(([cat, arr])=>{
+      const nums = (arr||[]).map(v=> Number(v)||0);
+      perCat[cat] = nums.reduce((a,b)=>a+b, 0) / 12;
+    });
+    Object.entries(plan.Income || {}).forEach(([cat, arr])=>{
+      const nums = (arr||[]).map(v=> Number(v)||0);
+      income += nums.reduce((a,b)=>a+b, 0) / 12;
+    });
+    label = `${y} budget, monthly average`;
+  } else {
+    const months = completeMonths(3);
+    months.forEach(({year, month})=>{
+      const t = trackedTotals(year, month);
+      Object.entries(t.Expenses).forEach(([cat, v])=>{ perCat[cat] = (perCat[cat]||0) + v; });
+      income += sumType(t.Income);
+    });
+    Object.keys(perCat).forEach(cat=> perCat[cat] = perCat[cat] / months.length);
+    income = income / months.length;
+    const first = months[months.length-1], last = months[0];
+    label = `average of ${MONTHS[first.month]} ${first.year} – ${MONTHS[last.month]} ${last.year}`;
+  }
+
+  const essential = new Set(state.settings.essentialCategories || []);
+  let total = 0, ess = 0, essCount = 0;
+  Object.entries(perCat).forEach(([cat, v])=>{
+    total += v;
+    if(essential.has('Expenses|||' + cat)){ ess += v; essCount++; }
+  });
+  return { perCat, total, essential: ess, essCount, income, basis, label };
+}
+
+/* Cash grouped by how quickly it can actually be spent, then accumulated.
+   Savings contributions are not counted as spending anywhere here: if income
+   stops, saving stops with it — only expenses keep running. */
+function liquidityLadder(){
+  const buckets = { today:0, week:0, month:0, locked:0 };
+  const untagged = [];
+  (state.accounts||[]).forEach(a=>{
+    const bal = accountBalanceAUD(a);
+    const sp  = accountSpeed(a);
+    if(!sp) untagged.push(a.name);
+    buckets[sp || DEFAULT_SPEED] += bal;
+  });
+  const cum = {
+    today: buckets.today,
+    week:  buckets.today + buckets.week,
+    month: buckets.today + buckets.week + buckets.month
+  };
+  return { buckets, cum, locked: buckets.locked,
+           reachable: cum.month, net: cum.month + buckets.locked, untagged };
+}
+
+/* Share of the balance sheet held in baht, walking sub-categories so a split
+   account with mixed currencies is counted correctly rather than by its parent. */
+function currencyExposure(){
+  const today = isoDate(TODAY);
+  let thb = 0, all = 0;
+  (state.accounts||[]).forEach(a=>{
+    if(a.subCategories && a.subCategories.length){
+      a.subCategories.forEach(sub=>{
+        const cur = sub.currency || a.currency;
+        const v = toAUD(unitBalanceAsOf(sub, today), cur);
+        all += v; if(cur === 'THB') thb += v;
+      });
+    } else {
+      const v = accountBalanceAUD(a);
+      all += v; if(a.currency === 'THB') thb += v;
+    }
+  });
+  return { thbAUD: thb, net: all, thbPct: all > 0 ? thb/all*100 : 0 };
+}
+
+/* Largest single reachable account as a share of all reachable cash. Locked
+   accounts are excluded — they're not part of the money you could move. */
+function liquidityConcentration(reachable){
+  const live = (state.accounts||[])
+    .filter(a=> (accountSpeed(a) || DEFAULT_SPEED) !== 'locked')
+    .map(a=> ({ name:a.name, bal: accountBalanceAUD(a) }));
+  if(!live.length || reachable <= 0) return { pct:0, name:'—' };
+  const top = live.reduce((m, x)=> x.bal > m.bal ? x : m, live[0]);
+  return { pct: top.bal/reachable*100, name: top.name };
+}
+
+function months1(v){ return (v === Infinity || isNaN(v)) ? '—' : v.toFixed(1) + ' mo'; }
+
+/* Green when the limit holds, amber within 10% of the line, pink once breached —
+   a limit you're about to cross is more use than one you already have. */
+function limitPill(value, limit, higherIsBetter){
+  const pass = higherIsBetter ? value >= limit : value <= limit;
+  const near = higherIsBetter ? value >= limit*0.9 : value <= limit*1.1;
+  const cls  = pass ? 'pass' : (near ? 'close' : 'breach');
+  const txt  = pass ? 'Pass' : (near ? 'Close' : 'Breach');
+  return `<span class="pill ${cls}">${txt}</span>`;
+}
+
+function renderLiquidity(c){
+  const L    = liqSettings();
+  const sp   = liquiditySpending();
+  const lad  = liquidityLadder();
+  const fx   = currencyExposure();
+  const conc = liquidityConcentration(lad.reachable);
+
+  const runCur = sp.total > 0 ? lad.reachable/sp.total : Infinity;
+  const runEss = sp.essential > 0 ? lad.reachable/sp.essential : Infinity;
+  const fixedPct = sp.income > 0 ? sp.essential/sp.income*100 : 0;
+  const gap = Math.abs((Number(L.thbSpendShare)||0) - fx.thbPct);
+
+  const notice = [];
+  if(!sp.essCount) notice.push('No categories are marked essential yet, so the essentials-only runway is empty. Tick them in Settings → Categories.');
+  if(lad.untagged.length) notice.push(`${lad.untagged.length} account${lad.untagged.length>1?'s have':' has'} no cash speed set and ${lad.untagged.length>1?'are':'is'} being counted as “this month”: ${lad.untagged.join(', ')}. Set them on the Net Worth tab.`);
+
+  const max = Math.max(lad.net, 1);
+  const rung = (label, val, cls)=> `
+    <div class="rung ${cls||''}">
+      <div class="rl">${label}</div>
+      <div class="track"><div class="fill" style="width:${Math.min(100, val/max*100).toFixed(1)}%"></div></div>
+      <div class="rv">${moneyWhole(val)}</div>
+    </div>`;
+
+  c.innerHTML = `
+    <div class="toolbar">
+      <div class="liq-basis">
+        <span>Spending measured from</span>
+        <select id="liqBasis" style="width:auto;">
+          <option value="actuals" ${sp.basis==='actuals'?'selected':''}>Actuals — last 3 complete months</option>
+          <option value="budget" ${sp.basis==='budget'?'selected':''}>Budget — this year's plan</option>
+        </select>
+      </div>
+      <div class="spacer"></div>
+      <div class="muted" style="font-size:11.5px;">${sp.label}</div>
+    </div>
+
+    ${notice.map(n=> `<div class="liq-banner">${n}</div>`).join('')}
+
+    <div class="liq-q"><span class="n">1</span><span class="t">If income stopped today, how long could I live?</span></div>
+    <div class="liq-sub">Reachable cash divided by monthly spending. Savings contributions aren't counted &mdash; if income stops, saving stops with it. The gap between the two rates is slack you can create by choice.</div>
+    <div class="liq-body">
+      <div class="row">
+        <div class="card metric">
+          <h3>Spending as you do now</h3>
+          <div class="big">${months1(runCur)}</div>
+          <div class="cap">${moneyWhole(sp.total)} a month</div>
+        </div>
+        <div class="card metric">
+          <h3>Essentials only</h3>
+          <div class="big" style="color:var(--gold-bright);">${months1(runEss)}</div>
+          <div class="cap">${moneyWhole(sp.essential)} a month · ${sp.essCount} categor${sp.essCount===1?'y':'ies'}</div>
+        </div>
+        <div class="card metric">
+          <h3>Slack you could create</h3>
+          <div class="big">${(runCur===Infinity||runEss===Infinity)?'—':'+'+(runEss-runCur).toFixed(1)+' mo'}</div>
+          <div class="cap">by cutting ${moneyWhole(sp.total - sp.essential)} a month</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="liq-q"><span class="n">2</span><span class="t">If I needed cash urgently, how much could I get?</span></div>
+    <div class="liq-sub">Net worth is not the same as available money. Each rung adds the accounts that clear within that window.</div>
+    <div class="liq-body">
+      <div class="card">
+        ${rung('Today', lad.cum.today)}
+        ${rung('Within a week', lad.cum.week)}
+        ${rung('Within a month', lad.cum.month)}
+        ${rung('Locked up', lad.locked, 'locked')}
+        <div class="liq-note">Net worth ${moneyWhole(lad.net)} — of which ${moneyWhole(lad.reachable)} is reachable inside a month.</div>
+      </div>
+    </div>
+
+    <div class="liq-q"><span class="n">3</span><span class="t">Am I holding the right currency?</span></div>
+    <div class="liq-sub">If most of your eventual spending is in baht but most of your assets sit in dollars, you're carrying an exchange rate bet whether you chose it or not.</div>
+    <div class="liq-body">
+      <div class="row">
+        <div class="card metric">
+          <h3>Assets held in baht</h3>
+          <div class="big">${fx.thbPct.toFixed(0)}%</div>
+          <div class="cap">${moneyWhole(fx.thbAUD)} of ${moneyWhole(fx.net)}</div>
+        </div>
+        <div class="card metric">
+          <h3>Retirement spending in baht</h3>
+          <div class="big">${Math.round(Number(L.thbSpendShare)||0)}%</div>
+          <div class="cap">your estimate, set in Settings</div>
+        </div>
+        <div class="card metric">
+          <h3>Mismatch</h3>
+          <div class="big" style="color:${gap>40?'var(--amber)':'var(--text)'};">${gap.toFixed(0)} pts</div>
+          <div class="cap">${gap>40?'largely unhedged':'broadly aligned'}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="liq-q"><span class="n">4</span><span class="t">Am I still inside my own rules?</span></div>
+    <div class="liq-sub">Thresholds you set once in Settings. Amber means you're within 10% of the line rather than over it.</div>
+    <div class="liq-body">
+      <div class="card">
+        <table class="limits">
+          <tr>
+            <td>Runway on essentials, at least ${L.limits.runwayMonths} months</td>
+            <td class="lv">${runEss===Infinity?'—':runEss.toFixed(1)}</td>
+            <td class="ls">${limitPill(runEss===Infinity?0:runEss, L.limits.runwayMonths, true)}</td>
+          </tr>
+          <tr>
+            <td>Essential costs under ${L.limits.fixedPct}% of income</td>
+            <td class="lv">${fixedPct.toFixed(0)}%</td>
+            <td class="ls">${limitPill(fixedPct, L.limits.fixedPct, false)}</td>
+          </tr>
+          <tr>
+            <td>No single account over ${L.limits.concPct}% of reachable cash <span class="muted" style="font-size:11px;">(${conc.name})</span></td>
+            <td class="lv">${conc.pct.toFixed(0)}%</td>
+            <td class="ls">${limitPill(conc.pct, L.limits.concPct, false)}</td>
+          </tr>
+          <tr>
+            <td>Cash reachable today above ${moneyWhole(L.limits.bufferToday)}</td>
+            <td class="lv">${moneyWhole(lad.cum.today)}</td>
+            <td class="ls">${limitPill(lad.cum.today, L.limits.bufferToday, true)}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('liqBasis').onchange = e=>{
+    liqSettings().spendBasis = e.target.value;
+    saveState(); render();
+  };
+}
+
+/* =========================================================
+   VERSIONS
+   A running changelog. Newest first — add an entry at the TOP of this array
+   whenever something changes, and it appears on the tab automatically.
+========================================================= */
+const VERSION_LOG = [
+  {
+    no: 'V1.3', name: 'Liquidity and Versions', date: 'Sep 2026', current: true,
+    items: [
+      'New Liquidity tab answering four questions: runway if income stops, how fast cash can actually be raised, currency mismatch against future spending, and pass/close/breach against your own limits.',
+      'Runway is measured two ways — all spending and essentials only — with the difference shown as slack you could create. Savings contributions are excluded, since saving stops when income does.',
+      'Spending basis toggle: a rolling average of the last three complete months of actuals (default), or the year\'s budget.',
+      'Settings → Categories: expense categories can now be flagged essential.',
+      'Settings → Liquidity: four limits, plus your estimate of how much retirement spending will be in baht.',
+      'Net Worth: each account carries a cash speed — today, this week, this month, or locked. Untagged accounts count as “this month” and are flagged on the Liquidity tab.',
+      'New Versions tab (this one).'
+    ]
+  },
+  {
+    no: 'V1.2', name: 'Hosted and synced', date: 'Sep 2026',
+    items: [
+      'Published to GitHub Pages and added to the iPhone and iPad home screen.',
+      'Firebase Auth and Firestore sync, so both devices read and write one shared data set.'
+    ]
+  },
+  {
+    no: 'V1.1', name: 'Correctness pass', date: 'Aug 2026',
+    items: [
+      'Fixed a date bug where income dated the 29th–31st shifted into the wrong month, because JavaScript silently rolls "September 31" over into October.',
+      'Applied the same fix to bill due-date calculation.',
+      'Fixed today\'s date resolving to yesterday in UTC+10/+11 during the morning — toISOString() was being used where a local date was meant.',
+      'Restored decimals on the transaction amount and balance columns after a regression rounded them to whole numbers.',
+      'Fixed unselected bars rendering white-on-white in the monthly chart.'
+    ]
+  },
+  {
+    no: 'V1.0', name: 'First build', date: 'Aug 2026',
+    items: [
+      'Translated the multi-year Excel budget into a single-file offline HTML app, storing data in localStorage.',
+      'Six tabs: Dashboard, Transactions, Planning, Net Worth, Bills & Subscriptions, Settings.',
+      'Multi-currency across AUD, THB and USD, with FX rates auto-fetched from frankfurter.app, falling back to open.er-api.com, then to manual entry.',
+      'Net worth accounts with sub-categories, per-account and portfolio targets, an accumulation-over-time chart and an investment breakdown donut.',
+      'Category management with reordering, renaming and the ☆ Special flag that keeps a category out of graphs and breakdown totals.',
+      'Profiles as separate unlinked books, CSV export, and auto-save to Excel via SheetJS and the File System Access API.'
+    ]
+  }
+];
+
+function renderVersions(c){
+  c.innerHTML = `
+    <div class="section-title">Version history</div>
+    <div class="muted" style="font-size:12px; margin:-4px 0 12px 0;">
+      What has changed and when, newest first. Entries before ${VERSION_LOG[0].no} were reconstructed
+      from the build sessions, so the dates are approximate — edit the <code>VERSION_LOG</code> array
+      near the bottom of this file to correct them or to add the next release.
+    </div>
+    <div class="card">
+      ${VERSION_LOG.map(v=>`
+        <div class="ver ${v.current?'current':''}">
+          <div class="vh">
+            <span class="vno">${v.no}</span>
+            <span class="vname">${v.name}</span>
+            ${v.current?'<span class="pill Savings">Current</span>':''}
+            <span class="vdate">${v.date||''}</span>
+          </div>
+          <ul>${v.items.map(i=>`<li>${i}</li>`).join('')}</ul>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 /* =========================================================
