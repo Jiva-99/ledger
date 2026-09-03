@@ -585,6 +585,9 @@ function mergeWithDefaults(parsed){
   merged.fxRates = merged.fxRates || { THB: null, USD: null, fetchedAt: null };
   merged.portfolioTarget = merged.portfolioTarget || { amount: null, currency: 'AUD' };
   (merged.bills||[]).forEach(b=>{ if(!b.currency) b.currency = 'AUD'; });
+  // Transactions had no currency field before multi-currency support — every existing
+  // entry was always meant as AUD, so that's exactly what gets set here, not a guess.
+  (merged.transactions||[]).forEach(t=>{ if(!t.currency) t.currency = 'AUD'; });
   return merged;
 }
 
@@ -756,8 +759,8 @@ function buildWorkbook(){
   const wb = XLSX.utils.book_new();
 
   // Transactions
-  const txRows = [['Date','Type','Category','Details','Amount','Balance']];
-  transactionsWithBalance().slice().reverse().forEach(t=> txRows.push([t.date, t.type, t.category, t.details||'', Number(t.amount), Number(t.balance)]));
+  const txRows = [['Date','Type','Category','Details','Amount','Currency','Amount (AUD)','Balance (AUD)']];
+  transactionsWithBalance().slice().reverse().forEach(t=> txRows.push([t.date, t.type, t.category, t.details||'', Number(t.amount), t.currency||'AUD', Math.round(txAmountAUD(t)*100)/100, Math.round(Number(t.balance)*100)/100]));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(txRows), 'Transactions');
 
   // Planning (every year that has been set up)
@@ -929,6 +932,14 @@ function effectiveDate(tx){
   return d;
 }
 
+/* A transaction's amount converted into AUD, using the currently-fetched FX rates.
+   Every AUD-denominated calculation in the app (Dashboard, weekly totals, running
+   balance) goes through this, so a transaction can be entered in its real currency
+   without silently distorting anything that assumes AUD. */
+function txAmountAUD(tx){
+  return toAUD(Number(tx.amount)||0, tx.currency||'AUD');
+}
+
 function trackedTotals(year, monthIdx){
   const totals = {Income:{}, Expenses:{}, Savings:{}};
   const excluded = new Set(state.settings.excludedFromSummary || []);
@@ -936,7 +947,7 @@ function trackedTotals(year, monthIdx){
     if(excluded.has(tx.type+'|||'+tx.category)) return;
     const ed = effectiveDate(tx);
     if(ed.getFullYear()===year && ed.getMonth()===monthIdx){
-      totals[tx.type][tx.category] = (totals[tx.type][tx.category]||0) + Number(tx.amount);
+      totals[tx.type][tx.category] = (totals[tx.type][tx.category]||0) + txAmountAUD(tx);
     }
   });
   return totals;
@@ -954,7 +965,8 @@ function transactionsWithBalance(){
   const asc = sortedTransactions();
   let bal = 0;
   const withBal = asc.map(tx=>{
-    bal += (tx.type==='Income' ? Number(tx.amount) : -Number(tx.amount));
+    const amtAUD = txAmountAUD(tx);
+    bal += (tx.type==='Income' ? amtAUD : -amtAUD);
     return {...tx, balance: bal};
   });
   return withBal.reverse(); // newest first for display
@@ -1110,10 +1122,13 @@ function lastNWeeks(n){
 /* Total Expenses in a Mon-Sun window, excluding whichever categories are configured to be left out */
 function weekExpenseTotal(start, end){
   const s = isoDate(start), e = isoDate(end);
-  const excluded = state.settings.weeklyExcludedCategories || [];
+  const manualExcluded = state.settings.weeklyExcludedCategories || [];
+  const specialExcluded = new Set(state.settings.excludedFromSummary || []);
   return state.transactions
-    .filter(t=> t.type==='Expenses' && t.date>=s && t.date<=e && !excluded.includes(t.category))
-    .reduce((sum,t)=> sum+Number(t.amount), 0);
+    .filter(t=> t.type==='Expenses' && t.date>=s && t.date<=e
+      && !manualExcluded.includes(t.category)
+      && !specialExcluded.has(t.type+'|||'+t.category))
+    .reduce((sum,t)=> sum+txAmountAUD(t), 0);
 }
 
 function weeklyExpenseRows(){
@@ -1668,8 +1683,8 @@ function renderTransactions(c){
   const totalRecords = state.transactions.length;
   const thisYearRecords = state.transactions.filter(t=> t.date.slice(0,4)===String(TODAY.getFullYear())).length;
   const allTimeBalance = state.transactions.reduce((s,t)=>{
-    if(t.type==='Income') return s+Number(t.amount);
-    return s-Number(t.amount);
+    const amtAUD = txAmountAUD(t);
+    return t.type==='Income' ? s+amtAUD : s-amtAUD;
   }, 0);
   const daysAgo = lastRecord ? Math.round((new Date(todayISO+'T00:00:00') - new Date(lastRecord.date+'T00:00:00'))/86400000) : null;
 
@@ -1715,22 +1730,28 @@ function renderTransactions(c){
     </div>
     ${rows.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No transactions match. Add one to get started.</div>` : `
     <table class="data">
-      <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Details</th><th class="num">Amount</th><th class="num">Balance</th><th></th></tr></thead>
+      <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Details</th><th class="num">Amount</th><th class="num">Balance (AUD)</th><th></th></tr></thead>
       <tbody>
-        ${rows.map(r=>`
+        ${rows.map(r=>{
+          const cur = r.currency || 'AUD';
+          const showAUD = cur!=='AUD';
+          return `
           <tr>
             <td class="muted">${r.date}</td>
             <td><span class="pill ${r.type}">${r.type}</span></td>
             <td>${r.category}</td>
             <td class="muted">${r.details||''}</td>
-            <td class="num ${r.type==='Income'?'pos':'neg'}">${r.type==='Income'?'+':'−'}${money(r.amount)}</td>
+            <td class="num ${r.type==='Income'?'pos':'neg'}">
+              ${r.type==='Income'?'+':'−'}${moneyCur(r.amount, cur)}
+              ${showAUD ? `<div class="muted" style="font-size:10.5px;">≈${moneyWhole(txAmountAUD(r))} AUD</div>` : ''}
+            </td>
             <td class="num">${money(r.balance)}</td>
             <td>
               <button class="icon-btn" style="color:var(--gold);" data-edit="${r.id}" title="Edit">✎</button>
               <button class="icon-btn" data-del="${r.id}" title="Delete">✕</button>
             </td>
           </tr>
-        `).join('')}
+        `;}).join('')}
       </tbody>
     </table>`}
   `;
@@ -1756,10 +1777,11 @@ function csvEscape(v){
 
 function exportTransactionsCSV(){
   const rows = [...transactionsWithBalance()].reverse(); // oldest first for a natural ledger read
-  const header = ['Date','Type','Category','Details','Amount','Balance'];
+  const header = ['Date','Type','Category','Details','Amount','Currency','Amount (AUD)','Balance (AUD)'];
   const lines = [header.join(',')];
   rows.forEach(r=>{
-    lines.push([r.date, r.type, r.category, csvEscape(r.details||''), r.amount, r.balance.toFixed(2)].join(','));
+    const cur = r.currency || 'AUD';
+    lines.push([r.date, r.type, r.category, csvEscape(r.details||''), r.amount, cur, txAmountAUD(r).toFixed(2), r.balance.toFixed(2)].join(','));
   });
   const blob = new Blob([lines.join('\n')], {type:'text/csv'});
   downloadBlob(blob, `transactions-${isoDate(TODAY)}.csv`);
@@ -1781,6 +1803,9 @@ function openTxModal(editId){
           </label>
           <label class="field">Category <select id="fCat"></select></label>
           <label class="field">Amount <input type="number" id="fAmt" min="0" step="0.01" inputmode="decimal" placeholder="0.00" value="${existing ? existing.amount : ''}"></label>
+          <label class="field">Currency
+            <select id="fCurrency">${NET_WORTH_CURRENCIES.map(cur=>`<option ${(existing ? (existing.currency||'AUD') : 'AUD')===cur?'selected':''}>${cur}</option>`).join('')}</select>
+          </label>
           <label class="field">Details <input type="text" id="fDetails" placeholder="Merchant, note…" value="${existing ? (existing.details||'') : ''}"></label>
         </div>
         <div class="form-actions">
@@ -1803,13 +1828,14 @@ function openTxModal(editId){
     const t = document.getElementById('fType').value;
     const cat = document.getElementById('fCat').value;
     const amt = Number(document.getElementById('fAmt').value);
+    const currency = document.getElementById('fCurrency').value;
     const details = document.getElementById('fDetails').value.trim();
     if(!date || !amt || amt<=0){ toast('Enter a date and an amount greater than 0.'); return; }
     if(existing){
-      Object.assign(existing, {date, type:t, category:cat, amount:amt, details});
+      Object.assign(existing, {date, type:t, category:cat, amount:amt, currency, details});
       toast('Transaction updated.');
     } else {
-      state.transactions.push({id:uid(), date, type:t, category:cat, amount:amt, details});
+      state.transactions.push({id:uid(), date, type:t, category:cat, amount:amt, currency, details});
       toast('Transaction added.');
     }
     saveState(); root.innerHTML=''; render();
@@ -2375,7 +2401,12 @@ function renderNetWorth(c){
 
   const fx = state.fxRates || {};
   const fxAgeHTML = fx.fetchedAt
-    ? `THB ${fx.THB?fx.THB.toFixed(2):'—'} · USD ${fx.USD?fx.USD.toFixed(3):'—'} per AUD — updated ${formatDateShort(isoDate(new Date(fx.fetchedAt)))}`
+    ? `
+      <div>1 AUD = ฿${fx.THB?fx.THB.toFixed(2):'—'} THB</div>
+      <div>1 AUD = $${fx.USD?fx.USD.toFixed(3):'—'} USD</div>
+      <div>1 USD = ฿${(fx.THB && fx.USD) ? (fx.THB/fx.USD).toFixed(2) : '—'} THB</div>
+      <div class="muted" style="margin-top:2px;">Updated ${formatDateShort(isoDate(new Date(fx.fetchedAt)))}</div>
+    `
     : `Rates not loaded yet`;
 
   const groupHtml = Object.entries(groups).map(([g,accs])=>{
