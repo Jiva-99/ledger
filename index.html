@@ -278,6 +278,61 @@
     .dash-columns{ grid-template-columns:1fr; }
     .content{ padding:18px; }
   }
+
+  /* Phone-width only — leaves the 820px tablet layout (iPad etc.) untouched */
+  .mobile-topbar, #mobileTabBar, .drawer-backdrop{ display:none; }
+  @media (max-width: 600px){
+    .app{ flex-direction:column; }
+    .mobile-topbar{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 14px; border-bottom:1px solid var(--border); background:var(--surface);
+      flex-shrink:0;
+    }
+    .mobile-topbar button{ all:unset; cursor:pointer; font-size:19px; color:var(--text-dim); padding:4px 8px; line-height:1; }
+    .sidebar{
+      position:fixed; top:0; left:0; height:100vh; width:230px; z-index:100;
+      transform:translateX(-100%); transition:transform 0.22s ease;
+      box-shadow:4px 0 24px rgba(0,0,0,0.4);
+    }
+    .sidebar.drawer-open{ transform:translateX(0); }
+    .sidebar nav.tabs{ display:none; } /* primary nav now lives in the bottom tab bar */
+    .brand .sub, .brand .mark{ display:block; } /* undo the 820px icon-only collapse inside the drawer */
+    .drawer-backdrop.show{ display:block; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99; }
+    .main{ padding-bottom:60px; } /* room for the fixed bottom tab bar */
+    .content{ padding:14px; }
+    #mobileTabBar{
+      display:flex; position:fixed; bottom:0; left:0; right:0; z-index:90;
+      background:var(--surface); border-top:1px solid var(--border);
+      padding:4px 0 max(4px, env(safe-area-inset-bottom)) 0;
+    }
+    #mobileTabBar button{
+      all:unset; flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
+      cursor:pointer; font-size:9.5px; color:var(--text-faint); padding:6px 0; text-align:center;
+    }
+    #mobileTabBar button .mtb-num{ font-family:var(--mono); font-size:10px; }
+    #mobileTabBar button.active{ color:var(--gold-bright); }
+    .row{ flex-direction:column; }
+    .row .card.metric{ width:100%; }
+    table.plan.mobile-condensed td.catname{ min-width:0; max-width:150px; font-size:12px; }
+
+    /* Planning: show only the selected month's column instead of all 12 side by side */
+    .plan-mobile-month-picker{ display:flex; }
+    table.plan.mobile-condensed th:not(:first-child):not(:last-child),
+    table.plan.mobile-condensed td:not(:first-child):not(:last-child){ display:none; }
+    table.plan.mobile-condensed.pm-0 th:nth-child(2), table.plan.mobile-condensed.pm-0 td:nth-child(2){ display:table-cell; }
+    table.plan.mobile-condensed.pm-1 th:nth-child(3), table.plan.mobile-condensed.pm-1 td:nth-child(3){ display:table-cell; }
+    table.plan.mobile-condensed.pm-2 th:nth-child(4), table.plan.mobile-condensed.pm-2 td:nth-child(4){ display:table-cell; }
+    table.plan.mobile-condensed.pm-3 th:nth-child(5), table.plan.mobile-condensed.pm-3 td:nth-child(5){ display:table-cell; }
+    table.plan.mobile-condensed.pm-4 th:nth-child(6), table.plan.mobile-condensed.pm-4 td:nth-child(6){ display:table-cell; }
+    table.plan.mobile-condensed.pm-5 th:nth-child(7), table.plan.mobile-condensed.pm-5 td:nth-child(7){ display:table-cell; }
+    table.plan.mobile-condensed.pm-6 th:nth-child(8), table.plan.mobile-condensed.pm-6 td:nth-child(8){ display:table-cell; }
+    table.plan.mobile-condensed.pm-7 th:nth-child(9), table.plan.mobile-condensed.pm-7 td:nth-child(9){ display:table-cell; }
+    table.plan.mobile-condensed.pm-8 th:nth-child(10), table.plan.mobile-condensed.pm-8 td:nth-child(10){ display:table-cell; }
+    table.plan.mobile-condensed.pm-9 th:nth-child(11), table.plan.mobile-condensed.pm-9 td:nth-child(11){ display:table-cell; }
+    table.plan.mobile-condensed.pm-10 th:nth-child(12), table.plan.mobile-condensed.pm-10 td:nth-child(12){ display:table-cell; }
+    table.plan.mobile-condensed.pm-11 th:nth-child(13), table.plan.mobile-condensed.pm-11 td:nth-child(13){ display:table-cell; }
+  }
+  .plan-mobile-month-picker{ display:none; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -356,6 +411,12 @@
 <body>
 
 <div class="app">
+  <div class="mobile-topbar" id="mobileTopbar">
+    <button id="drawerOpenBtn" title="Menu">☰</button>
+    <div class="mark" style="font-size:15px;">Ledger</div>
+    <div style="width:28px;"></div>
+  </div>
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
   <aside class="sidebar">
     <div class="brand">
       <div class="mark">Ledger</div>
@@ -386,6 +447,15 @@
     <div class="ticker" id="ticker"></div>
     <div class="content" id="content"></div>
   </div>
+
+  <nav id="mobileTabBar">
+    <button data-tab="dashboard" class="active"><span class="mtb-num">01</span><span>Home</span></button>
+    <button data-tab="transactions"><span class="mtb-num">02</span><span>Trans</span></button>
+    <button data-tab="planning"><span class="mtb-num">03</span><span>Plan</span></button>
+    <button data-tab="networth"><span class="mtb-num">04</span><span>Worth</span></button>
+    <button data-tab="bills"><span class="mtb-num">05</span><span>Bills</span></button>
+    <button data-tab="settings"><span class="mtb-num">06</span><span>Set</span></button>
+  </nav>
 </div>
 
 <div id="modalRoot"></div>
@@ -975,22 +1045,36 @@ function transactionsWithBalance(){
 /* =========================================================
    NAVIGATION
 ========================================================= */
-document.getElementById('navTabs').addEventListener('click', e=>{
+function handleNavClick(e){
   const btn = e.target.closest('button[data-tab]');
   if(!btn) return;
   state.ui.activeTab = btn.dataset.tab;
   saveState();
+  closeDrawer();
   render();
-});
+}
+document.getElementById('navTabs').addEventListener('click', handleNavClick);
+document.getElementById('mobileTabBar').addEventListener('click', handleNavClick);
 
 function setActiveNav(){
-  document.querySelectorAll('#navTabs button').forEach(b=>{
+  document.querySelectorAll('#navTabs button, #mobileTabBar button').forEach(b=>{
     b.classList.toggle('active', b.dataset.tab===state.ui.activeTab);
   });
 }
 
 document.getElementById('profileSelect').addEventListener('change', e=> switchProfile(e.target.value));
 document.getElementById('addProfileBtn').addEventListener('click', ()=> openProfileModal());
+function openDrawer(){
+  document.querySelector('.sidebar').classList.add('drawer-open');
+  document.getElementById('drawerBackdrop').classList.add('show');
+}
+function closeDrawer(){
+  document.querySelector('.sidebar').classList.remove('drawer-open');
+  document.getElementById('drawerBackdrop').classList.remove('show');
+}
+document.getElementById('drawerOpenBtn').addEventListener('click', openDrawer);
+document.getElementById('drawerBackdrop').addEventListener('click', closeDrawer);
+
 document.getElementById('themeToggleBtn').addEventListener('click', ()=>{
   applyTheme(document.body.dataset.theme==='light' ? 'dark' : 'light');
 });
@@ -1849,6 +1933,7 @@ function renderPlanning(c){
   const y = state.ui.planYear;
   const years = yearOptions();
   ensurePlanningYear(y);
+  const mobileMonth = (state.ui.planMobileMonth ?? TODAY.getMonth());
 
   // Actual tracked amounts per type/month, used to highlight budget cells
   const monthlyActuals = {};
@@ -1887,7 +1972,7 @@ function renderPlanning(c){
     return `
       <div class="section-title" style="color:${type==='Income'?'var(--green)':type==='Expenses'?'var(--pink)':'var(--blue-bright)'};">${type}</div>
       <div class="card card-${type}"><div class="plan-table-wrap">
-      <table class="data plan">
+      <table class="data plan mobile-condensed pm-${mobileMonth}">
         <thead><tr><th>Category</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th class="num">Total</th></tr></thead>
         <tbody>${rows}</tbody>
         <tfoot><tr style="font-weight:600;"><td>Total</td>${monthTotals.map(v=>`<td class="num">${moneyWhole(v)}</td>`).join('')}<td class="num">${moneyWhole(grandTotal)}</td></tr></tfoot>
@@ -1911,6 +1996,9 @@ function renderPlanning(c){
       <label class="field">Year
         <select id="planYear">${years.map(yr=>`<option value="${yr}" ${yr===y?'selected':''}>${yr}</option>`).join('')}</select>
       </label>
+      <label class="field plan-mobile-month-picker">Month
+        <select id="planMobileMonth">${MONTHS.map((m,i)=>`<option value="${i}" ${i===mobileMonth?'selected':''}>${m}</option>`).join('')}</select>
+      </label>
       <div class="spacer"></div>
       <div class="muted" style="font-size:11.5px; display:flex; gap:14px; align-items:center;">
         <span><span style="display:inline-block;width:9px;height:9px;background:rgba(217,105,95,0.45);border-radius:2px;margin-right:4px;"></span>Expenses over budget</span>
@@ -1921,7 +2009,7 @@ function renderPlanning(c){
     <div class="card">
       <h3>To be allocated (Income − Expenses − Savings)</h3>
       <div class="plan-table-wrap">
-      <table class="data plan">
+      <table class="data plan mobile-condensed pm-${mobileMonth}">
         <thead><tr><th>Category</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th class="num">Total</th></tr></thead>
         <tbody><tr>
           <td class="catname">To be allocated</td>
@@ -1943,6 +2031,7 @@ function renderPlanning(c){
   `;
 
   document.getElementById('planYear').onchange = e=>{ state.ui.planYear = Number(e.target.value); saveState(); render(); };
+  document.getElementById('planMobileMonth').onchange = e=>{ state.ui.planMobileMonth = Number(e.target.value); saveState(); render(); };
   c.querySelectorAll('table.plan tbody input').forEach(inp=>{
     inp.onchange = ()=>{
       const tr = inp.closest('tr');
