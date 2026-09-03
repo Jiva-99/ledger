@@ -579,16 +579,30 @@ function saveState(){
    two devices before either syncs, the later push wins.
 ========================================================= */
 let cloudUser = null; // {uid,email,name} or null when signed out
+let cloudAuthChecked = false; // true once Firebase confirms sign-in state at least once (avoids a "flash" of the Sign In button right after a redirect completes)
+let cloudSignInPending = false; // true the instant the button is tapped, until the redirect navigates away
 let cloudSyncTimer = null;
 let cloudStatus = 'signed-out'; // 'signed-out' | 'pulling' | 'syncing' | 'synced' | 'error'
 
 function renderCloudStatus(){
   const el = document.getElementById('cloudStatusArea');
   if(!el) return;
+  if(!cloudAuthChecked){
+    el.innerHTML = `<button disabled style="opacity:0.5; cursor:default;">☁ Checking sign-in…</button>`;
+    return;
+  }
   if(!cloudUser){
+    if(cloudSignInPending){
+      el.innerHTML = `<button disabled style="opacity:0.5; cursor:default;">Opening sign-in…</button>`;
+      return;
+    }
     el.innerHTML = `<button id="cloudSignInBtn">☁ Sign in with Google</button>`;
     const btn = document.getElementById('cloudSignInBtn');
-    if(btn) btn.onclick = ()=> window.LedgerCloud.signIn();
+    if(btn) btn.onclick = ()=>{
+      cloudSignInPending = true;
+      renderCloudStatus();
+      window.LedgerCloud.signIn();
+    };
     return;
   }
   const statusText = {
@@ -610,6 +624,8 @@ function renderCloudStatus(){
 /* Called by the Firebase module script whenever sign-in state changes */
 window.onLedgerAuthChange = async function(user){
   cloudUser = user;
+  cloudAuthChecked = true;
+  cloudSignInPending = false;
   if(user){
     cloudStatus = 'pulling';
     renderCloudStatus();
