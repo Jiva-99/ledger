@@ -713,7 +713,6 @@ function defaultState(){
         contribution: 0,     // the amount you're about to invest, used for the suggestion
         // Projection
         retireYear: 2060,
-        historyYears: 10,    // window used to annualise each ticker's past return
         returnCap: 12,       // ceiling on an assumed real return, in % — see below
         inflation: 2.5,      // subtracted from nominal returns to keep everything in today's money
         baselineReturn: 5,   // the "everything earns the market" comparison line
@@ -901,6 +900,20 @@ function mergeWithDefaults(parsed){
   merged.settings.essentialCategories = merged.settings.essentialCategories || [];
   merged.settings.excludedFromBalance = merged.settings.excludedFromBalance || [];
   merged.settings.investingCategories = merged.settings.investingCategories || [];
+  // Returns used to be fetched as a trailing nominal figure with an optional real
+  // override. Both now collapse into one nominal number the user types.
+  (merged.accounts||[]).forEach(a=>{
+    const fix = u=>{
+      if(u.nominalReturn === undefined || u.nominalReturn === null){
+        if(u.trailingReturn !== undefined && u.trailingReturn !== null) u.nominalReturn = Number(u.trailingReturn);
+        else if(u.assumedReturn !== undefined && u.assumedReturn !== null)
+          u.nominalReturn = Number(u.assumedReturn) + (Number((merged.settings.investing||{}).inflation)||0);
+      }
+      delete u.trailingReturn; delete u.trailingYears; delete u.assumedReturn;
+    };
+    fix(a);
+    (a.subCategories||[]).forEach(fix);
+  });
 
   // Drop planning years that are out of range or left over from a typo — but only
   // when they hold no budget figures and no transaction actually falls in them, so
@@ -914,7 +927,7 @@ function mergeWithDefaults(parsed){
     if(!isSaneYear(yr)) delete merged.planning[key];
   });
   merged.settings.investing = { coreTarget:85, driftBand:5, staleDays:30, scope:'whole', contribution:0,
-                                retireYear:2060, historyYears:10, returnCap:12, inflation:2.5,
+                                retireYear:2060, returnCap:12, inflation:2.5,
                                 baselineReturn:5, withdrawalRate:4, monthlyContribution:null,
                                 ...(merged.settings.investing || {}) };
   // Sleeves used to be set per holding; they now live on the account and are
@@ -3114,8 +3127,8 @@ function renderNetWorth(c){
   c.querySelectorAll('[data-assumed]').forEach(inp=>{
     inp.onchange = ()=>{
       const u = unitByKey(inp.dataset.assumed); if(!u) return;
-      if(inp.value === '') delete u.assumedReturn;
-      else u.assumedReturn = Number(inp.value)||0;
+      if(inp.value === '') delete u.nominalReturn;
+      else u.nominalReturn = Number(inp.value)||0;
       saveState(); render();
     };
   });
@@ -3123,32 +3136,8 @@ function renderNetWorth(c){
     const el = document.getElementById(id);
     if(el) el.onchange = ()=>{ apply(Number(el.value)||0); saveState(); render(); };
   };
-  projField('projYears', v=> investSettings().historyYears = Math.max(1, v));
   projField('projCap',   v=> investSettings().returnCap = Math.max(0, v));
   projField('projInf',   v=> investSettings().inflation = Math.max(0, v));
-
-  const pf = document.getElementById('projFetch');
-  if(pf) pf.onclick = async ()=>{
-    pf.disabled = true; pf.textContent = 'Fetching…';
-    const yrs = Number(investSettings().historyYears) || 10;
-    let ok = 0, failed = [];
-    for(const w of targetWeights()){
-      const u = w.unit;
-      const tick = effectiveTicker(u.unit, u.unit.name);
-      if(!tick){ failed.push(u.unit.name || u.acc.name); continue; }
-      try{
-        const r = await fetchAnnualisedReturn(tick, yrs);
-        u.unit.trailingReturn = Math.round(r.cagr*10)/10;
-        u.unit.trailingYears = Math.round(r.years*10)/10;
-        ok++;
-      }catch(e){ failed.push(tick); }
-    }
-    saveState();
-    pf.disabled = false; pf.textContent = 'Fetch past returns';
-    render();
-    toast(ok ? `${ok} return${ok>1?'s':''} updated${failed.length?`, ${failed.length} failed`:''}.`
-             : 'No history could be fetched — Stooq blocks browser requests fairly often. Type the returns in instead.');
-  };
 
   const coreInput = document.getElementById('rebCoreTarget');
   if(coreInput) coreInput.onchange = ()=>{
@@ -3463,36 +3452,6 @@ function renderRestorePoints(){
   });
 }
 
-/* ---- Historical return ------------------------------------------------------
-   Stooq publishes daily closes as CSV with no key. We take the first and last
-   close inside the window and annualise, which is a total return excluding
-   dividends — so a distributing fund's real history is understated. That's
-   flagged in the UI rather than silently corrected. */
-async function fetchAnnualisedReturn(ticker, years){
-  const t = String(ticker||'').trim();
-  if(!t) throw new Error('no ticker');
-  const sym = t.includes('.') ? t.toLowerCase() : t.toLowerCase()+'.us';
-  const d2 = isoDate(TODAY).replace(/-/g,'');
-  const from = new Date(TODAY.getFullYear()-years, TODAY.getMonth(), TODAY.getDate());
-  const d1 = isoDate(from).replace(/-/g,'');
-  const res = await fetch(`https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&d1=${d1}&d2=${d2}&i=d`);
-  if(!res.ok) throw new Error('HTTP '+res.status);
-  const text = await res.text();
-  const lines = text.trim().split('\n');
-  if(lines.length < 3) throw new Error('no history returned');
-  const rows = lines.slice(1)
-    .map(l=> l.split(','))
-    .filter(c=> c.length >= 5 && isFinite(Number(c[4])) && Number(c[4]) > 0);
-  if(rows.length < 2) throw new Error('not enough data');
-  const first = rows[0], last = rows[rows.length-1];
-  const p0 = Number(first[4]), p1 = Number(last[4]);
-  const days = (new Date(last[0]) - new Date(first[0])) / 86400000;
-  const yrs = days / 365.25;
-  if(yrs < 0.5) throw new Error('window too short');
-  const cagr = (Math.pow(p1/p0, 1/yrs) - 1) * 100;
-  return { cagr, years: yrs, from: first[0], to: last[0] };
-}
-
 /* ---- Projection -------------------------------------------------------------
    Semi-annual steps to the retirement year. Each step: every holding grows at its
    own assumed real rate for six months, six months of contributions go in split by
@@ -3546,16 +3505,31 @@ function averageMonthlySavings(){
   return { value: total/months.length, flagged, months: months.length };
 }
 
+/* You type a NOMINAL return — the figure quoted everywhere you'd look one up —
+   and inflation is subtracted here to get the real rate the projection runs on.
+   Everything else in the app is in today's money, so a nominal projection could
+   not be compared against your essentials or your runway. */
+function nominalReturn(unit){
+  const IS = investSettings();
+  if(unit && unit.nominalReturn !== undefined && unit.nominalReturn !== null && unit.nominalReturn !== ''){
+    const v = Number(unit.nominalReturn);
+    if(isFinite(v)) return v;
+  }
+  return (Number(IS.baselineReturn)||0) + (Number(IS.inflation)||0);
+}
+
+function realReturn(unit){
+  return nominalReturn(unit) - (Number(investSettings().inflation)||0);
+}
+
+/* The rate actually used, after the ceiling. The cap applies to the real rate,
+   since that's what compounds through the projection. */
 function assumedReturn(unit){
   const IS = investSettings();
   const cap = Number(IS.returnCap);
-  const raw = (unit.assumedReturn !== undefined && unit.assumedReturn !== null)
-    ? Number(unit.assumedReturn)
-    : (unit.trailingReturn !== undefined && unit.trailingReturn !== null
-        ? Number(unit.trailingReturn) - Number(IS.inflation||0)
-        : Number(IS.baselineReturn)||0);
-  if(!isFinite(raw)) return Number(IS.baselineReturn)||0;
-  return isFinite(cap) && cap > 0 ? Math.min(raw, cap) : raw;
+  const real = realReturn(unit);
+  if(!isFinite(real)) return Number(IS.baselineReturn)||0;
+  return isFinite(cap) && cap > 0 ? Math.min(real, cap) : real;
 }
 
 /* Returns the path plus the same path with every holding earning the baseline,
@@ -3723,28 +3697,24 @@ function projectionSectionHTML(){
   const sp = liquiditySpending();
   const essTHB = thb(sp.essential);
 
-  const capped = inv.filter(u=>{
-    const raw = (u.unit.assumedReturn !== undefined && u.unit.assumedReturn !== null)
-      ? Number(u.unit.assumedReturn)
-      : (u.unit.trailingReturn !== undefined && u.unit.trailingReturn !== null
-          ? Number(u.unit.trailingReturn) - Number(IS.inflation||0) : null);
-    return raw !== null && isFinite(raw) && raw > Number(IS.returnCap);
-  });
+  const capped = inv.filter(u=> realReturn(u.unit) > Number(IS.returnCap));
 
   const rows = targetWeights().map(w=>{
     const u = w.unit;
-    const trailing = u.unit.trailingReturn;
-    const real = (trailing !== undefined && trailing !== null) ? Number(trailing) - Number(IS.inflation||0) : null;
+    const nom = u.unit.nominalReturn;
+    const real = realReturn(u.unit);
     const used = assumedReturn(u.unit);
-    const isCapped = real !== null && real > Number(IS.returnCap);
+    const isCapped = real > Number(IS.returnCap);
+    const isDefault = nom === undefined || nom === null || nom === '';
     return `<tr>
       <td>${u.subId ? u.unit.name : u.acc.name}<div class="sub">${sleeveLabel(w.sleeve)} · ${(w.weight*100).toFixed(1)}% target</div></td>
       <td class="r">${moneyWhole(u.valueAUD)}</td>
-      <td class="r muted">${trailing===null||trailing===undefined ? '—' : Number(trailing).toFixed(1)+'%'}</td>
-      <td class="r muted">${real===null ? '—' : real.toFixed(1)+'%'}</td>
       <td class="r"><input class="reb-weight" type="number" step="0.5" data-assumed="${u.subId?`${u.acc.id}|||${u.subId}`:u.acc.id}"
-        value="${u.unit.assumedReturn!==undefined&&u.unit.assumedReturn!==null?u.unit.assumedReturn:''}" placeholder="${used.toFixed(1)}">
-        ${isCapped?'<span class="delta out" title="Above your ceiling — the projection uses the ceiling">▲</span>':''}</td>
+        value="${isDefault ? '' : nom}" placeholder="${nominalReturn(u.unit).toFixed(1)}"></td>
+      <td class="r ${isDefault?'muted':''}">${real.toFixed(1)}%</td>
+      <td class="r">${isCapped
+        ? `<span class="delta out" title="Above your ${IS.returnCap}% ceiling">${used.toFixed(1)}% ▲</span>`
+        : `<span class="muted">${used.toFixed(1)}%</span>`}</td>
     </tr>`;
   }).join('');
 
@@ -3801,20 +3771,17 @@ function projectionSectionHTML(){
     <div class="section-title" style="font-size:15px;">Assumed returns</div>
     <div class="card">
       <div class="toolbar" style="margin:0 0 12px 0;">
-        <div class="liq-basis"><span>History window</span>
-          <input type="number" id="projYears" step="1" min="1" max="30" value="${IS.historyYears}" style="width:56px;"> <span>years</span></div>
-        <div class="liq-basis"><span>Ceiling</span>
+        <div class="liq-basis"><span>Ceiling on real return</span>
           <input type="number" id="projCap" step="1" min="0" max="50" value="${IS.returnCap}" style="width:56px;"> <span>%</span></div>
         <div class="liq-basis"><span>Inflation</span>
           <input type="number" id="projInf" step="0.5" min="0" max="20" value="${IS.inflation}" style="width:56px;"> <span>%</span></div>
         <div class="spacer"></div>
-        <button class="btn secondary" id="projFetch">Fetch past returns</button>
       </div>
       <table class="reb">
-        <thead><tr><th>Holding</th><th class="r">Value</th><th class="r">Past (nominal)</th><th class="r">Past (real)</th><th class="r">Assumed</th></tr></thead>
+        <thead><tr><th>Holding</th><th class="r">Value</th><th class="r">Nominal you enter</th><th class="r">Real (after ${Number(IS.inflation).toFixed(1)}% inflation)</th><th class="r">Used</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <div class="liq-note">Past returns come from daily closing prices and exclude dividends, so a distributing fund's real history is better than shown. Leave Assumed blank to use the past figure, capped at your ceiling; type a number to override it.</div>
+      <div class="liq-note">Enter the return you'd find quoted for each holding — that figure is nominal, before inflation. The real column is worked out for you by subtracting the inflation rate above, and that is what compounds through the projection. Leave a row blank to use the baseline. A real rate above your ceiling is reduced to the ceiling and marked ▲.</div>
     </div>`;
 }
 
@@ -5557,7 +5524,17 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V2.7', name: 'Projection chart and contribution scope', date: 'Sep 2026', current: true,
+    no: 'V2.8', name: 'Returns entered by hand', date: 'Sep 2026', current: true,
+    items: [
+      'Removed Fetch past returns and the history window. Stooq\'s historical CSV endpoint is separate from its quote endpoint and refuses browser requests far more often, and Finnhub\'s free tier has no historical candles, so there was no fallback worth keeping. Price fetching is unaffected and still works.',
+      'The returns table now takes a nominal figure — the number you would find quoted anywhere you look one up — and works out the real rate itself by subtracting your inflation setting. No mental arithmetic before typing.',
+      'Three columns instead of two: what you entered, the real rate after inflation, and the rate actually used after the ceiling. A holding above the ceiling shows the reduced figure marked ▲ rather than silently using something other than what you typed.',
+      'The ceiling now explicitly applies to the real rate, which is what compounds through the projection.',
+      'Any returns fetched under the old version are carried over as nominal figures, so nothing needs re-entering.'
+    ]
+  },
+  {
+    no: 'V2.7', name: 'Projection chart and contribution scope', date: 'Sep 2026',
     items: [
       'The projection horizon is now counted in months rather than whole years, so it shortens every month instead of jumping by a year each 1 January. It already shrank automatically; it just did so in one step.',
       'Savings categories can be flagged ◈ Investing, and only those count towards the projected monthly contribution. A car fund and a holiday fund are both Savings and neither belongs in a portfolio projection. With nothing flagged it falls back to all Savings and says so.',
