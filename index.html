@@ -703,7 +703,15 @@ function defaultState(){
         driftBand: 5,        // percentage points of drift tolerated before it's flagged
         staleDays: 30,       // a price older than this is called out
         scope: 'whole',      // 'whole' | 'core' | 'satellite'
-        contribution: 0      // the amount you're about to invest, used for the suggestion
+        contribution: 0,     // the amount you're about to invest, used for the suggestion
+        // Projection
+        retireYear: 2060,
+        historyYears: 10,    // window used to annualise each ticker's past return
+        returnCap: 12,       // ceiling on an assumed real return, in % — see below
+        inflation: 2.5,      // subtracted from nominal returns to keep everything in today's money
+        baselineReturn: 5,   // the "everything earns the market" comparison line
+        withdrawalRate: 4,   // % of the final balance drawn each year in retirement
+        monthlyContribution: null  // null = use the six-month actual savings average
       },
       liquidity: {
         speeds: {},              // accountId -> 'today' | 'week' | 'month' | 'locked'
@@ -898,6 +906,8 @@ function mergeWithDefaults(parsed){
     if(!isSaneYear(yr)) delete merged.planning[key];
   });
   merged.settings.investing = { coreTarget:85, driftBand:5, staleDays:30, scope:'whole', contribution:0,
+                                retireYear:2060, historyYears:10, returnCap:12, inflation:2.5,
+                                baselineReturn:5, withdrawalRate:4, monthlyContribution:null,
                                 ...(merged.settings.investing || {}) };
   // Sleeves used to be set per holding; they now live on the account and are
   // inherited. Lift any existing per-holding sleeve up to its parent, then clear
@@ -3093,6 +3103,45 @@ function renderNetWorth(c){
   if(contribInput) contribInput.onchange = ()=>{
     investSettings().contribution = Math.max(0, Number(contribInput.value)||0); saveState(); render();
   };
+  c.querySelectorAll('[data-assumed]').forEach(inp=>{
+    inp.onchange = ()=>{
+      const u = unitByKey(inp.dataset.assumed); if(!u) return;
+      if(inp.value === '') delete u.assumedReturn;
+      else u.assumedReturn = Number(inp.value)||0;
+      saveState(); render();
+    };
+  });
+  const projField = (id, apply)=>{
+    const el = document.getElementById(id);
+    if(el) el.onchange = ()=>{ apply(Number(el.value)||0); saveState(); render(); };
+  };
+  projField('projYears', v=> investSettings().historyYears = Math.max(1, v));
+  projField('projCap',   v=> investSettings().returnCap = Math.max(0, v));
+  projField('projInf',   v=> investSettings().inflation = Math.max(0, v));
+
+  const pf = document.getElementById('projFetch');
+  if(pf) pf.onclick = async ()=>{
+    pf.disabled = true; pf.textContent = 'Fetching…';
+    const yrs = Number(investSettings().historyYears) || 10;
+    let ok = 0, failed = [];
+    for(const w of targetWeights()){
+      const u = w.unit;
+      const tick = effectiveTicker(u.unit, u.unit.name);
+      if(!tick){ failed.push(u.unit.name || u.acc.name); continue; }
+      try{
+        const r = await fetchAnnualisedReturn(tick, yrs);
+        u.unit.trailingReturn = Math.round(r.cagr*10)/10;
+        u.unit.trailingYears = Math.round(r.years*10)/10;
+        ok++;
+      }catch(e){ failed.push(tick); }
+    }
+    saveState();
+    pf.disabled = false; pf.textContent = 'Fetch past returns';
+    render();
+    toast(ok ? `${ok} return${ok>1?'s':''} updated${failed.length?`, ${failed.length} failed`:''}.`
+             : 'No history could be fetched — Stooq blocks browser requests fairly often. Type the returns in instead.');
+  };
+
   const coreInput = document.getElementById('rebCoreTarget');
   if(coreInput) coreInput.onchange = ()=>{
     investSettings().coreTarget = Math.max(0, Math.min(100, Number(coreInput.value)||0)); saveState(); render();
@@ -3406,6 +3455,239 @@ function renderRestorePoints(){
   });
 }
 
+/* ---- Historical return ------------------------------------------------------
+   Stooq publishes daily closes as CSV with no key. We take the first and last
+   close inside the window and annualise, which is a total return excluding
+   dividends — so a distributing fund's real history is understated. That's
+   flagged in the UI rather than silently corrected. */
+async function fetchAnnualisedReturn(ticker, years){
+  const t = String(ticker||'').trim();
+  if(!t) throw new Error('no ticker');
+  const sym = t.includes('.') ? t.toLowerCase() : t.toLowerCase()+'.us';
+  const d2 = isoDate(TODAY).replace(/-/g,'');
+  const from = new Date(TODAY.getFullYear()-years, TODAY.getMonth(), TODAY.getDate());
+  const d1 = isoDate(from).replace(/-/g,'');
+  const res = await fetch(`https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&d1=${d1}&d2=${d2}&i=d`);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const text = await res.text();
+  const lines = text.trim().split('\n');
+  if(lines.length < 3) throw new Error('no history returned');
+  const rows = lines.slice(1)
+    .map(l=> l.split(','))
+    .filter(c=> c.length >= 5 && isFinite(Number(c[4])) && Number(c[4]) > 0);
+  if(rows.length < 2) throw new Error('not enough data');
+  const first = rows[0], last = rows[rows.length-1];
+  const p0 = Number(first[4]), p1 = Number(last[4]);
+  const days = (new Date(last[0]) - new Date(first[0])) / 86400000;
+  const yrs = days / 365.25;
+  if(yrs < 0.5) throw new Error('window too short');
+  const cagr = (Math.pow(p1/p0, 1/yrs) - 1) * 100;
+  return { cagr, years: yrs, from: first[0], to: last[0] };
+}
+
+/* ---- Projection -------------------------------------------------------------
+   Semi-annual steps to the retirement year. Each step: every holding grows at its
+   own assumed real rate for six months, six months of contributions go in split by
+   target weight, then the whole thing is rebalanced back to target — which is what
+   the rebalance engine would have you do anyway, and without it the fastest-growing
+   holding quietly takes over an allocation you never chose. */
+function targetWeights(){
+  const inv = investedUnits();
+  if(!inv.length) return [];
+  const coreT = Math.max(0, Math.min(100, Number(investSettings().coreTarget)||0)) / 100;
+  const out = [];
+  [['core', coreT], ['satellite', 1-coreT]].forEach(([sleeve, sleeveShare])=>{
+    const members = inv.filter(u=> u.sleeve === sleeve);
+    if(!members.length) return;
+    const wSum = members.reduce((t,u)=> t + (u.targetWeight||0), 0);
+    members.forEach(u=>{
+      const within = wSum > 0 ? (u.targetWeight||0)/wSum : 1/members.length;
+      out.push({ unit:u, sleeve, weight: sleeveShare * within });
+    });
+  });
+  return out;
+}
+
+/* The six-month average of what actually went into Savings categories. */
+function averageMonthlySavings(){
+  const months = completeMonths(6).filter(({year,month})=>{
+    const t = trackedTotals(year, month);
+    return sumType(t.Expenses) !== 0 || sumType(t.Income) !== 0 || sumType(t.Savings) !== 0;
+  });
+  if(!months.length) return 0;
+  const total = months.reduce((sum,{year,month})=> sum + sumType(trackedTotals(year, month).Savings), 0);
+  return total / months.length;
+}
+
+function assumedReturn(unit){
+  const IS = investSettings();
+  const cap = Number(IS.returnCap);
+  const raw = (unit.assumedReturn !== undefined && unit.assumedReturn !== null)
+    ? Number(unit.assumedReturn)
+    : (unit.trailingReturn !== undefined && unit.trailingReturn !== null
+        ? Number(unit.trailingReturn) - Number(IS.inflation||0)
+        : Number(IS.baselineReturn)||0);
+  if(!isFinite(raw)) return Number(IS.baselineReturn)||0;
+  return isFinite(cap) && cap > 0 ? Math.min(raw, cap) : raw;
+}
+
+/* Returns the path plus the same path with every holding earning the baseline,
+   so the UI can show how much of the outcome rests on the per-asset assumptions. */
+function projectPortfolio(opts){
+  const IS = investSettings();
+  const weights = targetWeights();
+  if(!weights.length) return null;
+
+  const endYear = Number(IS.retireYear) || 2060;
+  const stepsPerYear = 2;
+  const totalSteps = Math.max(0, Math.round((endYear - TODAY.getFullYear()) * stepsPerYear));
+  const monthly = (IS.monthlyContribution === null || IS.monthlyContribution === undefined)
+    ? averageMonthlySavings()
+    : Number(IS.monthlyContribution)||0;
+  const perStep = monthly * (12/stepsPerYear);
+
+  const run = (rateFor)=>{
+    let holdings = weights.map(w=> ({ w, value: w.unit.valueAUD }));
+    const path = [{ year: TODAY.getFullYear(), value: holdings.reduce((t,h)=>t+h.value,0) }];
+    for(let i=1; i<=totalSteps; i++){
+      holdings.forEach(h=>{
+        const r = rateFor(h.w)/100;
+        h.value *= Math.pow(1 + r, 1/stepsPerYear);
+      });
+      let total = holdings.reduce((t,h)=>t+h.value,0) + perStep;
+      // Rebalance: put everything back on target weight, which is also how the
+      // contribution gets allocated.
+      holdings.forEach(h=>{ h.value = total * h.w.weight; });
+      if(i % stepsPerYear === 0 || i === totalSteps){
+        path.push({ year: TODAY.getFullYear() + i/stepsPerYear, value: total });
+      }
+    }
+    return path;
+  };
+
+  const assumed  = run(w=> assumedReturn(w.unit.unit));
+  const baseline = run(()=> Number(IS.baselineReturn)||0);
+  const contributed = weights.reduce((t,w)=> t + w.unit.valueAUD, 0) + perStep * totalSteps;
+
+  return {
+    endYear, totalSteps, monthly, contributed,
+    assumed, baseline,
+    finalAssumed: assumed[assumed.length-1].value,
+    finalBaseline: baseline[baseline.length-1].value,
+    weights
+  };
+}
+
+function projectionSectionHTML(){
+  const IS  = investSettings();
+  const p   = projectPortfolio();
+  if(!p) return '';
+
+  const inv = investedUnits();
+  const rate = (state.fxRates && state.fxRates.THB) || null;
+  const thb = v=> rate ? v * rate : null;
+  const bahtWhole = v=> v===null ? '—' : '฿' + Math.round(v).toLocaleString('en-AU');
+
+  const yearsLeft = p.endYear - TODAY.getFullYear();
+  const growth = p.finalAssumed - p.contributed;
+  const wr = Number(IS.withdrawalRate)||4;
+  const incomeAUD = p.finalAssumed * wr/100 / 12;
+
+  // Essentials today, for something to measure the projected income against.
+  const sp = liquiditySpending();
+  const essTHB = thb(sp.essential);
+
+  const capped = inv.filter(u=>{
+    const raw = (u.unit.assumedReturn !== undefined && u.unit.assumedReturn !== null)
+      ? Number(u.unit.assumedReturn)
+      : (u.unit.trailingReturn !== undefined && u.unit.trailingReturn !== null
+          ? Number(u.unit.trailingReturn) - Number(IS.inflation||0) : null);
+    return raw !== null && isFinite(raw) && raw > Number(IS.returnCap);
+  });
+
+  const rows = targetWeights().map(w=>{
+    const u = w.unit;
+    const trailing = u.unit.trailingReturn;
+    const real = (trailing !== undefined && trailing !== null) ? Number(trailing) - Number(IS.inflation||0) : null;
+    const used = assumedReturn(u.unit);
+    const isCapped = real !== null && real > Number(IS.returnCap);
+    return `<tr>
+      <td>${u.subId ? u.unit.name : u.acc.name}<div class="sub">${sleeveLabel(w.sleeve)} · ${(w.weight*100).toFixed(1)}% target</div></td>
+      <td class="r">${moneyWhole(u.valueAUD)}</td>
+      <td class="r muted">${trailing===null||trailing===undefined ? '—' : Number(trailing).toFixed(1)+'%'}</td>
+      <td class="r muted">${real===null ? '—' : real.toFixed(1)+'%'}</td>
+      <td class="r"><input class="reb-weight" type="number" step="0.5" data-assumed="${u.subId?`${u.acc.id}|||${u.subId}`:u.acc.id}"
+        value="${u.unit.assumedReturn!==undefined&&u.unit.assumedReturn!==null?u.unit.assumedReturn:''}" placeholder="${used.toFixed(1)}">
+        ${isCapped?'<span class="delta out" title="Above your ceiling — the projection uses the ceiling">▲</span>':''}</td>
+    </tr>`;
+  }).join('');
+
+  // FX line: the same portfolio, translated at a range of rates.
+  const fxRates = rate ? [rate*0.85, rate, rate*1.15] : [];
+  const fxCells = fxRates.map((r,i)=>`
+    <div class="card metric">
+      <h3>${i===0?'Baht weaker for you':i===1?'Rate today':'Baht stronger for you'}</h3>
+      <div class="big" style="font-size:19px;${i===1?'color:var(--gold-bright);':''}">฿${Math.round(p.finalAssumed*r).toLocaleString('en-AU')}</div>
+      <div class="cap">at ${r.toFixed(1)} THB per AUD</div>
+    </div>`).join('');
+
+  return `
+    <div class="section-title">Projection to ${p.endYear}</div>
+    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">
+      ${yearsLeft} years, contributing ${moneyWhole(p.monthly)} a month${IS.monthlyContribution===null?' (your six-month savings average)':''},
+      rebalanced back to target every six months. Everything is in today's money — assumed returns have ${Number(IS.inflation).toFixed(1)}% inflation taken off,
+      so the figures can be compared with what you spend now. This is arithmetic on assumptions, not a forecast.
+    </div>
+
+    ${capped.length ? `<div class="liq-banner">${capped.length} holding${capped.length>1?'s have':' has'} a past return above your ${IS.returnCap}% ceiling, so the ceiling is used instead. A single stock's recent run is not a planning assumption — extrapolating it for ${yearsLeft} years would dominate everything else here.</div>` : ''}
+
+    <div class="row" style="margin-bottom:14px;">
+      <div class="card metric">
+        <h3>Projected at ${p.endYear}</h3>
+        <div class="big" style="color:var(--gold-bright);">${bahtWhole(thb(p.finalAssumed))}</div>
+        <div class="cap">${moneyWhole(p.finalAssumed)} AUD</div>
+      </div>
+      <div class="card metric">
+        <h3>If everything earned ${IS.baselineReturn}%</h3>
+        <div class="big">${bahtWhole(thb(p.finalBaseline))}</div>
+        <div class="cap">${p.finalAssumed>=p.finalBaseline?'+':''}${moneyWhole(p.finalAssumed-p.finalBaseline)} from your assumptions</div>
+      </div>
+      <div class="card metric">
+        <h3>Of which you contributed</h3>
+        <div class="big">${bahtWhole(thb(p.contributed))}</div>
+        <div class="cap">${moneyWhole(growth)} is projected growth</div>
+      </div>
+      <div class="card metric">
+        <h3>Monthly income at ${wr}%</h3>
+        <div class="big">${bahtWhole(thb(incomeAUD))}</div>
+        <div class="cap">${essTHB!==null&&sp.essential>0 ? `essentials today ${bahtWhole(essTHB)}` : 'set essential categories to compare'}</div>
+      </div>
+    </div>
+
+    <div class="section-title" style="font-size:15px;">Exchange rate risk</div>
+    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">The same portfolio, translated at ±15%. Nothing about the investments changes between these three — only the rate. This is the currency mismatch on the Liquidity tab expressed as an amount of actual retirement.</div>
+    <div class="row" style="margin-bottom:14px;">${rate ? fxCells : '<div class="muted" style="font-size:12.5px;">No THB rate loaded.</div>'}</div>
+
+    <div class="section-title" style="font-size:15px;">Assumed returns</div>
+    <div class="card">
+      <div class="toolbar" style="margin:0 0 12px 0;">
+        <div class="liq-basis"><span>History window</span>
+          <input type="number" id="projYears" step="1" min="1" max="30" value="${IS.historyYears}" style="width:56px;"> <span>years</span></div>
+        <div class="liq-basis"><span>Ceiling</span>
+          <input type="number" id="projCap" step="1" min="0" max="50" value="${IS.returnCap}" style="width:56px;"> <span>%</span></div>
+        <div class="liq-basis"><span>Inflation</span>
+          <input type="number" id="projInf" step="0.5" min="0" max="20" value="${IS.inflation}" style="width:56px;"> <span>%</span></div>
+        <div class="spacer"></div>
+        <button class="btn secondary" id="projFetch">Fetch past returns</button>
+      </div>
+      <table class="reb">
+        <thead><tr><th>Holding</th><th class="r">Value</th><th class="r">Past (nominal)</th><th class="r">Past (real)</th><th class="r">Assumed</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="liq-note">Past returns come from daily closing prices and exclude dividends, so a distributing fund's real history is better than shown. Leave Assumed blank to use the past figure, capped at your ceiling; type a number to override it.</div>
+    </div>`;
+}
+
 function investingSectionHTML(){
   const inv = investedUnits();
   if(!inv.length){
@@ -3533,7 +3815,8 @@ function investingSectionHTML(){
       </table>
       <div class="liq-note">${verdict}</div>`}
       ${weightWarn}
-    </div>`;
+    </div>
+    ${projectionSectionHTML()}`;
 }
 
 function openQuoteKeyModal(onDone){
@@ -5136,7 +5419,19 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V2.5', name: 'Stray year cleanup and a stuck month picker', date: 'Sep 2026', current: true,
+    no: 'V2.6', name: 'Projection to retirement', date: 'Sep 2026', current: true,
+    items: [
+      'New projection section under Core & satellite, running semi-annual steps to your retirement year, contributing your six-month savings average each month and rebalancing back to target every six months.',
+      'Each holding is projected at its own rate. Fetch past returns annualises each ticker from daily closing prices over a window you choose; the figure is shown both nominal and real, and can be overridden per holding.',
+      'Results are shown in baht, converted from the holdings\' own currencies through AUD, with the AUD figure underneath.',
+      'An exchange rate section shows the same portfolio at ±15%, so the currency mismatch from the Liquidity tab appears as an amount of retirement rather than a percentage.',
+      'A second projection line puts every holding on the same market-average return. The gap between the two is the part of the outcome that rests on the per-asset assumptions rather than the arithmetic.',
+      'Assumed returns are capped at a ceiling you set, 12% real by default, and holdings above it are flagged. A single stock\'s recent run compounded for three decades would otherwise dominate the entire projection.',
+      'Everything is in today\'s money — inflation is deducted from assumed returns — so the projected monthly income can be compared directly against what your essentials cost now.'
+    ]
+  },
+  {
+    no: 'V2.5', name: 'Stray year cleanup and a stuck month picker', date: 'Sep 2026',
     items: [
       'A transaction mistyped as year 0006 created a planning year for 0006, and correcting the transaction did not remove it — the year dropdown is built from the keys of the planning data, and nothing ever cleaned them up. Out-of-range years are now filtered from the dropdown and pruned on load.',
       'Pruning only removes a year that holds no budget figures and has no transactions in it, so a real year of planning is never discarded.',
