@@ -239,6 +239,25 @@
     padding:9px 12px; font-size:12.5px; color:var(--amber); margin-bottom:14px; line-height:1.5; }
   .liq-basis{ display:flex; gap:6px; align-items:center; font-size:12px; color:var(--text-faint); }
   .nw-speed{ padding:2px 5px; font-size:10.5px; width:auto; }
+  .nw-inv{ display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin-top:3px;
+    font-size:10.5px; color:var(--text-faint); }
+  .nw-weight{ padding:2px 4px; font-size:10.5px; width:52px; text-align:right; }
+  .nw-stale{ color:var(--amber); }
+  table.reb{ width:100%; border-collapse:collapse; }
+  table.reb th{ text-align:left; font-size:11.5px; color:var(--text-faint); font-weight:400;
+    padding:0 0 8px 0; border-bottom:1px solid var(--border); }
+  table.reb th.r, table.reb td.r{ text-align:right; padding-left:12px; }
+  table.reb td{ padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; }
+  table.reb tbody tr:last-child td{ border-bottom:none; }
+  table.price-grid{ width:100%; border-collapse:collapse; margin:6px 0 4px 0; }
+  table.price-grid th{ text-align:left; font-size:11.5px; color:var(--text-faint); font-weight:400;
+    padding:0 0 8px 0; border-bottom:1px solid var(--border); }
+  table.price-grid th.r, table.price-grid td.r{ text-align:right; padding-left:10px; }
+  table.price-grid td{ padding:6px 0; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; }
+  table.price-grid tbody tr:last-child td{ border-bottom:none; }
+  table.price-grid td .sub{ font-size:10.5px; color:var(--text-faint); margin-top:1px; }
+  table.price-grid input{ width:92px; text-align:right; padding:5px 7px; font-size:12.5px; }
+  @media (max-width: 600px){ table.price-grid input{ width:70px; } }
   .fx-alert{ background:rgba(217,105,95,0.10); border:1px solid rgba(217,105,95,0.45);
     border-radius:var(--radius); padding:11px 14px; margin-bottom:16px; font-size:13px;
     color:var(--red); line-height:1.5; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
@@ -562,6 +581,13 @@ function defaultState(){
       excludedFromSummary: ["Income|||Opening Balance"],
       // Categories you'd keep paying if income stopped. Keys are "Expenses|||<category>".
       essentialCategories: [],
+      investing: {
+        coreTarget: 85,      // % of the invested portfolio that should sit in the core
+        driftBand: 5,        // percentage points of drift tolerated before it's flagged
+        staleDays: 30,       // a price older than this is called out
+        scope: 'whole',      // 'whole' | 'core' | 'satellite'
+        contribution: 0      // the amount you're about to invest, used for the suggestion
+      },
       liquidity: {
         speeds: {},              // accountId -> 'today' | 'week' | 'month' | 'locked'
         spendBasis: 'actuals',   // 'actuals' (rolling window of complete months) or 'budget'
@@ -741,6 +767,8 @@ function mergeWithDefaults(parsed){
   // Liquidity settings arrived after some profiles were already saved — backfill them
   // without disturbing anything the user has already set.
   merged.settings.essentialCategories = merged.settings.essentialCategories || [];
+  merged.settings.investing = { coreTarget:85, driftBand:5, staleDays:30, scope:'whole', contribution:0,
+                                ...(merged.settings.investing || {}) };
   const liqBase = { speeds:{}, spendBasis:'actuals', spendWindow:6, runwayTier:'week',
                     thbSpendShare:80, snapshots:[],
                     limits:{ runwayMonths:6, fixedPct:50, concPct:60, bufferToday:20000 } };
@@ -2667,6 +2695,7 @@ function renderNetWorth(c){
                   ${SPEED_ORDER.map(sp=>`<option value="${sp}" ${accountSpeed(a)===sp?'selected':''}>${SPEED_LABELS[sp]}</option>`).join('')}
                 </select>
               </div>
+              ${!hasSubs ? sleeveControlsHTML(a.id, a) : ''}
             </div>
             <div class="nw-balance">
               <div style="font-size:14.5px;">${hasSubs ? moneyWhole(balAUD) : moneyCur(bal, a.currency)}${showAUD ? ` <span class="muted" style="font-size:11px;">(≈${moneyWhole(balAUD)})</span>` : ''}</div>
@@ -2691,6 +2720,7 @@ function renderNetWorth(c){
                   <div>
                     <div style="font-size:13px;">${sub.name} <button class="icon-btn" data-renamesub="${a.id}|||${sub.id}" style="font-size:9.5px; padding:0 2px; color:var(--text-faint);" title="Rename">✎</button> <span class="muted" style="font-size:10.5px;">${subCur}</span></div>
                     ${targetRowHTML(`${a.id}|||${sub.id}`, subBal, sub.target, subCur)}
+                    ${sleeveControlsHTML(`${a.id}|||${sub.id}`, sub)}
                   </div>
                   <div class="nw-balance">
                     <div style="font-size:13px;">${moneyCur(subBal, subCur)}${subShowAUD ? ` <span class="muted" style="font-size:10.5px;">(≈${moneyWhole(subBalAUD)})</span>` : ''}</div>
@@ -2710,6 +2740,7 @@ function renderNetWorth(c){
     `;
   }).join('');
 
+  const investingHTML = investingSectionHTML();
   const pt = state.portfolioTarget || { amount: null, currency: 'AUD' };
   const totalInTargetCur = fromAUD(total, pt.currency);
   const ptPct = pt.amount ? (totalInTargetCur/pt.amount)*100 : null;
@@ -2767,6 +2798,7 @@ function renderNetWorth(c){
 
     <div class="toolbar"><div class="spacer"></div><button class="btn" id="addAccBtn">+ Add account</button></div>
     ${state.accounts.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No accounts yet — add your emergency fund, super, or investment buckets.</div>` : `<div class="grid-cat" style="align-items:start;">${groupHtml}</div>`}
+    ${investingHTML}
   `;
 
   document.getElementById('addAccBtn').onclick = openAccountModal;
@@ -2793,6 +2825,39 @@ function renderNetWorth(c){
     }
   });
   c.querySelectorAll('[data-adj]').forEach(b=> b.onclick = ()=> openAdjustModal(b.dataset.adj));
+  const unitByKey = key=>{
+    const [accId, subId] = key.split('|||');
+    const acc = state.accounts.find(a=> a.id === accId);
+    if(!acc) return null;
+    return subId ? (acc.subCategories||[]).find(x=> x.id === subId) : acc;
+  };
+  c.querySelectorAll('[data-sleeve]').forEach(sel=>{
+    sel.onchange = ()=>{
+      const u = unitByKey(sel.dataset.sleeve); if(!u) return;
+      if(sel.value) u.sleeve = sel.value; else { delete u.sleeve; delete u.targetWeight; }
+      saveState(); render();
+    };
+  });
+  c.querySelectorAll('[data-weight]').forEach(inp=>{
+    inp.onchange = ()=>{
+      const u = unitByKey(inp.dataset.weight); if(!u) return;
+      const v = inp.value === '' ? null : Math.max(0, Math.min(100, Number(inp.value)||0));
+      if(v === null) delete u.targetWeight; else u.targetWeight = v;
+      saveState(); render();
+    };
+  });
+  const upBtn = document.getElementById('updatePricesBtn');
+  if(upBtn) upBtn.onclick = ()=> openPriceModal();
+  const scopeSel = document.getElementById('rebScope');
+  if(scopeSel) scopeSel.onchange = ()=>{ investSettings().scope = scopeSel.value; saveState(); render(); };
+  const contribInput = document.getElementById('rebContribution');
+  if(contribInput) contribInput.onchange = ()=>{
+    investSettings().contribution = Math.max(0, Number(contribInput.value)||0); saveState(); render();
+  };
+  const coreInput = document.getElementById('rebCoreTarget');
+  if(coreInput) coreInput.onchange = ()=>{
+    investSettings().coreTarget = Math.max(0, Math.min(100, Number(coreInput.value)||0)); saveState(); render();
+  };
   c.querySelectorAll('[data-speed]').forEach(sel=>{
     sel.onchange = ()=>{
       const speeds = liqSettings().speeds || (liqSettings().speeds = {});
@@ -2952,6 +3017,201 @@ function openSubCategoryModal(accId){
       history: []
     });
     saveState(); root.innerHTML=''; render(); toast(`"${name}" added under ${acc.name}.`);
+  };
+}
+
+/* One screen, every holding, two boxes each. The point is that a monthly price
+   update should take under a minute — otherwise it doesn't get done, and a stale
+   price is worse than an obviously missing one. */
+function investingSectionHTML(){
+  const inv = investedUnits();
+  if(!inv.length){
+    return `
+      <div class="section-title">Core &amp; satellite</div>
+      <div class="card">
+        <div class="muted" style="font-size:12.5px;">
+          Tag a holding as Core or Satellite above and this section will track the split, flag drift,
+          and work out where your next contribution should go.
+        </div>
+      </div>`;
+  }
+
+  const IS    = investSettings();
+  const scope = ['whole','core','satellite'].includes(IS.scope) ? IS.scope : 'whole';
+  const plan  = rebalancePlan(scope, IS.contribution);
+  const band  = Number(IS.driftBand) || 5;
+  const split = contributionSplit(inv);
+  const stale = stalePricedUnits();
+  const buckets = rebalanceBuckets(scope);
+
+  const scopeEmpty = !plan.rows.length;
+  const driftClass = d=> Math.abs(d) <= band ? 'flat' : (d > 0 ? 'down' : 'up');
+  const pp = d=> (d>0?'+':'') + d.toFixed(1) + 'pp';
+
+  const rowsHTML = plan.rows.map(r=>`
+    <tr>
+      <td>${r.name}</td>
+      <td class="r">${moneyWhole(r.value)}</td>
+      <td class="r">${r.currentPct.toFixed(1)}%</td>
+      <td class="r muted">${r.target.toFixed(1)}%</td>
+      <td class="r"><span class="delta ${driftClass(r.driftPp)}">${pp(r.driftPp)}</span></td>
+      ${plan.contribution > 0
+        ? `<td class="r">${r.allocate > 0.5 ? moneyWhole(r.allocate) : '—'}</td>
+           <td class="r"><span class="delta ${driftClass(r.afterDriftPp)}">${pp(r.afterDriftPp)}</span></td>`
+        : `<td class="r">${Math.abs(r.trade) < 1 ? '—' : (r.trade > 0 ? 'buy ' : 'sell ') + moneyWhole(Math.abs(r.trade))}</td>`}
+    </tr>`).join('');
+
+  const withinBand = plan.worstDrift !== undefined && plan.worstDrift <= band;
+  const fixedByContribution = plan.contribution > 0 && plan.worstAfter <= band;
+
+  let verdict;
+  if(scopeEmpty) verdict = '';
+  else if(withinBand) verdict = `Everything is within your ${band}pp band. Nothing to do.`;
+  else if(plan.contribution > 0 && fixedByContribution)
+    verdict = `Contributing ${moneyWhole(plan.contribution)} as split above brings every holding back inside the ${band}pp band — no selling, so no capital gains event.`;
+  else if(plan.contribution > 0)
+    verdict = `Even after ${moneyWhole(plan.contribution)}, the worst drift is ${plan.worstAfter.toFixed(1)}pp — still outside your ${band}pp band. Either contribute more, keep directing contributions this way for a few months, or sell to rebalance outright.`;
+  else
+    verdict = `Worst drift is ${plan.worstDrift.toFixed(1)}pp against a ${band}pp band. Enter what you're about to invest and this will try to fix it with new money first, since selling triggers capital gains.`;
+
+  const weightWarn = (scope !== 'whole' && buckets.weightsSet === false)
+    ? `<div class="liq-banner" style="margin-top:12px;">No target weights set inside ${sleeveLabel(scope)}, so an equal split is assumed. Set a target % on each holding above for a real comparison.</div>` : '';
+
+  return `
+    <div class="section-title">Core &amp; satellite</div>
+    ${stale.length ? `<div class="fx-alert" style="color:var(--amber); border-color:rgba(217,139,61,0.45); background:rgba(217,139,61,0.09);">
+      <div><b>${stale.length} holding${stale.length>1?'s have':' has'} a stale price.</b>
+      ${stale.slice(0,3).map(x=> `${x.name} (${x.days===null?'never':x.days+'d'})`).join(', ')}${stale.length>3?` and ${stale.length-3} more`:''}.
+      Values, drift and your runway are all based on these.</div>
+      <div class="fx-alert-actions"><button class="btn secondary" id="updatePricesBtn">Update prices</button></div>
+    </div>` : ''}
+
+    <div class="row" style="margin-bottom:14px;">
+      <div class="card metric">
+        <h3>Invested value</h3>
+        <div class="big" style="color:var(--gold-bright);">${moneyWhole(split.value)}</div>
+        <div class="cap">${inv.length} holding${inv.length>1?'s':''} across both sleeves</div>
+      </div>
+      <div class="card metric">
+        <h3>You put in</h3>
+        <div class="big">${moneyWhole(split.contributed)}</div>
+        <div class="cap">contributions and opening balances</div>
+      </div>
+      <div class="card metric">
+        <h3>The market gave you</h3>
+        <div class="big" style="color:${split.gained>=0?'var(--green)':'var(--red)'};">${split.gained>=0?'+':''}${moneyWhole(split.gained)}</div>
+        <div class="cap">${split.returnPct===null?'—':`${split.returnPct>=0?'+':''}${split.returnPct.toFixed(1)}% on what you contributed`}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="toolbar" style="margin:0 0 14px 0;">
+        <div class="liq-basis">
+          <span>Rebalance</span>
+          <select id="rebScope" style="width:auto;">
+            <option value="whole" ${scope==='whole'?'selected':''}>Whole portfolio — core vs satellite</option>
+            <option value="core" ${scope==='core'?'selected':''}>Within core only</option>
+            <option value="satellite" ${scope==='satellite'?'selected':''}>Within satellite only</option>
+          </select>
+        </div>
+        ${scope==='whole' ? `<div class="liq-basis"><span>Core target</span>
+          <input type="number" id="rebCoreTarget" step="5" min="0" max="100" value="${IS.coreTarget}" style="width:64px;"> <span>%</span></div>` : ''}
+        <div class="liq-basis"><span>About to invest</span>
+          <input type="number" id="rebContribution" step="100" min="0" value="${IS.contribution||0}" style="width:96px;"></div>
+        <div class="spacer"></div>
+        <button class="btn secondary" id="updatePricesBtn">Update prices</button>
+      </div>
+
+      ${scopeEmpty
+        ? `<div class="muted" style="font-size:12.5px;">Nothing tagged as ${sleeveLabel(scope)} yet.</div>`
+        : `<table class="reb">
+        <thead>
+          <tr>
+            <th>${scope==='whole'?'Sleeve':'Holding'}</th>
+            <th class="r">Value</th><th class="r">Now</th><th class="r">Target</th><th class="r">Drift</th>
+            ${plan.contribution>0 ? '<th class="r">Put in</th><th class="r">After</th>' : '<th class="r">To rebalance</th>'}
+          </tr>
+        </thead>
+        <tbody>${rowsHTML}</tbody>
+      </table>
+      <div class="liq-note">${verdict}</div>`}
+      ${weightWarn}
+    </div>`;
+}
+
+function openPriceModal(){
+  const rows = allUnits().filter(u=> u.unit.sleeve || isPriced(u.unit));
+  const root = document.getElementById('modalRoot');
+  if(!rows.length){
+    toast('Assign a holding to Core or Satellite first, then prices can be tracked here.');
+    return;
+  }
+  root.innerHTML = `
+    <div class="modal-backdrop" id="mb">
+      <div class="modal" style="max-width:620px;">
+        <h2>Update prices</h2>
+        <div class="page-sub">Enter how many units you hold and what one unit is worth. Changing the units records a contribution; changing the price records a gain or loss. Leave a row untouched to skip it.</div>
+        <table class="price-grid">
+          <thead><tr><th>Holding</th><th class="r">Units</th><th class="r">Price</th><th class="r">Value</th></tr></thead>
+          <tbody>
+            ${rows.map((u,i)=>{
+              const cur = u.currency;
+              const bal = unitBalanceAsOf(u.unit, isoDate(TODAY));
+              const age = daysSince(u.unit.pricedAt);
+              return `
+              <tr>
+                <td>${u.name}<div class="sub">${cur}${u.unit.pricedAt?` · priced ${age===0?'today':age+'d ago'}`:' · never priced'}</div></td>
+                <td class="r"><input type="number" step="any" min="0" id="pu${i}" value="${isPriced(u.unit)?u.unit.units:''}" placeholder="—"></td>
+                <td class="r"><input type="number" step="any" min="0" id="pp${i}" value="${isPriced(u.unit)?u.unit.price:''}" placeholder="—"></td>
+                <td class="r" id="pv${i}">${moneyCur(bal, cur)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+        <div class="form-actions">
+          <button class="btn secondary" id="fCancel">Cancel</button>
+          <button class="btn" id="fSave">Save prices</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const close = ()=> root.innerHTML='';
+  document.getElementById('fCancel').onclick = close;
+  document.getElementById('mb').addEventListener('click', e=>{ if(e.target.id==='mb') close(); });
+
+  // Live value preview so a typo in the price is obvious before it's saved
+  rows.forEach((u,i)=>{
+    const recalc = ()=>{
+      const un = Number(document.getElementById('pu'+i).value);
+      const pr = Number(document.getElementById('pp'+i).value);
+      const cell = document.getElementById('pv'+i);
+      cell.textContent = (un && pr) ? moneyCur(un*pr, u.currency)
+                                    : moneyCur(unitBalanceAsOf(u.unit, isoDate(TODAY)), u.currency);
+    };
+    document.getElementById('pu'+i).oninput = recalc;
+    document.getElementById('pp'+i).oninput = recalc;
+  });
+
+  document.getElementById('fSave').onclick = ()=>{
+    let changed = 0, contributed = 0, revalued = 0;
+    rows.forEach((u,i)=>{
+      const un = document.getElementById('pu'+i).value;
+      const pr = document.getElementById('pp'+i).value;
+      if(un === '' || pr === '') return;
+      const nu = Number(un), np = Number(pr);
+      if(!(nu >= 0) || !(np >= 0)) return;
+      if(isPriced(u.unit) && Number(u.unit.units) === nu && Number(u.unit.price) === np) return;
+      const entries = applyPriceUpdate(u.unit, nu, np);
+      if(entries.length) changed++;
+      entries.forEach(e=>{
+        const d = toAUD(e.delta, u.currency);
+        if(e.kind === 'revaluation') revalued += d; else contributed += d;
+      });
+    });
+    saveState(); close(); render();
+    toast(changed
+      ? `${changed} holding${changed>1?'s':''} updated — ${moneyWhole(contributed)} in, ${revalued>=0?'+':''}${moneyWhole(revalued)} market movement.`
+      : 'Nothing changed.');
   };
 }
 
@@ -3559,6 +3819,242 @@ function renderSettings(c){
 }
 
 /* =========================================================
+   INVESTMENTS — units, price, sleeves and rebalancing
+
+   Balance history stays the single source of truth for what an account is worth
+   on any given date, because the charts and the liquidity ladder read it. Units
+   and price sit on top as the way you UPDATE that balance: entering them writes
+   history entries that are tagged as either a contribution or a revaluation, so
+   "I put money in" and "the market moved" stop being the same number.
+========================================================= */
+function investSettings(){ return state.settings.investing; }
+
+/* The per-holding controls that appear under each row on the Net Worth tab.
+   Target weight is only shown once a sleeve is chosen — asking for a weight
+   before there's anything to weight against is just noise. */
+function sleeveControlsHTML(key, unit){
+  const sleeve = unit.sleeve || '';
+  const priced = isPriced(unit);
+  const age = daysSince(unit.pricedAt);
+  const limit = Number(investSettings().staleDays) || 30;
+  const stale = priced && (age === null || age > limit);
+  return `
+    <div class="nw-inv">
+      <span>Sleeve</span>
+      <select class="nw-speed" data-sleeve="${key}" title="Part of your core/satellite structure">
+        <option value="" ${!sleeve?'selected':''}>—</option>
+        ${SLEEVES.map(([v,l])=>`<option value="${v}" ${sleeve===v?'selected':''}>${l}</option>`).join('')}
+      </select>
+      ${sleeve ? `
+        <span>Target</span>
+        <input class="nw-weight" type="number" step="1" min="0" max="100" data-weight="${key}"
+               value="${unit.targetWeight!==undefined && unit.targetWeight!==null ? unit.targetWeight : ''}" placeholder="%">
+        <span>%</span>` : ''}
+      ${priced ? `<span class="${stale?'nw-stale':''}" title="${unit.units} × ${moneyCur(unit.price, unit.currency||'AUD')}">
+        ${unit.units} @ ${moneyCur(unit.price, unit.currency||'AUD')} · ${age===null?'never priced':(age===0?'priced today':`priced ${age}d ago`)}</span>` : ''}
+    </div>`;
+}
+
+const SLEEVES = [['core','Core'], ['satellite','Satellite']];
+function sleeveLabel(k){ const s = SLEEVES.find(x=>x[0]===k); return s ? s[1] : '—'; }
+
+/* A unit is "priced" once it carries both a holding size and a price. */
+function isPriced(unit){
+  return unit && unit.units !== null && unit.units !== undefined && unit.units !== ''
+      && unit.price !== null && unit.price !== undefined && unit.price !== '';
+}
+
+function daysSince(dateISO){
+  if(!dateISO) return null;
+  const then = new Date(dateISO + 'T00:00:00');
+  return Math.floor((TODAY - then) / 86400000);
+}
+
+/* Every unit that can carry a price: each sub-category of a split account, or the
+   account itself when it isn't split. Returned with its parent for editing. */
+function allUnits(){
+  const out = [];
+  (state.accounts||[]).forEach(a=>{
+    if(a.subCategories && a.subCategories.length){
+      a.subCategories.forEach(sub=> out.push({
+        acc:a, unit:sub, subId:sub.id,
+        name:`${a.name} · ${sub.name}`,
+        currency: sub.currency || a.currency
+      }));
+    } else {
+      out.push({ acc:a, unit:a, subId:null, name:a.name, currency:a.currency });
+    }
+  });
+  return out;
+}
+
+/* Units taking part in the core/satellite structure, valued in AUD. */
+function investedUnits(){
+  return allUnits()
+    .filter(u=> u.unit.sleeve === 'core' || u.unit.sleeve === 'satellite')
+    .map(u=>{
+      const bal = unitBalanceAsOf(u.unit, isoDate(TODAY));
+      return { ...u,
+        sleeve: u.unit.sleeve,
+        targetWeight: Number(u.unit.targetWeight) || 0,
+        balance: bal,
+        valueAUD: toAUD(bal, u.currency),
+        units: Number(u.unit.units) || 0,
+        price: Number(u.unit.price) || 0,
+        pricedAt: u.unit.pricedAt || null,
+        staleDays: daysSince(u.unit.pricedAt)
+      };
+    });
+}
+
+/* Record a new holding size and price. The change in value is split three ways:
+     contribution = units bought or sold, valued at the new price
+     revaluation  = the old holding repriced
+     residual     = anything left over, e.g. a manual adjustment made in between
+   so the decomposition always reconciles exactly to the balance. */
+function applyPriceUpdate(unit, newUnits, newPrice, dateISO){
+  const date = dateISO || isoDate(TODAY);
+  const oldValue = unitBalanceAsOf(unit, date);
+  const hadBoth  = isPriced(unit);
+  const oldUnits = hadBoth ? Number(unit.units) : null;
+  const oldPrice = hadBoth ? Number(unit.price) : null;
+  const target   = newUnits * newPrice;
+
+  const entries = [];
+  if(hadBoth){
+    const contribution = (newUnits - oldUnits) * newPrice;
+    const revaluation  = oldUnits * (newPrice - oldPrice);
+    const residual     = target - oldValue - contribution - revaluation;
+    if(Math.abs(contribution) > 0.005) entries.push({ delta: contribution, kind:'contribution' });
+    if(Math.abs(revaluation)  > 0.005) entries.push({ delta: revaluation,  kind:'revaluation'  });
+    if(Math.abs(residual)     > 0.005) entries.push({ delta: residual,     kind:'adjustment'   });
+  } else {
+    // First time priced: we don't know how much of what's already there was
+    // contributed versus gained, so it all counts as opening cost, not as return.
+    const delta = target - oldValue;
+    if(Math.abs(delta) > 0.005) entries.push({ delta, kind:'adjustment' });
+  }
+
+  unit.history = unit.history || [];
+  entries.forEach(e=> unit.history.push({
+    id: uid(), date, delta: e.delta, kind: e.kind,
+    note: e.kind==='contribution' ? 'Units changed' : (e.kind==='revaluation' ? 'Price change' : 'Reconciliation')
+  }));
+  unit.units = newUnits;
+  unit.price = newPrice;
+  unit.pricedAt = date;
+  return entries;
+}
+
+/* What you put in versus what the market gave you. Contributions include the
+   opening reconciliation, since money that was already invested is still money
+   you put in — it just isn't a gain. */
+function contributionSplit(units){
+  let contributed = 0, gained = 0, value = 0;
+  units.forEach(u=>{
+    value += u.valueAUD;
+    (u.unit.history||[]).forEach(h=>{
+      const d = toAUD(Number(h.delta)||0, u.currency);
+      if(h.kind === 'revaluation') gained += d; else contributed += d;
+    });
+    contributed += toAUD(Number(u.unit.openingBalance)||0, u.currency);
+  });
+  return { contributed, gained, value,
+           returnPct: contributed > 0 ? gained/contributed*100 : null };
+}
+
+function stalePricedUnits(){
+  const limit = Number(investSettings().staleDays) || 30;
+  return allUnits()
+    .filter(u=> isPriced(u.unit))
+    .map(u=> ({ name:u.name, days: daysSince(u.unit.pricedAt) }))
+    .filter(u=> u.days === null || u.days > limit)
+    .sort((a,b)=> (b.days||0) - (a.days||0));
+}
+
+/* ---- Rebalancing ---------------------------------------------------------
+   Three scopes, all running through the same maths. "whole" treats the two
+   sleeves as the two buckets; "core" and "satellite" treat the holdings inside
+   one sleeve as the buckets, with their target weights normalised to 100%. */
+function rebalanceBuckets(scope){
+  const inv = investedUnits();
+  if(!inv.length) return { buckets:[], total:0, scope };
+
+  if(scope === 'whole'){
+    const coreTarget = Math.max(0, Math.min(100, Number(investSettings().coreTarget) || 0));
+    const sum = k=> inv.filter(u=> u.sleeve===k).reduce((s,u)=> s+u.valueAUD, 0);
+    const buckets = [
+      { key:'core',      name:'Core',      value: sum('core'),      target: coreTarget },
+      { key:'satellite', name:'Satellite', value: sum('satellite'), target: 100-coreTarget }
+    ];
+    return { buckets, total: buckets.reduce((s,b)=>s+b.value,0), scope };
+  }
+
+  const inSleeve = inv.filter(u=> u.sleeve === scope);
+  const weightSum = inSleeve.reduce((s,u)=> s + u.targetWeight, 0);
+  const buckets = inSleeve.map(u=> ({
+    key: u.subId || u.acc.id,
+    name: u.name,
+    value: u.valueAUD,
+    // With no weights set, an equal split is the only defensible default.
+    target: weightSum > 0 ? u.targetWeight/weightSum*100 : 100/inSleeve.length,
+    weightsSet: weightSum > 0
+  }));
+  return { buckets, total: buckets.reduce((s,b)=>s+b.value,0), scope,
+           weightsSet: weightSum > 0 };
+}
+
+/* Drift, plus the trades that would close it. A positive action means buy. */
+function rebalancePlan(scope, contribution){
+  const { buckets, total } = rebalanceBuckets(scope);
+  const C = Math.max(0, Number(contribution) || 0);
+  if(!buckets.length || total + C <= 0) return { rows:[], total, contribution:C, allocated:0 };
+
+  const newTotal = total + C;
+  const rows = buckets.map(b=>{
+    const desired = b.target/100 * newTotal;
+    return { ...b,
+      currentPct: total > 0 ? b.value/total*100 : 0,
+      desired,
+      need: Math.max(0, desired - b.value),     // shortfall against the post-contribution target
+      trade: desired - b.value                  // + buy, − sell, if rebalancing outright
+    };
+  });
+  rows.forEach(r=> r.driftPp = r.currentPct - r.target);
+
+  // Allocate the contribution to whatever is furthest below target first. When the
+  // contribution more than covers every shortfall, the remainder goes out by target
+  // weight — which keeps you on target rather than overshooting into a new drift.
+  const needSum = rows.reduce((s,r)=> s+r.need, 0);
+  if(C > 0){
+    if(needSum <= 0){
+      rows.forEach(r=> r.allocate = C * r.target/100);
+    } else if(needSum <= C){
+      const left = C - needSum;
+      rows.forEach(r=> r.allocate = r.need + left * r.target/100);
+    } else {
+      rows.forEach(r=> r.allocate = C * r.need/needSum);
+    }
+  } else {
+    rows.forEach(r=> r.allocate = 0);
+  }
+
+  // Where each bucket lands once the contribution is applied — the honest test of
+  // whether new money alone is enough to fix the drift.
+  rows.forEach(r=>{
+    r.afterValue = r.value + r.allocate;
+    r.afterPct = newTotal > 0 ? r.afterValue/newTotal*100 : 0;
+    r.afterDriftPp = r.afterPct - r.target;
+  });
+
+  const worstAfter = rows.reduce((m,r)=> Math.max(m, Math.abs(r.afterDriftPp)), 0);
+  return { rows, total, contribution:C, newTotal,
+           allocated: rows.reduce((s,r)=> s+r.allocate, 0),
+           worstDrift: rows.reduce((m,r)=> Math.max(m, Math.abs(r.driftPp)), 0),
+           worstAfter };
+}
+
+/* =========================================================
    LIQUIDITY
    Four questions the balance sheet should answer: how long you'd last if
    income stopped, how much cash you could actually raise and how fast,
@@ -4052,7 +4548,19 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V1.5', name: 'FX safety, trends and holding-level concentration', date: 'Sep 2026', current: true,
+    no: 'V1.6', name: 'Units, prices and rebalancing', date: 'Sep 2026', current: true,
+    items: [
+      'Holdings can now record units and price rather than a single balance. Balance history is still the source of truth, so charts and the liquidity ladder are unaffected — entering a price writes history entries behind the scenes.',
+      'Because of that, a change in value is now split into what you contributed and what the market did. Three cards on Net Worth show invested value, what you put in, and what the market gave you, with a return percentage.',
+      'New “Update prices” screen: every tracked holding on one page with a units box and a price box, and a live value preview so a mistyped price is obvious before saving.',
+      'Prices go stale silently, so an amber banner names any holding priced longer ago than your threshold (30 days by default) — the same class of quiet failure as the FX bug fixed in V1.5.',
+      'Holdings can be tagged Core or Satellite with a target weight, and a new Core & satellite section reports the split against target with a drift band.',
+      'Rebalancing works at three scopes: the whole portfolio (core versus satellite), within core only, or within satellite only.',
+      'Rebalancing prefers new money over selling. Enter what you are about to invest and it allocates to whatever is furthest below target first, then tells you whether that alone closes the gap — avoiding a capital gains event where possible. It only falls back to buy/sell amounts when no contribution is entered.'
+    ]
+  },
+  {
+    no: 'V1.5', name: 'FX safety, trends and holding-level concentration', date: 'Sep 2026',
     items: [
       'Fixed a silent FX failure: when a rate is missing, non-AUD amounts were passed through at 1:1, so a ฿238,000 balance counted as $238,000 and quietly inflated every total. A red banner now appears above every tab naming the affected currencies, with refresh and manual-entry buttons.',
       'The actuals window is configurable — 3, 6 or 12 complete months — and now defaults to 6, so one holiday or one large repair no longer distorts the runway.',
