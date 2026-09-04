@@ -257,6 +257,7 @@
   table.price-grid tbody tr:last-child td{ border-bottom:none; }
   table.price-grid td .sub{ font-size:10.5px; color:var(--text-faint); margin-top:1px; }
   table.price-grid input{ width:92px; text-align:right; padding:5px 7px; font-size:12.5px; }
+  table.price-grid input.ticker-in{ width:74px; text-align:left; text-transform:uppercase; }
   @media (max-width: 600px){ table.price-grid input{ width:70px; } }
   .fx-alert{ background:rgba(217,105,95,0.10); border:1px solid rgba(217,105,95,0.45);
     border-radius:var(--radius); padding:11px 14px; margin-bottom:16px; font-size:13px;
@@ -274,6 +275,7 @@
   .delta{ font-size:11.5px; }
   .delta.up{ color:var(--green); }
   .delta.down{ color:var(--amber); }
+  .delta.out{ color:var(--amber); }
   .delta.flat{ color:var(--text-faint); }
   @media (max-width: 600px){ table.trend th.spark, table.trend td.spark{ display:none; } }
   table.tiers{ width:100%; border-collapse:collapse; }
@@ -3023,6 +3025,51 @@ function openSubCategoryModal(accId){
 /* One screen, every holding, two boxes each. The point is that a monthly price
    update should take under a minute — otherwise it doesn't get done, and a stale
    price is worse than an obviously missing one. */
+/* ---- Price fetching --------------------------------------------------------
+   Two sources, tried in order, mirroring how FX rates already work. Stooq needs
+   no key but is unofficial and sometimes blocks browser requests outright, so
+   Finnhub is available as a fallback for anyone willing to hold a key.
+
+   The key is kept in localStorage under a separate key, deliberately NOT in
+   state: state syncs to Firestore and gets exported, and this repo is public.
+   A token in the saved data is a token you've published. */
+const QUOTE_TOKEN_KEY = 'ledger_quote_token';
+function quoteToken(){ try{ return localStorage.getItem(QUOTE_TOKEN_KEY) || ''; }catch(e){ return ''; } }
+function setQuoteToken(v){
+  try{ v ? localStorage.setItem(QUOTE_TOKEN_KEY, v) : localStorage.removeItem(QUOTE_TOKEN_KEY); }catch(e){}
+}
+
+/* Returns a number, or throws with a reason worth showing the user. */
+async function fetchQuote(ticker){
+  const t = String(ticker||'').trim();
+  if(!t) throw new Error('no ticker');
+
+  // 1. Stooq — keyless CSV. US tickers need the .us suffix.
+  try{
+    const sym = t.includes('.') ? t.toLowerCase() : t.toLowerCase()+'.us';
+    const res = await fetch(`https://stooq.com/q/l/?s=${encodeURIComponent(sym)}&f=sd2t2ohlcv&h&e=csv`);
+    if(res.ok){
+      const text = await res.text();
+      const line = text.trim().split('\n')[1];
+      if(line){
+        const close = Number(line.split(',')[6]);
+        if(isFinite(close) && close > 0) return { price: close, source: 'Stooq' };
+      }
+    }
+  }catch(e){ /* blocked or offline — fall through */ }
+
+  // 2. Finnhub — documented, but needs a key held on this device only.
+  const key = quoteToken();
+  if(key){
+    const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(t.toUpperCase())}&token=${encodeURIComponent(key)}`);
+    if(!res.ok) throw new Error('Finnhub HTTP '+res.status);
+    const data = await res.json();
+    if(data && isFinite(data.c) && data.c > 0) return { price: data.c, source: 'Finnhub' };
+    throw new Error('no price returned');
+  }
+  throw new Error('blocked, and no API key set');
+}
+
 function investingSectionHTML(){
   const inv = investedUnits();
   if(!inv.length){
@@ -3045,7 +3092,9 @@ function investingSectionHTML(){
   const buckets = rebalanceBuckets(scope);
 
   const scopeEmpty = !plan.rows.length;
-  const driftClass = d=> Math.abs(d) <= band ? 'flat' : (d > 0 ? 'down' : 'up');
+  // Being under target is not "good" and over target is not "bad" — both are drift.
+  // Inside the band is grey, outside is amber, regardless of direction.
+  const driftClass = d=> Math.abs(d) <= band ? 'flat' : 'out';
   const pp = d=> (d>0?'+':'') + d.toFixed(1) + 'pp';
 
   const rowsHTML = plan.rows.map(r=>`
@@ -3078,7 +3127,7 @@ function investingSectionHTML(){
     ? `<div class="liq-banner" style="margin-top:12px;">No target weights set inside ${sleeveLabel(scope)}, so an equal split is assumed. Set a target % on each holding above for a real comparison.</div>` : '';
 
   return `
-    <div class="section-title">Core &amp; satellite</div>
+    <div class="section-title">Core &amp; satellite <span class="muted" style="font-size:13px;">— all values in AUD</span></div>
     ${stale.length ? `<div class="fx-alert" style="color:var(--amber); border-color:rgba(217,139,61,0.45); background:rgba(217,139,61,0.09);">
       <div><b>${stale.length} holding${stale.length>1?'s have':' has'} a stale price.</b>
       ${stale.slice(0,3).map(x=> `${x.name} (${x.days===null?'never':x.days+'d'})`).join(', ')}${stale.length>3?` and ${stale.length-3} more`:''}.
@@ -3152,7 +3201,7 @@ function openPriceModal(){
         <h2>Update prices</h2>
         <div class="page-sub">Enter how many units you hold and what one unit is worth. Changing the units records a contribution; changing the price records a gain or loss. Leave a row untouched to skip it.</div>
         <table class="price-grid">
-          <thead><tr><th>Holding</th><th class="r">Units</th><th class="r">Price</th><th class="r">Value</th></tr></thead>
+          <thead><tr><th>Holding</th><th>Ticker</th><th class="r">Units</th><th class="r">Price</th><th class="r">Value</th></tr></thead>
           <tbody>
             ${rows.map((u,i)=>{
               const cur = u.currency;
@@ -3160,17 +3209,29 @@ function openPriceModal(){
               const age = daysSince(u.unit.pricedAt);
               return `
               <tr>
-                <td>${u.name}<div class="sub">${cur}${u.unit.pricedAt?` · priced ${age===0?'today':age+'d ago'}`:' · never priced'}</div></td>
+                <td>${u.name}<div class="sub" id="pn${i}">${cur}${u.unit.pricedAt?` · priced ${age===0?'today':age+'d ago'}`:' · never priced'}</div></td>
+                <td><input type="text" id="pt${i}" value="${u.unit.ticker||''}" placeholder="—" class="ticker-in"></td>
                 <td class="r"><input type="number" step="any" min="0" id="pu${i}" value="${isPriced(u.unit)?u.unit.units:''}" placeholder="—"></td>
                 <td class="r"><input type="number" step="any" min="0" id="pp${i}" value="${isPriced(u.unit)?u.unit.price:''}" placeholder="—"></td>
-                <td class="r" id="pv${i}">${moneyCur(bal, cur)}</td>
+                <td class="r" id="pv${i}">${moneyCur(bal, cur)}<div class="sub" id="ps${i}">${cur!=='AUD'?'≈'+moneyWhole(toAUD(bal,cur)):''}</div></td>
               </tr>`;
             }).join('')}
           </tbody>
         </table>
-        <div class="form-actions">
-          <button class="btn secondary" id="fCancel">Cancel</button>
-          <button class="btn" id="fSave">Save prices</button>
+        <div class="muted" style="font-size:11.5px; margin-top:8px; line-height:1.5;">
+          Add a ticker to fetch prices automatically. Fetched prices fill the boxes for you to check —
+          nothing saves until you press Save. Units are never fetched: buying is your decision, not the market's.
+          The fetched price is assumed to be in the holding's own currency.
+        </div>
+        <div class="form-actions" style="justify-content:space-between;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button class="btn secondary" id="fFetch">Fetch prices</button>
+            <button class="btn secondary" id="fKey" title="Set an API key for this device only">${quoteToken()?'Change API key':'Add API key'}</button>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn secondary" id="fCancel">Cancel</button>
+            <button class="btn" id="fSave">Save prices</button>
+          </div>
         </div>
       </div>
     </div>
@@ -3185,16 +3246,60 @@ function openPriceModal(){
       const un = Number(document.getElementById('pu'+i).value);
       const pr = Number(document.getElementById('pp'+i).value);
       const cell = document.getElementById('pv'+i);
-      cell.textContent = (un && pr) ? moneyCur(un*pr, u.currency)
-                                    : moneyCur(unitBalanceAsOf(u.unit, isoDate(TODAY)), u.currency);
+      const val = (un && pr) ? un*pr : unitBalanceAsOf(u.unit, isoDate(TODAY));
+      cell.firstChild ? cell.firstChild.nodeValue = moneyCur(val, u.currency) : cell.textContent = moneyCur(val, u.currency);
+      const aud = document.getElementById('ps'+i);
+      if(aud) aud.textContent = u.currency !== 'AUD' ? '≈'+moneyWhole(toAUD(val, u.currency)) : '';
     };
     document.getElementById('pu'+i).oninput = recalc;
     document.getElementById('pp'+i).oninput = recalc;
   });
 
+  document.getElementById('fKey').onclick = ()=>{
+    const cur = quoteToken();
+    const v = prompt('Finnhub API key — stored on this device only, never in your saved data or the repository. Leave blank to remove.', cur);
+    if(v === null) return;
+    setQuoteToken(v.trim());
+    toast(v.trim() ? 'API key saved on this device.' : 'API key removed.');
+    document.getElementById('fKey').textContent = v.trim() ? 'Change API key' : 'Add API key';
+  };
+
+  document.getElementById('fFetch').onclick = async ()=>{
+    const btn = document.getElementById('fFetch');
+    btn.disabled = true; btn.textContent = 'Fetching…';
+    let ok = 0, failed = [];
+    for(let i=0; i<rows.length; i++){
+      const tick = document.getElementById('pt'+i).value.trim();
+      const note = document.getElementById('pn'+i);
+      if(!tick){ continue; }
+      try{
+        const q = await fetchQuote(tick);
+        document.getElementById('pp'+i).value = q.price;
+        document.getElementById('pp'+i).dispatchEvent(new Event('input'));
+        note.textContent = `${rows[i].currency} · ${q.price} from ${q.source}`;
+        note.style.color = 'var(--green)';
+        ok++;
+      }catch(e){
+        note.textContent = `${rows[i].currency} · could not fetch (${e.message})`;
+        note.style.color = 'var(--amber)';
+        failed.push(tick);
+      }
+    }
+    btn.disabled = false; btn.textContent = 'Fetch prices';
+    if(!ok && failed.length){
+      toast(`No prices could be fetched. Free sources block browser requests fairly often — add an API key, or type the prices in.`);
+    } else if(ok){
+      toast(`${ok} price${ok>1?'s':''} filled in${failed.length?`, ${failed.length} failed`:''}. Check them, then Save.`);
+    } else {
+      toast('Add a ticker to a holding first.');
+    }
+  };
+
   document.getElementById('fSave').onclick = ()=>{
     let changed = 0, contributed = 0, revalued = 0;
     rows.forEach((u,i)=>{
+      const tick = document.getElementById('pt'+i).value.trim();
+      if(tick) u.unit.ticker = tick.toUpperCase(); else delete u.unit.ticker;
       const un = document.getElementById('pu'+i).value;
       const pr = document.getElementById('pp'+i).value;
       if(un === '' || pr === '') return;
@@ -4548,7 +4653,18 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V1.6', name: 'Units, prices and rebalancing', date: 'Sep 2026', current: true,
+    no: 'V1.7', name: 'Price fetching and a drift colour fix', date: 'Sep 2026', current: true,
+    items: [
+      'Fixed a misleading colour on the drift column: being under target was shown in green, as though it were good. Direction of drift is neither good nor bad, so drift inside the band is now grey and drift outside it is amber either way.',
+      'The Core & satellite section is labelled as being in AUD, and the Update prices screen shows an AUD equivalent under each non-AUD value.',
+      'Holdings can carry a ticker, and a Fetch prices button fills the price boxes automatically. Fetched prices are only filled in, never saved — you check them and press Save.',
+      'Units are never fetched. How much you bought is a decision, not a market fact.',
+      'Two price sources tried in order: Stooq, which needs no key but is unofficial and often blocks browser requests, then Finnhub if a key is set. Where neither works, the boxes stay editable and manual entry is unchanged.',
+      'Any API key is stored in this browser only, under a separate key from your saved data — it is never synced to Firestore, never included in an export, and never committed to the repository.'
+    ]
+  },
+  {
+    no: 'V1.6', name: 'Units, prices and rebalancing', date: 'Sep 2026',
     items: [
       'Holdings can now record units and price rather than a single balance. Balance history is still the source of truth, so charts and the liquidity ladder are unaffected — entering a price writes history entries behind the scenes.',
       'Because of that, a change in value is now split into what you contributed and what the market did. Three cards on Net Worth show invested value, what you put in, and what the market gave you, with a return percentage.',
