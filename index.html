@@ -239,6 +239,24 @@
     padding:9px 12px; font-size:12.5px; color:var(--amber); margin-bottom:14px; line-height:1.5; }
   .liq-basis{ display:flex; gap:6px; align-items:center; font-size:12px; color:var(--text-faint); }
   .nw-speed{ padding:2px 5px; font-size:10.5px; width:auto; }
+  .fx-alert{ background:rgba(217,105,95,0.10); border:1px solid rgba(217,105,95,0.45);
+    border-radius:var(--radius); padding:11px 14px; margin-bottom:16px; font-size:13px;
+    color:var(--red); line-height:1.5; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .fx-alert b{ color:var(--red); }
+  .fx-alert-actions{ display:flex; gap:8px; margin-left:auto; }
+  table.trend{ width:100%; border-collapse:collapse; }
+  table.trend th{ text-align:left; font-size:11.5px; color:var(--text-faint); font-weight:400;
+    padding:0 0 8px 0; border-bottom:1px solid var(--border); }
+  table.trend th.r, table.trend td.r{ text-align:right; }
+  table.trend th.spark, table.trend td.spark{ width:130px; text-align:right; padding-left:14px; }
+  table.trend td{ padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
+  table.trend tbody tr:last-child td{ border-bottom:none; }
+  table.trend td.spark svg{ margin-left:auto; }
+  .delta{ font-size:11.5px; }
+  .delta.up{ color:var(--green); }
+  .delta.down{ color:var(--amber); }
+  .delta.flat{ color:var(--text-faint); }
+  @media (max-width: 600px){ table.trend th.spark, table.trend td.spark{ display:none; } }
   table.tiers{ width:100%; border-collapse:collapse; }
   table.tiers th{ text-align:left; font-size:11.5px; color:var(--text-faint); font-weight:400;
     padding:0 0 8px 0; border-bottom:1px solid var(--border); vertical-align:bottom; }
@@ -546,8 +564,10 @@ function defaultState(){
       essentialCategories: [],
       liquidity: {
         speeds: {},              // accountId -> 'today' | 'week' | 'month' | 'locked'
-        spendBasis: 'actuals',   // 'actuals' (rolling 3 complete months) or 'budget'
+        spendBasis: 'actuals',   // 'actuals' (rolling window of complete months) or 'budget'
+        spendWindow: 6,          // how many complete months the actuals average covers
         runwayTier: 'week',      // which cash tier the runway limit is judged against
+        snapshots: [],           // [{month:'2026-09', ...}] one per month, for the trend view
         thbSpendShare: 80,       // % of eventual retirement spending expected to be in THB
         limits: { runwayMonths: 6, fixedPct: 50, concPct: 60, bufferToday: 20000 }
       }
@@ -721,12 +741,14 @@ function mergeWithDefaults(parsed){
   // Liquidity settings arrived after some profiles were already saved — backfill them
   // without disturbing anything the user has already set.
   merged.settings.essentialCategories = merged.settings.essentialCategories || [];
-  const liqBase = { speeds:{}, spendBasis:'actuals', runwayTier:'week', thbSpendShare:80,
+  const liqBase = { speeds:{}, spendBasis:'actuals', spendWindow:6, runwayTier:'week',
+                    thbSpendShare:80, snapshots:[],
                     limits:{ runwayMonths:6, fixedPct:50, concPct:60, bufferToday:20000 } };
   const liq = merged.settings.liquidity || {};
   merged.settings.liquidity = {
     ...liqBase, ...liq,
     speeds: liq.speeds || {},
+    snapshots: Array.isArray(liq.snapshots) ? liq.snapshots : [],
     limits: { ...liqBase.limits, ...(liq.limits||{}) }
   };
   merged.fxRates = merged.fxRates || { THB: null, USD: null, fetchedAt: null };
@@ -1212,6 +1234,20 @@ function render(){
   renderTicker();
   const c = document.getElementById('content');
   const tab = state.ui.activeTab;
+  renderTab(c, tab);
+  // Every figure on every tab flows through toAUD(), so the warning belongs above
+  // all of them rather than tucked into the Net Worth tab where it started.
+  const missingFx = missingFxCurrencies();
+  if(missingFx.length){
+    c.insertAdjacentHTML('afterbegin', fxGapBannerHTML(missingFx));
+    const r = document.getElementById('fxAlertRefresh');
+    const m = document.getElementById('fxAlertManual');
+    if(r) r.onclick = ()=> refreshFxRates(true);
+    if(m) m.onclick = ()=> openManualFxModal();
+  }
+}
+
+function renderTab(c, tab){
   if(tab==='dashboard') renderDashboard(c);
   else if(tab==='transactions') renderTransactions(c);
   else if(tab==='planning') renderPlanning(c);
@@ -2152,11 +2188,40 @@ function computeAccountBalance(a){
 }
 
 /* Convert an amount from a given currency into AUD using the latest fetched FX rates.
-   Falls back to 1:1 if rates haven't loaded yet (e.g. offline on first run). */
+   If a rate is missing the amount is passed through unconverted — which is WRONG by
+   whatever the real rate is — so missingFxCurrencies() below drives a loud banner
+   rather than letting a ฿238,000 balance quietly masquerade as $238,000. */
 function toAUD(amount, currency){
   if(!currency || currency==='AUD') return amount;
   const rate = state.fxRates && state.fxRates[currency];
   return rate ? amount/rate : amount;
+}
+
+/* Non-AUD currencies that are actually in use somewhere but have no rate to convert
+   with. Scanned from the data rather than recorded during conversion, so the answer
+   doesn't depend on which tab happens to be open. */
+function missingFxCurrencies(){
+  const used = new Set();
+  const noteCur = cur=>{ if(cur && cur!=='AUD') used.add(cur); };
+  (state.accounts||[]).forEach(a=>{
+    if(a.subCategories && a.subCategories.length) a.subCategories.forEach(sub=> noteCur(sub.currency || a.currency));
+    else noteCur(a.currency);
+  });
+  (state.transactions||[]).forEach(t=> noteCur(t.currency));
+  (state.bills||[]).forEach(b=> noteCur(b.currency));
+  return [...used].filter(cur=> !(state.fxRates && state.fxRates[cur]));
+}
+
+function fxGapBannerHTML(missing){
+  return `
+    <div class="fx-alert">
+      <div><b>Exchange rates haven't loaded.</b> ${missing.join(' and ')} amounts are being counted at 1:1 against AUD,
+      so every total on this page — balances, net worth, runway and currency mix — is overstated.</div>
+      <div class="fx-alert-actions">
+        <button class="btn secondary" id="fxAlertRefresh">Refresh rates</button>
+        <button class="btn secondary" id="fxAlertManual">Enter manually</button>
+      </div>
+    </div>`;
 }
 
 /* Inverse of toAUD — convert an AUD amount into another currency (e.g. for a portfolio target set in THB). */
@@ -3342,6 +3407,11 @@ function renderSettings(c){
 
         <label for="liqThb">Share of retirement spending in baht (%)</label>
         <input type="number" id="liqThb" step="5" min="0" max="100" value="${L.thbSpendShare}">
+
+        <label for="liqWindow">Average actual spending over (complete months)</label>
+        <select id="liqWindow">
+          ${[3,6,12].map(n=>`<option value="${n}" ${Number(L.spendWindow||6)===n?'selected':''}>${n} months</option>`).join('')}
+        </select>
       </div>
     </div>
 
@@ -3469,6 +3539,8 @@ function renderSettings(c){
   liqField('liqRunway', v=> L.limits.runwayMonths = v);
   const tierSel = document.getElementById('liqTier');
   if(tierSel) tierSel.onchange = ()=>{ L.runwayTier = tierSel.value; saveState(); };
+  const winSel = document.getElementById('liqWindow');
+  if(winSel) winSel.onchange = ()=>{ L.spendWindow = Number(winSel.value)||6; saveState(); };
   liqField('liqFixed',  v=> L.limits.fixedPct     = Math.min(100, Math.max(0, v)));
   liqField('liqConc',   v=> L.limits.concPct      = Math.min(100, Math.max(0, v)));
   liqField('liqBuffer', v=> L.limits.bufferToday  = Math.max(0, v));
@@ -3553,16 +3625,28 @@ function liquiditySpending(){
     });
     label = `${y} budget, monthly average`;
   } else {
-    const months = completeMonths(3);
-    months.forEach(({year, month})=>{
+    const win = Math.max(1, Math.min(24, Number(liqSettings().spendWindow) || 6));
+    // Only months that actually contain transactions are averaged. Counting a month
+    // you simply hadn't started recording yet as a zero-spend month would halve the
+    // figure and double the runway — the most flattering possible way to be wrong.
+    const observed = completeMonths(win).filter(({year, month})=>{
+      const t = trackedTotals(year, month);
+      return sumType(t.Expenses) !== 0 || sumType(t.Income) !== 0;
+    });
+    if(!observed.length){
+      return { perCat:{}, total:0, essential:0, essCount:0, income:0, basis, months:0,
+               label:'no complete months recorded yet' };
+    }
+    observed.forEach(({year, month})=>{
       const t = trackedTotals(year, month);
       Object.entries(t.Expenses).forEach(([cat, v])=>{ perCat[cat] = (perCat[cat]||0) + v; });
       income += sumType(t.Income);
     });
-    Object.keys(perCat).forEach(cat=> perCat[cat] = perCat[cat] / months.length);
-    income = income / months.length;
-    const first = months[months.length-1], last = months[0];
-    label = `average of ${MONTHS[first.month]} ${first.year} – ${MONTHS[last.month]} ${last.year}`;
+    Object.keys(perCat).forEach(cat=> perCat[cat] = perCat[cat] / observed.length);
+    income = income / observed.length;
+    const first = observed[observed.length-1], last = observed[0];
+    const shortfall = observed.length < win ? ` · only ${observed.length} of ${win} recorded` : '';
+    label = `average of ${MONTHS[first.month]} ${first.year} – ${MONTHS[last.month]} ${last.year}${shortfall}`;
   }
 
   const essential = new Set(state.settings.essentialCategories || []);
@@ -3615,18 +3699,116 @@ function currencyExposure(){
   return { thbAUD: thb, net: all, thbPct: all > 0 ? thb/all*100 : 0 };
 }
 
-/* Largest single reachable account as a share of all reachable cash. Locked
-   accounts are excluded — they're not part of the money you could move. */
+/* Concentration measured at HOLDING level: a split account contributes each
+   sub-category separately, so a broker holding VT, NVDA and cash reads as three
+   positions rather than one lump. Locked accounts are excluded throughout.
+   The account-level figure is returned alongside it, because holding-level
+   concentration says nothing about having one provider between you and all of it. */
 function liquidityConcentration(reachable){
-  const live = (state.accounts||[])
+  const today = isoDate(TODAY);
+  const units = [], accts = [];
+  (state.accounts||[])
     .filter(a=> (accountSpeed(a) || DEFAULT_SPEED) !== 'locked')
-    .map(a=> ({ name:a.name, bal: accountBalanceAUD(a) }));
-  if(!live.length || reachable <= 0) return { pct:0, name:'—' };
-  const top = live.reduce((m, x)=> x.bal > m.bal ? x : m, live[0]);
-  return { pct: top.bal/reachable*100, name: top.name };
+    .forEach(a=>{
+      accts.push({ name:a.name, bal: accountBalanceAUD(a) });
+      if(a.subCategories && a.subCategories.length){
+        a.subCategories.forEach(sub=> units.push({
+          name: `${a.name} · ${sub.name}`,
+          bal: toAUD(unitBalanceAsOf(sub, today), sub.currency || a.currency)
+        }));
+      } else {
+        units.push({ name:a.name, bal: accountBalanceAUD(a) });
+      }
+    });
+  const top = list=> list.length ? list.reduce((m,x)=> x.bal > m.bal ? x : m, list[0]) : { name:'—', bal:0 };
+  if(reachable <= 0) return { pct:0, name:'—', acctPct:0, acctName:'—', splitCount: units.length - accts.length };
+  const u = top(units), a = top(accts);
+  return {
+    pct: u.bal/reachable*100, name: u.name,
+    acctPct: a.bal/reachable*100, acctName: a.name,
+    splitCount: units.length - accts.length
+  };
 }
 
 function months1(v){ return (v === Infinity || isNaN(v)) ? '—' : v.toFixed(1) + ' mo'; }
+
+/* ---- Snapshots -------------------------------------------------------------
+   Every figure on this tab is point-in-time, which hides the thing that matters
+   most: direction. One record a month is enough to show whether runway is
+   improving or the fixed-cost share is creeping up. Captured automatically the
+   first time the tab is opened in a new month, and never back-dated — a month
+   that was never observed stays absent rather than being invented later. */
+const SNAPSHOT_CAP = 120;
+
+function monthKey(d){ return isoDate(d).slice(0,7); }
+function monthLabel(key){
+  const [y,m] = key.split('-');
+  return `${MONTHS[Number(m)-1]} ${y.slice(2)}`;
+}
+
+function buildSnapshot(){
+  const sp   = liquiditySpending();
+  const lad  = liquidityLadder();
+  const fx   = currencyExposure();
+  const conc = liquidityConcentration(lad.reachable);
+  const L    = liqSettings();
+  const tierCash = lad.cum[L.runwayTier] !== undefined ? lad.cum[L.runwayTier] : lad.cum.week;
+  return {
+    month: monthKey(TODAY),
+    capturedAt: isoDate(TODAY),
+    today: lad.cum.today, week: lad.cum.week, month_: lad.cum.month,
+    locked: lad.locked, net: lad.net,
+    spendTotal: sp.total, spendEss: sp.essential, income: sp.income,
+    tier: L.runwayTier,
+    runwayEss: sp.essential > 0 ? tierCash/sp.essential : null,
+    fixedPct:  sp.income   > 0 ? sp.essential/sp.income*100 : null,
+    thbPct: fx.thbPct, concPct: conc.pct
+  };
+}
+
+/* Returns true when a new record was written, so the caller can re-render. */
+function captureSnapshot(force){
+  const L = liqSettings();
+  L.snapshots = Array.isArray(L.snapshots) ? L.snapshots : [];
+  const key = monthKey(TODAY);
+  const idx = L.snapshots.findIndex(s=> s.month === key);
+  if(idx >= 0 && !force) return false;
+  const snap = buildSnapshot();
+  if(idx >= 0) L.snapshots[idx] = snap; else L.snapshots.push(snap);
+  L.snapshots.sort((a,b)=> a.month < b.month ? -1 : 1);
+  if(L.snapshots.length > SNAPSHOT_CAP) L.snapshots = L.snapshots.slice(-SNAPSHOT_CAP);
+  saveState();
+  return true;
+}
+
+function deltaCell(cur, prev, opts){
+  const o = opts || {};
+  if(cur === null || cur === undefined || prev === null || prev === undefined) return '';
+  const d = cur - prev;
+  if(Math.abs(d) < (o.epsilon || 0.05)) return `<span class="delta flat">→</span>`;
+  const good = o.higherIsBetter ? d > 0 : d < 0;
+  const txt = (d > 0 ? '+' : '') + (o.money ? moneyWhole(d) : d.toFixed(1) + (o.pct ? '%' : ''));
+  return `<span class="delta ${good ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${txt}</span>`;
+}
+
+/* A bare sparkline — no axes, no labels. It only has to answer "which way". */
+function sparkline(values){
+  const pts = values.filter(v=> v !== null && v !== undefined && isFinite(v));
+  if(pts.length < 2) return '';
+  const w = 120, h = 26, pad = 2;
+  const min = Math.min(...pts), max = Math.max(...pts);
+  const span = (max - min) || 1;
+  const step = (w - pad*2) / (pts.length - 1);
+  const coords = pts.map((v,i)=> [pad + i*step, h - pad - ((v-min)/span)*(h - pad*2)]);
+  const path = coords.map((c,i)=> (i?'L':'M') + c[0].toFixed(1) + ' ' + c[1].toFixed(1)).join(' ');
+  const last = coords[coords.length-1];
+  const rising = pts[pts.length-1] >= pts[0];
+  const col = rising ? 'var(--green)' : 'var(--amber)';
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:${w}px; height:${h}px; display:block;">
+    <path d="${path}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.2" fill="${col}"/>
+  </svg>`;
+}
 
 /* The three spendable tiers, cheapest-to-touch first. Locked is never included:
    the point of the tier view is to see how far you get WITHOUT reaching for the
@@ -3652,6 +3834,7 @@ function limitPill(value, limit, higherIsBetter){
 }
 
 function renderLiquidity(c){
+  captureSnapshot(false);   // first visit each month writes a record; later visits don't
   const L    = liqSettings();
   const sp   = liquiditySpending();
   const lad  = liquidityLadder();
@@ -3780,7 +3963,7 @@ function renderLiquidity(c){
             <td class="ls">${limitPill(fixedPct, L.limits.fixedPct, false)}</td>
           </tr>
           <tr>
-            <td>No single account over ${L.limits.concPct}% of reachable cash <span class="muted" style="font-size:11px;">(${conc.name})</span></td>
+            <td>No single holding over ${L.limits.concPct}% of reachable cash <span class="muted" style="font-size:11px;">(${conc.name})</span></td>
             <td class="lv">${conc.pct.toFixed(0)}%</td>
             <td class="ls">${limitPill(conc.pct, L.limits.concPct, false)}</td>
           </tr>
@@ -3790,14 +3973,76 @@ function renderLiquidity(c){
             <td class="ls">${limitPill(lad.cum.today, L.limits.bufferToday, true)}</td>
           </tr>
         </table>
+        ${conc.splitCount > 0 ? `<div class="liq-note">Holdings inside split accounts are measured separately. At account level the largest single exposure is ${conc.acctName} at ${conc.acctPct.toFixed(0)}% — that's one provider between you and that money, which the limit above doesn't capture.</div>` : ''}
       </div>
     </div>
+
+    ${liquidityTrendHTML()}
   `;
 
   document.getElementById('liqBasis').onchange = e=>{
     liqSettings().spendBasis = e.target.value;
     saveState(); render();
   };
+  const snapBtn = document.getElementById('liqSnapNow');
+  if(snapBtn) snapBtn.onclick = ()=>{
+    captureSnapshot(true);
+    toast(`Snapshot for ${monthLabel(monthKey(TODAY))} updated.`);
+    render();
+  };
+}
+
+function liquidityTrendHTML(){
+  const snaps = (liqSettings().snapshots || []).slice(-6);
+  const thisMonth = monthKey(TODAY);
+  if(snaps.length < 2){
+    return `
+      <div class="liq-q"><span class="n">5</span><span class="t">Which way is this moving?</span></div>
+      <div class="liq-sub">A snapshot is saved automatically the first time you open this tab each month. Once there are two, this section shows the direction of travel rather than just today's position.</div>
+      <div class="liq-body">
+        <div class="card">
+          <div class="muted" style="font-size:12.5px;">
+            ${snaps.length===1
+              ? `First snapshot saved for ${monthLabel(snaps[0].month)}. The trend appears next month.`
+              : `No snapshots yet.`}
+          </div>
+          <div class="toolbar" style="margin:12px 0 0 0;"><button class="btn secondary" id="liqSnapNow">Update this month's snapshot</button></div>
+        </div>
+      </div>`;
+  }
+  const prev = snaps[snaps.length-2], cur = snaps[snaps.length-1];
+  const col = k=> snaps.map(s=> s[k]);
+  const row = (label, key, fmt, opts)=> `
+    <tr>
+      <td>${label}</td>
+      <td class="r">${fmt(cur[key])}</td>
+      <td class="r">${deltaCell(cur[key], prev[key], opts)}</td>
+      <td class="spark">${sparkline(col(key))}</td>
+    </tr>`;
+  const mo   = v=> (v===null||v===undefined) ? '—' : v.toFixed(1)+' mo';
+  const pct  = v=> (v===null||v===undefined) ? '—' : v.toFixed(0)+'%';
+  return `
+    <div class="liq-q"><span class="n">5</span><span class="t">Which way is this moving?</span></div>
+    <div class="liq-sub">Last ${snaps.length} monthly snapshots, ${monthLabel(snaps[0].month)} to ${monthLabel(cur.month)}. A direction is worth more than a level — a shrinking runway tells you something months before it breaches a limit.</div>
+    <div class="liq-body">
+      <div class="card">
+        <table class="trend">
+          <thead><tr><th></th><th class="r">${monthLabel(cur.month)}</th><th class="r">vs ${monthLabel(prev.month)}</th><th class="spark"></th></tr></thead>
+          <tbody>
+            ${row('Runway on essentials', 'runwayEss', mo,  { higherIsBetter:true })}
+            ${row('Cash reachable today', 'today',     moneyWhole, { higherIsBetter:true, money:true, epsilon:1 })}
+            ${row('Essential spending',   'spendEss',  moneyWhole, { higherIsBetter:false, money:true, epsilon:1 })}
+            ${row('Essential share of income', 'fixedPct', pct, { higherIsBetter:false, pct:true })}
+            ${row('Largest holding',      'concPct',   pct, { higherIsBetter:false, pct:true })}
+            ${row('Assets held in baht',  'thbPct',    pct, { higherIsBetter:true, pct:true })}
+          </tbody>
+        </table>
+        <div class="liq-note" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <span>${cur.month===thisMonth ? `${monthLabel(cur.month)} was captured on ${formatDateShort(cur.capturedAt)}.` : `No snapshot yet for ${monthLabel(thisMonth)}.`}</span>
+          <button class="btn secondary" id="liqSnapNow" style="margin-left:auto;">Update this month's snapshot</button>
+        </div>
+      </div>
+    </div>`;
 }
 
 /* =========================================================
@@ -3807,7 +4052,16 @@ function renderLiquidity(c){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V1.4', name: 'Runway by cash tier', date: 'Sep 2026', current: true,
+    no: 'V1.5', name: 'FX safety, trends and holding-level concentration', date: 'Sep 2026', current: true,
+    items: [
+      'Fixed a silent FX failure: when a rate is missing, non-AUD amounts were passed through at 1:1, so a ฿238,000 balance counted as $238,000 and quietly inflated every total. A red banner now appears above every tab naming the affected currencies, with refresh and manual-entry buttons.',
+      'The actuals window is configurable — 3, 6 or 12 complete months — and now defaults to 6, so one holiday or one large repair no longer distorts the runway.',
+      'New trend section on the Liquidity tab. A snapshot is saved automatically the first time the tab is opened each month, and the last six are shown with month-on-month deltas and sparklines. Snapshots are never back-dated: a month that was never observed stays absent rather than being reconstructed.',
+      'Concentration is now measured per holding rather than per account, so a split account contributes each sub-category separately. The largest account-level exposure is still reported underneath, since holding-level concentration says nothing about having one provider between you and all of it.'
+    ]
+  },
+  {
+    no: 'V1.4', name: 'Runway by cash tier', date: 'Sep 2026',
     items: [
       'Question 1 is now a table rather than three cards: runway is shown for each spendable tier — today only, plus within a week, plus within a month — against both all spending and essentials only.',
       'Locked accounts are excluded from every row, so the table answers how far you get before touching money you\'d rather leave invested.',
