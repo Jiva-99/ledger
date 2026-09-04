@@ -248,6 +248,10 @@
   .nw-weight{ padding:2px 4px; font-size:10.5px; width:52px; text-align:right; }
   input.reb-weight{ width:56px; padding:3px 6px; font-size:12.5px; text-align:right; display:inline-block; }
   .nw-stale{ color:var(--amber); }
+  .chart-key{ display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-top:10px;
+    font-size:11.5px; color:var(--text-dim); }
+  .chart-key i{ display:inline-block; width:10px; height:2.5px; border-radius:2px; margin-right:5px;
+    vertical-align:middle; }
   .confirm-list{ margin:6px 0 0 0; padding-left:18px; font-size:13px; color:var(--text-dim); line-height:1.7; }
   .btn.danger{ border-color:rgba(217,105,95,0.55); color:var(--red); }
   .btn.danger:hover{ background:rgba(217,105,95,0.12); border-color:var(--red); }
@@ -698,6 +702,9 @@ function defaultState(){
       excludedFromBalance: [],
       // Categories you'd keep paying if income stopped. Keys are "Expenses|||<category>".
       essentialCategories: [],
+      // Savings categories that actually feed the investment sleeves. Without this
+      // the projection would treat a holiday fund as portfolio contributions.
+      investingCategories: [],
       investing: {
         coreTarget: 85,      // % of the invested portfolio that should sit in the core
         driftBand: 5,        // percentage points of drift tolerated before it's flagged
@@ -893,6 +900,7 @@ function mergeWithDefaults(parsed){
   // without disturbing anything the user has already set.
   merged.settings.essentialCategories = merged.settings.essentialCategories || [];
   merged.settings.excludedFromBalance = merged.settings.excludedFromBalance || [];
+  merged.settings.investingCategories = merged.settings.investingCategories || [];
 
   // Drop planning years that are out of range or left over from a typo — but only
   // when they hold no budget figures and no transaction actually falls in them, so
@@ -3508,15 +3516,34 @@ function targetWeights(){
   return out;
 }
 
-/* The six-month average of what actually went into Savings categories. */
+/* The six-month average of savings that actually go into the portfolio. Only
+   categories flagged as investing count — a car fund and a holiday fund are both
+   Savings, and neither belongs in a projection of the invested sleeves. With
+   nothing flagged it falls back to all Savings, and the UI says so. */
+function isInvestingCategory(cat){
+  return (state.settings.investingCategories||[]).includes('Savings|||' + cat);
+}
+function toggleInvestingCategory(cat){
+  const key = 'Savings|||' + cat;
+  const list = new Set(state.settings.investingCategories || []);
+  list.has(key) ? list.delete(key) : list.add(key);
+  state.settings.investingCategories = [...list];
+  saveState(); render();
+}
+
 function averageMonthlySavings(){
+  const flagged = (state.settings.investingCategories||[]).length > 0;
   const months = completeMonths(6).filter(({year,month})=>{
     const t = trackedTotals(year, month);
     return sumType(t.Expenses) !== 0 || sumType(t.Income) !== 0 || sumType(t.Savings) !== 0;
   });
-  if(!months.length) return 0;
-  const total = months.reduce((sum,{year,month})=> sum + sumType(trackedTotals(year, month).Savings), 0);
-  return total / months.length;
+  if(!months.length) return { value:0, flagged, months:0 };
+  const total = months.reduce((sum,{year,month})=>{
+    const sav = trackedTotals(year, month).Savings;
+    if(!flagged) return sum + sumType(sav);
+    return sum + Object.entries(sav).reduce((t,[cat,v])=> t + (isInvestingCategory(cat) ? v : 0), 0);
+  }, 0);
+  return { value: total/months.length, flagged, months: months.length };
 }
 
 function assumedReturn(unit){
@@ -3540,10 +3567,14 @@ function projectPortfolio(opts){
 
   const endYear = Number(IS.retireYear) || 2060;
   const stepsPerYear = 2;
-  const totalSteps = Math.max(0, Math.round((endYear - TODAY.getFullYear()) * stepsPerYear));
-  const monthly = (IS.monthlyContribution === null || IS.monthlyContribution === undefined)
-    ? averageMonthlySavings()
-    : Number(IS.monthlyContribution)||0;
+  // Counted in months to the end of the retirement year, so the horizon shortens
+  // every month rather than jumping by a whole year each 1 January.
+  const monthsLeft = Math.max(0, (endYear - TODAY.getFullYear())*12 + (11 - TODAY.getMonth()));
+  const yearsLeft = monthsLeft/12;
+  const totalSteps = Math.max(0, Math.round(monthsLeft/6));
+  const savingsAvg = averageMonthlySavings();
+  const usingAverage = IS.monthlyContribution === null || IS.monthlyContribution === undefined;
+  const monthly = usingAverage ? savingsAvg.value : (Number(IS.monthlyContribution)||0);
   const perStep = monthly * (12/stepsPerYear);
 
   const run = (rateFor)=>{
@@ -3570,12 +3601,107 @@ function projectPortfolio(opts){
   const contributed = weights.reduce((t,w)=> t + w.unit.valueAUD, 0) + perStep * totalSteps;
 
   return {
-    endYear, totalSteps, monthly, contributed,
+    endYear, totalSteps, monthly, contributed, yearsLeft, monthsLeft,
+    usingAverage, savingsFlagged: savingsAvg.flagged,
     assumed, baseline,
     finalAssumed: assumed[assumed.length-1].value,
     finalBaseline: baseline[baseline.length-1].value,
     weights
   };
+}
+
+/* What the invested sleeves were actually worth on a past date, from balance
+   history. Only holdings currently tagged core or satellite are counted, so the
+   line answers "how has this portfolio grown" rather than "what did I once own". */
+function investedValueAsOf(dateISO){
+  return investedUnits().reduce((t,u)=> t + toAUD(unitBalanceAsOf(u.unit, dateISO), u.currency), 0);
+}
+
+/* The earliest date any invested holding has a figure for. */
+function investedHistoryStart(){
+  let earliest = null;
+  investedUnits().forEach(u=>{
+    const dates = [u.unit.openingDate, ...(u.unit.history||[]).map(h=>h.date)].filter(Boolean);
+    dates.forEach(d=>{ if(!earliest || d < earliest) earliest = d; });
+  });
+  return earliest;
+}
+
+/* A single chart carrying two different kinds of thing: what happened, and what
+   is assumed. They're drawn differently on purpose — solid for recorded history,
+   dashed for arithmetic — because the eye should not read them as equally solid. */
+function projectionChartSVG(p, toDisplay, unitLabel){
+  const W = 720, H = 260, padL = 62, padR = 14, padT = 14, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+
+  const startISO = investedHistoryStart();
+  const actual = [];
+  if(startISO){
+    const start = new Date(startISO + 'T00:00:00');
+    const months = Math.max(1, Math.round((TODAY - start)/(30.44*86400000)));
+    const stepM = Math.max(1, Math.ceil(months/24));   // at most ~24 points
+    for(let m=0; m<=months; m+=stepM){
+      const d = new Date(start.getFullYear(), start.getMonth()+m, 1);
+      if(d > TODAY) break;
+      actual.push({ t: d.getFullYear() + d.getMonth()/12, v: toDisplay(investedValueAsOf(isoDate(d))) });
+    }
+  }
+  const nowT = TODAY.getFullYear() + TODAY.getMonth()/12;
+  actual.push({ t: nowT, v: toDisplay(p.assumed[0].value) });
+
+  const proj = p.assumed.map(x=> ({ t:x.year, v: toDisplay(x.value) }));
+  const base = p.baseline.map(x=> ({ t:x.year, v: toDisplay(x.value) }));
+
+  const allT = [...actual, ...proj].map(x=>x.t);
+  const allV = [...actual, ...proj, ...base].map(x=>x.v);
+  const t0 = Math.min(...allT), t1 = Math.max(...allT);
+  const vMax = Math.max(...allV, 1) * 1.05;
+  const X = t=> padL + (t - t0)/((t1-t0)||1) * plotW;
+  const Y = v=> padT + plotH - (v/vMax) * plotH;
+
+  const path = pts=> pts.map((pt,i)=> (i?'L':'M') + X(pt.t).toFixed(1) + ' ' + Y(pt.v).toFixed(1)).join(' ');
+
+  // y ticks
+  const ticks = 4;
+  const short = v=>{
+    if(v >= 1e9) return (v/1e9).toFixed(1)+'b';
+    if(v >= 1e6) return (v/1e6).toFixed(1)+'m';
+    if(v >= 1e3) return Math.round(v/1e3)+'k';
+    return Math.round(v);
+  };
+  let grid = '';
+  for(let i=0; i<=ticks; i++){
+    const v = vMax*i/ticks, y = Y(v);
+    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="0.5"/>
+      <text x="${padL-8}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--text-faint)">${short(v)}</text>`;
+  }
+  let xlab = '';
+  const span = t1 - t0;
+  const stepY = span > 25 ? 10 : (span > 12 ? 5 : 2);
+  for(let yr = Math.ceil(t0); yr <= t1; yr++){
+    if(yr % stepY !== 0) continue;
+    xlab += `<text x="${X(yr).toFixed(1)}" y="${H-10}" text-anchor="middle" font-size="10" fill="var(--text-faint)">${yr}</text>`;
+  }
+
+  const divider = X(nowT);
+  return `
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; display:block;" role="img"
+       aria-label="Portfolio value: recorded history to now, then projected to ${p.endYear}">
+    ${grid}${xlab}
+    <line x1="${divider.toFixed(1)}" y1="${padT}" x2="${divider.toFixed(1)}" y2="${padT+plotH}"
+          stroke="var(--text-faint)" stroke-width="0.5" stroke-dasharray="3 3"/>
+    <text x="${(divider+5).toFixed(1)}" y="${padT+11}" font-size="10" fill="var(--text-faint)">today</text>
+    <path d="${path(base)}" fill="none" stroke="var(--text-faint)" stroke-width="1.2" stroke-dasharray="4 4" opacity="0.75"/>
+    <path d="${path(proj)}" fill="none" stroke="var(--gold)" stroke-width="1.8" stroke-dasharray="5 4"/>
+    ${actual.length>1 ? `<path d="${path(actual)}" fill="none" stroke="var(--green)" stroke-width="2"/>` : ''}
+    <circle cx="${X(nowT).toFixed(1)}" cy="${Y(toDisplay(p.assumed[0].value)).toFixed(1)}" r="3" fill="var(--green)"/>
+  </svg>
+  <div class="chart-key">
+    <span><i style="background:var(--green)"></i>Actual (recorded)</span>
+    <span><i style="background:var(--gold)"></i>Projected — your assumptions</span>
+    <span><i style="background:var(--text-faint)"></i>Projected — everything at baseline</span>
+    <span class="muted">${unitLabel}</span>
+  </div>`;
 }
 
 function projectionSectionHTML(){
@@ -3588,7 +3714,7 @@ function projectionSectionHTML(){
   const thb = v=> rate ? v * rate : null;
   const bahtWhole = v=> v===null ? '—' : '฿' + Math.round(v).toLocaleString('en-AU');
 
-  const yearsLeft = p.endYear - TODAY.getFullYear();
+  const yearsLeft = p.yearsLeft;
   const growth = p.finalAssumed - p.contributed;
   const wr = Number(IS.withdrawalRate)||4;
   const incomeAUD = p.finalAssumed * wr/100 / 12;
@@ -3634,12 +3760,12 @@ function projectionSectionHTML(){
   return `
     <div class="section-title">Projection to ${p.endYear}</div>
     <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">
-      ${yearsLeft} years, contributing ${moneyWhole(p.monthly)} a month${IS.monthlyContribution===null?' (your six-month savings average)':''},
+      ${yearsLeft.toFixed(1)} years, contributing ${moneyWhole(p.monthly)} a month${p.usingAverage ? (p.savingsFlagged ? ' (six-month average of your investing categories)' : ' (six-month average of all Savings — flag your investing categories in Settings to narrow it)') : ''},
       rebalanced back to target every six months. Everything is in today's money — assumed returns have ${Number(IS.inflation).toFixed(1)}% inflation taken off,
       so the figures can be compared with what you spend now. This is arithmetic on assumptions, not a forecast.
     </div>
 
-    ${capped.length ? `<div class="liq-banner">${capped.length} holding${capped.length>1?'s have':' has'} a past return above your ${IS.returnCap}% ceiling, so the ceiling is used instead. A single stock's recent run is not a planning assumption — extrapolating it for ${yearsLeft} years would dominate everything else here.</div>` : ''}
+    ${capped.length ? `<div class="liq-banner">${capped.length} holding${capped.length>1?'s have':' has'} a past return above your ${IS.returnCap}% ceiling, so the ceiling is used instead. A single stock's recent run is not a planning assumption — extrapolating it for ${Math.round(yearsLeft)} years would dominate everything else here.</div>` : ''}
 
     <div class="row" style="margin-bottom:14px;">
       <div class="card metric">
@@ -3662,6 +3788,10 @@ function projectionSectionHTML(){
         <div class="big">${bahtWhole(thb(incomeAUD))}</div>
         <div class="cap">${essTHB!==null&&sp.essential>0 ? `essentials today ${bahtWhole(essTHB)}` : 'set essential categories to compare'}</div>
       </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      ${projectionChartSVG(p, v=> rate ? v*rate : v, rate ? 'THB' : 'AUD')}
     </div>
 
     <div class="section-title" style="font-size:15px;">Exchange rate risk</div>
@@ -4371,6 +4501,7 @@ function renameCategory(type, oldName, newName){
   }
   state.settings.excludedFromSummary = (state.settings.excludedFromSummary||[]).map(k=> k===`${type}|||${oldName}` ? `${type}|||${newName}` : k);
   state.settings.essentialCategories = (state.settings.essentialCategories||[]).map(k=> k===`${type}|||${oldName}` ? `${type}|||${newName}` : k);
+  state.settings.investingCategories = (state.settings.investingCategories||[]).map(k=> k===`${type}|||${oldName}` ? `${type}|||${newName}` : k);
   state.settings.excludedFromBalance = (state.settings.excludedFromBalance||[]).map(k=> k===`${type}|||${oldName}` ? `${type}|||${newName}` : k);
 
   saveState(); render(); toast(`Renamed to "${newName}".`);
@@ -4439,6 +4570,7 @@ function renderSettings(c){
                 const isSpecial = (state.settings.excludedFromSummary||[]).includes(key);
                 const isEss = t==='Expenses' && isEssentialCategory(cat);
                 const offBal = (state.settings.excludedFromBalance||[]).includes(key);
+                const isInv = t==='Savings' && isInvestingCategory(cat);
                 return `
                 <div class="cat-item ${t}">
                   <div style="display:flex; align-items:center; gap:2px; min-width:0; overflow:hidden;">
@@ -4448,8 +4580,10 @@ function renderSettings(c){
                     ${isSpecial?'<span class="pill Savings" style="margin-left:6px; flex-shrink:0;">Special</span>':''}
                     ${isEss?'<span class="pill Income" style="margin-left:6px; flex-shrink:0;">Essential</span>':''}
                     ${offBal?'<span class="pill Expenses" style="margin-left:6px; flex-shrink:0;">Off balance</span>':''}
+                    ${isInv?'<span class="pill Savings" style="margin-left:6px; flex-shrink:0;">Investing</span>':''}
                   </div>
                   <div class="cat-actions">
+                    ${t==='Savings' ? `<button class="icon-btn" data-toggleinvesting="${cat}" title="${isInv?'Not a portfolio contribution':'Counts as a contribution to your investment sleeves'}" style="${isInv?'color:var(--blue-bright);':''}">${isInv?'◈':'◇'}</button>` : ''}
                     ${t==='Expenses' ? `<button class="icon-btn" data-toggleessential="${cat}" title="${isEss?'Not essential — would be cut if income stopped':'Essential — would keep paying if income stopped'}" style="${isEss?'color:var(--green);':''}">${isEss?'◆':'◇'}</button>` : ''}
                     <button class="icon-btn" data-togglespecial="${key}" title="${isSpecial?'Include in graphs/summary':'Exclude from graphs/summary'}">${isSpecial?'★':'☆'}</button>
                     ${isSpecial ? `<button class="icon-btn" data-togglebalance="${key}" title="${offBal?'Let this category move the running balance again':'Also keep this category out of the running balance'}" style="${offBal?'color:var(--pink);':''}">${offBal?'⊘':'○'}</button>` : ''}
@@ -4602,6 +4736,7 @@ function renderSettings(c){
         state.settings.excludedFromSummary = (state.settings.excludedFromSummary||[]).filter(k=>k!==`${t}|||${cat}`);
         state.settings.essentialCategories = (state.settings.essentialCategories||[]).filter(k=>k!==`${t}|||${cat}`);
         state.settings.excludedFromBalance = (state.settings.excludedFromBalance||[]).filter(k=>k!==`${t}|||${cat}`);
+        state.settings.investingCategories = (state.settings.investingCategories||[]).filter(k=>k!==`${t}|||${cat}`);
         saveState(); render();
       }
     };
@@ -4617,6 +4752,9 @@ function renderSettings(c){
   });
   c.querySelectorAll('[data-toggleessential]').forEach(btn=>{
     btn.onclick = ()=> toggleCategoryEssential(btn.dataset.toggleessential);
+  });
+  c.querySelectorAll('[data-toggleinvesting]').forEach(btn=>{
+    btn.onclick = ()=> toggleInvestingCategory(btn.dataset.toggleinvesting);
   });
   c.querySelectorAll('[data-togglebalance]').forEach(btn=>{
     btn.onclick = ()=>{
@@ -5419,7 +5557,16 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V2.6', name: 'Projection to retirement', date: 'Sep 2026', current: true,
+    no: 'V2.7', name: 'Projection chart and contribution scope', date: 'Sep 2026', current: true,
+    items: [
+      'The projection horizon is now counted in months rather than whole years, so it shortens every month instead of jumping by a year each 1 January. It already shrank automatically; it just did so in one step.',
+      'Savings categories can be flagged ◈ Investing, and only those count towards the projected monthly contribution. A car fund and a holiday fund are both Savings and neither belongs in a portfolio projection. With nothing flagged it falls back to all Savings and says so.',
+      'New chart on the projection: recorded history of the invested sleeves in solid green up to today, then the projection dashed in gold, with the baseline scenario dashed in grey behind it. Actual and assumed are drawn differently on purpose, so the eye does not read arithmetic as evidence.',
+      'A marked "today" divider separates the two halves, and the y axis is abbreviated (k, m, b) since baht figures over three decades get long.'
+    ]
+  },
+  {
+    no: 'V2.6', name: 'Projection to retirement', date: 'Sep 2026',
     items: [
       'New projection section under Core & satellite, running semi-annual steps to your retirement year, contributing your six-month savings average each month and rebalancing back to target every six months.',
       'Each holding is projected at its own rate. Fetch past returns annualises each ticker from daily closing prices over a window you choose; the figure is shown both nominal and real, and can be overridden per holding.',
