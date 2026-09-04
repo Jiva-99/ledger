@@ -2147,7 +2147,7 @@ function renderTransactions(c){
             <td>${r.category}</td>
             <td class="muted">${r.details||''}</td>
             <td class="num ${r.type==='Income'?'pos':'neg'}">
-              ${r.type==='Income'?'+':'−'}${moneyCur(r.amount, cur)}
+              ${r.type==='Income'?'+':'−'}${moneyCur(r.amount, cur, 2)}
               ${showAUD ? `<div class="muted" style="font-size:10.5px;">≈${moneyWhole(txAmountAUD(r))} AUD</div>` : ''}
             </td>
             <td class="num">${r.offBalance ? '<span class="muted" title="This category is set to stay out of the running balance">—</span>' : money(r.balance)}</td>
@@ -2445,11 +2445,15 @@ function accountBalanceAUD(a, dateISO){
   return toAUD(unitBalanceAsOf(a, d), a.currency);
 }
 
-function moneyCur(amount, currency){
+/* Whole numbers by default — balances and net worth read better without cents.
+   Pass a decimals count where the exact figure matters, such as the amount you
+   actually typed on a transaction. */
+function moneyCur(amount, currency, decimals){
   const sym = CURRENCY_SYMBOLS[currency] || '$';
   const v = Number(amount)||0;
   const sign = v<0 ? '-' : '';
-  const abs = Math.abs(Math.round(v)).toLocaleString();
+  const d = decimals===undefined ? 0 : decimals;
+  const abs = Math.abs(v).toLocaleString(undefined, { minimumFractionDigits:d, maximumFractionDigits:d });
   return `${sign}${sym}${abs}`;
 }
 
@@ -5105,7 +5109,14 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V2.3', name: 'Off-balance categories', date: 'Sep 2026', current: true,
+    no: 'V2.4', name: 'Cents on transaction amounts', date: 'Sep 2026', current: true,
+    items: [
+      'The Amount column on the Transactions tab was rounded to whole units while the Balance column beside it showed cents, so the two did not visibly reconcile. Amount now shows two decimals to match.',
+      'Only that column changed. Balances, net worth and the dashboard stay whole-number, where cents are clutter rather than detail.'
+    ]
+  },
+  {
+    no: 'V2.3', name: 'Off-balance categories', date: 'Sep 2026',
     items: [
       'A ☆ Special category was left out of graphs and breakdowns but still moved the running balance on the Transactions tab. That is correct for an opening balance, which should seed the balance without appearing in charts, but wrong for side entries that should not count towards anything — one flag was doing two jobs.',
       'Special categories now have a second toggle, ⊘ Off balance, which also keeps them out of the running balance and the Lifetime Tracking Balance card. Those rows still appear in the list, showing a dash instead of a balance so it is clear the figure did not move.',
