@@ -244,6 +244,16 @@
   .nw-weight{ padding:2px 4px; font-size:10.5px; width:52px; text-align:right; }
   input.reb-weight{ width:56px; padding:3px 6px; font-size:12.5px; text-align:right; display:inline-block; }
   .nw-stale{ color:var(--amber); }
+  .confirm-list{ margin:6px 0 0 0; padding-left:18px; font-size:13px; color:var(--text-dim); line-height:1.7; }
+  .btn.danger{ border-color:rgba(217,105,95,0.55); color:var(--red); }
+  .btn.danger:hover{ background:rgba(217,105,95,0.12); border-color:var(--red); }
+  table.rp{ width:100%; border-collapse:collapse; }
+  table.rp th{ text-align:left; font-size:11.5px; color:var(--text-faint); font-weight:400;
+    padding:0 0 8px 0; border-bottom:1px solid var(--border); }
+  table.rp th.r, table.rp td.r{ text-align:right; }
+  table.rp td{ padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; }
+  table.rp tbody tr:last-child td{ border-bottom:none; }
+  table.rp td .sub{ font-size:11px; color:var(--text-faint); }
   .nw-tag{ background:rgba(201,162,39,0.14); color:var(--gold-bright); padding:1px 7px; border-radius:var(--radius); font-size:10.5px; }
   .nw-inv{ font-size:11px; }
   table.reb{ width:100%; border-collapse:collapse; }
@@ -386,7 +396,17 @@
   }
 
   /* Phone-width only — leaves the 820px tablet layout (iPad etc.) untouched */
-  .mobile-topbar, #mobileTabBar, .drawer-backdrop{ display:none; }
+  .mobile-topbar, #mobileTabBar, .drawer-backdrop, #mtbSheet{ display:none; }
+  #mtbSheet.open{ display:block; }
+  #mtbSheet{ position:fixed; inset:0; z-index:80; }
+  #mtbSheet .sheet-back{ position:absolute; inset:0; background:rgba(0,0,0,0.45); }
+  #mtbSheet .sheet{ position:absolute; left:0; right:0; bottom:0; background:var(--surface);
+    border-top:1px solid var(--border); border-radius:14px 14px 0 0; padding:10px 0 calc(10px + env(safe-area-inset-bottom)); }
+  #mtbSheet .sheet h4{ margin:4px 18px 8px; font-size:12px; color:var(--text-faint); font-weight:400; }
+  #mtbSheet .sheet button{ display:flex; width:100%; align-items:center; gap:12px; background:none; border:none;
+    color:var(--text); font-family:inherit; font-size:15px; padding:13px 18px; text-align:left; cursor:pointer; }
+  #mtbSheet .sheet button .n{ font-family:var(--mono); font-size:11px; color:var(--text-faint); width:18px; }
+  #mtbSheet .sheet button.active{ color:var(--gold-bright); }
   @media (max-width: 600px){
     .app{ flex-direction:column; }
     .mobile-topbar{
@@ -557,15 +577,22 @@
     <div class="content" id="content"></div>
   </div>
 
+  <div id="mtbSheet" role="dialog" aria-label="More tabs">
+    <div class="sheet-back"></div>
+    <div class="sheet">
+      <h4>More</h4>
+      <button data-tab="liquidity"><span class="n">06</span>Liquidity</button>
+      <button data-tab="settings"><span class="n">07</span>Settings</button>
+      <button data-tab="versions"><span class="n">08</span>Versions</button>
+    </div>
+  </div>
   <nav id="mobileTabBar">
     <button data-tab="dashboard" class="active"><span class="mtb-num">01</span><span>Home</span></button>
     <button data-tab="transactions"><span class="mtb-num">02</span><span>Trans</span></button>
     <button data-tab="planning"><span class="mtb-num">03</span><span>Plan</span></button>
     <button data-tab="networth"><span class="mtb-num">04</span><span>Worth</span></button>
     <button data-tab="bills"><span class="mtb-num">05</span><span>Bills</span></button>
-    <button data-tab="liquidity"><span class="mtb-num">06</span><span>Liquid</span></button>
-    <button data-tab="settings"><span class="mtb-num">07</span><span>Set</span></button>
-    <button data-tab="versions"><span class="mtb-num">08</span><span>Ver</span></button>
+    <button id="mtbMore"><span class="mtb-num">···</span><span>More</span></button>
   </nav>
 </div>
 
@@ -579,6 +606,72 @@
 const LEGACY_STORAGE_KEY = 'ledgerApp_v1';
 const PROFILES_KEY = 'ledgerApp_profiles_v1';
 const DATA_PREFIX = 'ledgerApp_data_v1_';
+const RESTORE_PREFIX = 'ledgerApp_restore_v1_';
+
+/* ---- Restore points --------------------------------------------------------
+   Cloud sync is last-write-wins with no history: one bad write on one device and
+   the good copy is gone. These are local, per profile, and deliberately dumb —
+   a handful of whole-state copies with a timestamp and a reason.
+
+   Captured when the app opens, at most once an hour while it's in use, and always
+   immediately before cloud data overwrites what's on this device, which is the
+   moment things actually get lost. Stored separately from state, so they're never
+   pushed to Firestore and can't be destroyed by the same bad sync. */
+const RESTORE_MAX = 6;
+const RESTORE_MIN_GAP_MS = 60*60*1000;
+const RESTORE_MAX_BYTES = 2_000_000;
+
+function loadRestorePoints(profileId){
+  try{
+    const raw = localStorage.getItem(RESTORE_PREFIX + profileId);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  }catch(e){ return []; }
+}
+
+function captureRestorePoint(reason, force){
+  try{
+    const id = profiles.activeId;
+    const points = loadRestorePoints(id);
+    const last = points[points.length-1];
+    if(!force && last && (Date.now() - new Date(last.at).getTime()) < RESTORE_MIN_GAP_MS) return false;
+
+    const payload = JSON.stringify(state);
+    if(payload.length > RESTORE_MAX_BYTES) return false;   // too big to keep six of
+
+    // Skip a duplicate: no point stacking six identical copies of an untouched file.
+    if(last && last.data === payload && !force) return false;
+
+    points.push({
+      at: new Date().toISOString(),
+      reason: reason || 'Automatic',
+      counts: {
+        transactions: (state.transactions||[]).length,
+        accounts: (state.accounts||[]).length,
+        bills: (state.bills||[]).length
+      },
+      data: payload
+    });
+    while(points.length > RESTORE_MAX) points.shift();
+    localStorage.setItem(RESTORE_PREFIX + id, JSON.stringify(points));
+    return true;
+  }catch(e){ console.error('Could not save a restore point', e); return false; }
+}
+
+/* Restoring is itself undoable — the state being replaced is captured first. */
+function restoreFromPoint(index){
+  const id = profiles.activeId;
+  const points = loadRestorePoints(id);
+  const p = points[index];
+  if(!p) return false;
+  captureRestorePoint('Before restoring', true);
+  try{
+    state = mergeWithDefaults(JSON.parse(p.data));
+    saveState();
+    render();
+    return true;
+  }catch(e){ console.error(e); toast('That restore point could not be read.'); return false; }
+}
 const THEME_KEY = 'ledgerApp_theme_v1';
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const TYPES = ['Income','Expenses','Savings'];
@@ -926,6 +1019,9 @@ async function pullFromCloudOrSeed(){
     profiles = cloudMeta;
     try{ localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles)); }catch(e){}
     const cloudProfileData = await window.LedgerCloud.pullProfile(cloudUser.uid, profiles.activeId);
+    // The cloud copy is about to replace what's on this device. If the two have
+    // diverged, this is the exact moment local work disappears — so keep a copy.
+    captureRestorePoint('Before cloud sync replaced local data', true);
     state = cloudProfileData ? mergeWithDefaults(cloudProfileData) : loadState(profiles.activeId);
     try{ localStorage.setItem(DATA_PREFIX + profiles.activeId, JSON.stringify(state)); }catch(e){}
   } else {
@@ -1211,7 +1307,43 @@ function handleNavClick(e){
 document.getElementById('navTabs').addEventListener('click', handleNavClick);
 document.getElementById('mobileTabBar').addEventListener('click', handleNavClick);
 
+const MORE_TABS = ['liquidity','settings','versions'];
+
+function openMoreSheet(open){
+  const sheet = document.getElementById('mtbSheet');
+  if(sheet) sheet.classList.toggle('open', !!open);
+}
+
+function wireMoreSheet(){
+  const btn = document.getElementById('mtbMore');
+  const sheet = document.getElementById('mtbSheet');
+  if(!btn || !sheet) return;
+  btn.onclick = ()=> openMoreSheet(!sheet.classList.contains('open'));
+  sheet.querySelector('.sheet-back').onclick = ()=> openMoreSheet(false);
+  sheet.querySelectorAll('[data-tab]').forEach(b=>{
+    b.onclick = ()=>{ openMoreSheet(false); goToTab(b.dataset.tab); };
+  });
+}
+
+function goToTab(tab){
+  state.ui.activeTab = tab;
+  saveState();
+  render();
+}
+
 function setActiveNav(){
+  const moreBtn = document.getElementById('mtbMore');
+  if(moreBtn){
+    const inMore = MORE_TABS.includes(state.ui.activeTab);
+    moreBtn.classList.toggle('active', inMore);
+    const label = moreBtn.querySelector('span:last-child');
+    if(label) label.textContent = inMore
+      ? ({liquidity:'Liquid', settings:'Set', versions:'Ver'})[state.ui.activeTab]
+      : 'More';
+  }
+  const sheet = document.getElementById('mtbSheet');
+  if(sheet) sheet.querySelectorAll('[data-tab]').forEach(b=>
+    b.classList.toggle('active', b.dataset.tab === state.ui.activeTab));
   document.querySelectorAll('#navTabs button, #mobileTabBar button').forEach(b=>{
     b.classList.toggle('active', b.dataset.tab===state.ui.activeTab);
   });
@@ -2858,10 +2990,27 @@ function renderNetWorth(c){
     };
   });
   c.querySelectorAll('[data-delacc]').forEach(b=> b.onclick = ()=>{
-    if(confirm('Delete this account?')){
-      state.accounts = state.accounts.filter(a=>a.id!==b.dataset.delacc);
-      saveState(); render();
-    }
+    const acc = state.accounts.find(a=> a.id === b.dataset.delacc);
+    if(!acc) return;
+    const subs = (acc.subCategories||[]).length;
+    const entries = (acc.history||[]).length
+      + (acc.subCategories||[]).reduce((n,s)=> n + (s.history||[]).length, 0);
+    confirmDestructive({
+      title: 'Delete account',
+      what: acc.name,
+      lines: [
+        `Balance ${moneyWhole(accountBalanceAUD(acc))}`,
+        subs ? `${subs} holding${subs>1?'s':''} inside it` : null,
+        entries ? `${entries} history entr${entries>1?'ies':'y'}, including every price update and adjustment` : null
+      ].filter(Boolean),
+      confirmLabel: 'Delete account',
+      onConfirm: ()=>{
+        captureRestorePoint('Before deleting ' + acc.name, true);
+        state.accounts = state.accounts.filter(a=>a.id!==acc.id);
+        saveState(); render();
+        toast(`${acc.name} deleted. Settings → Restore points has a copy from just before.`);
+      }
+    });
   });
   c.querySelectorAll('[data-adj]').forEach(b=> b.onclick = ()=> openAdjustModal(b.dataset.adj));
   const unitByKey = key=>{
@@ -2920,10 +3069,25 @@ function renderNetWorth(c){
       const [accId,subId] = b.dataset.delsub.split('|||');
       const acc = state.accounts.find(a=>a.id===accId);
       if(!acc) return;
-      if(confirm('Remove this split? Its balance will no longer be counted unless you delete/re-add carefully.')){
-        acc.subCategories = acc.subCategories.filter(s=>s.id!==subId);
-        saveState(); render();
-      }
+      const sub = (acc.subCategories||[]).find(x=> x.id === subId);
+      if(!sub) return;
+      const subCur = sub.currency || acc.currency;
+      confirmDestructive({
+        title: 'Remove holding',
+        what: sub.name,
+        lines: [
+          `Balance ${moneyCur(unitBalanceAsOf(sub, isoDate(TODAY)), subCur)}`,
+          (sub.history||[]).length ? `${sub.history.length} history entr${sub.history.length>1?'ies':'y'}` : null,
+          'Its balance stops counting towards ' + acc.name
+        ].filter(Boolean),
+        confirmLabel: 'Remove holding',
+        onConfirm: ()=>{
+          captureRestorePoint('Before removing ' + sub.name, true);
+          acc.subCategories = acc.subCategories.filter(s=>s.id!==subId);
+          saveState(); render();
+          toast(`${sub.name} removed. Settings → Restore points has a copy from just before.`);
+        }
+      });
     };
   });
   c.querySelectorAll('[data-edittarget]').forEach(b=>{
@@ -3140,6 +3304,59 @@ async function fetchQuote(ticker){
   throw new Error('blocked, and no API key set');
 }
 
+function renderRestorePoints(){
+  const host = document.getElementById('restoreCard');
+  if(!host) return;
+  const points = loadRestorePoints(profiles.activeId).slice().reverse();
+  if(!points.length){
+    host.innerHTML = `<div class="muted" style="font-size:12.5px;">No restore points yet. One is saved the next time the app opens.</div>
+      <div class="toolbar" style="margin:12px 0 0 0;"><button class="btn secondary" id="rpNow">Save one now</button></div>`;
+  } else {
+    host.innerHTML = `
+      <table class="rp">
+        <thead><tr><th>Saved</th><th>Reason</th><th class="r">Contents</th><th></th></tr></thead>
+        <tbody>
+          ${points.map((p,i)=>{
+            const idx = points.length - 1 - i;     // index back into stored order
+            const d = new Date(p.at);
+            const c = p.counts || {};
+            return `<tr>
+              <td>${formatDateShort(isoDate(d))}<div class="sub">${d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})}</div></td>
+              <td class="muted">${p.reason||'Automatic'}</td>
+              <td class="r muted">${c.transactions||0} txns · ${c.accounts||0} accounts</td>
+              <td class="r"><button class="btn secondary" data-restore="${idx}">Restore</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <div class="toolbar" style="margin:12px 0 0 0;"><button class="btn secondary" id="rpNow">Save one now</button></div>`;
+  }
+  const now = document.getElementById('rpNow');
+  if(now) now.onclick = ()=>{
+    captureRestorePoint('Saved manually', true);
+    renderRestorePoints();
+    toast('Restore point saved.');
+  };
+  host.querySelectorAll('[data-restore]').forEach(b=>{
+    b.onclick = ()=>{
+      const idx = Number(b.dataset.restore);
+      const p = loadRestorePoints(profiles.activeId)[idx];
+      if(!p) return;
+      const c = p.counts || {};
+      confirmDestructive({
+        title: 'Restore this copy',
+        what: `${formatDateShort(isoDate(new Date(p.at)))} — ${p.reason||'Automatic'}`,
+        lines: [
+          `Replaces everything in this profile with ${c.transactions||0} transactions and ${c.accounts||0} accounts`,
+          'Your current data is saved as a new restore point first, so this is reversible'
+        ],
+        confirmLabel: 'Restore',
+        onConfirm: ()=>{ if(restoreFromPoint(idx)) toast('Restored.'); }
+      });
+    };
+  });
+}
+
 function investingSectionHTML(){
   const inv = investedUnits();
   if(!inv.length){
@@ -3310,6 +3527,33 @@ function openQuoteKeyModal(onDone){
     if(onDone) onDone();
     toast(!v ? 'API key removed.' : (sync ? 'API key saved and will sync to your other devices.' : 'API key saved on this device only.'));
   };
+}
+
+/* A confirm() dialog says "Delete this account?" and gives no way to tell which
+   account or what goes with it. This names the thing, lists what's attached, and
+   puts the destructive action on the right in red — so a stray tap on the wrong
+   row is caught by reading, not by luck. */
+function confirmDestructive(opts){
+  const root = document.getElementById('modalRoot');
+  const prev = root.innerHTML;
+  root.innerHTML = `
+    <div class="modal-backdrop" id="cdb">
+      <div class="modal" style="max-width:440px;">
+        <h2>${opts.title}</h2>
+        <div style="font-size:15px; margin:2px 0 10px 0;">${opts.what}</div>
+        ${opts.lines && opts.lines.length ? `<ul class="confirm-list">${opts.lines.map(l=>`<li>${l}</li>`).join('')}</ul>` : ''}
+        <div class="muted" style="font-size:12px; margin-top:12px; line-height:1.5;">This can't be undone from here, but a restore point is saved first — Settings → Restore points.</div>
+        <div class="form-actions">
+          <button class="btn secondary" id="cdCancel">Cancel</button>
+          <button class="btn danger" id="cdGo">${opts.confirmLabel || 'Delete'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const close = ()=>{ root.innerHTML = prev; };
+  document.getElementById('cdCancel').onclick = close;
+  document.getElementById('cdb').addEventListener('click', e=>{ if(e.target.id==='cdb') close(); });
+  document.getElementById('cdGo').onclick = ()=>{ close(); opts.onConfirm(); };
 }
 
 function openPriceModal(){
@@ -3879,6 +4123,10 @@ function renderSettings(c){
       </div>
     </div>
 
+    <div class="section-title">Restore points</div>
+    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">Cloud sync keeps no history — the most recent write wins everywhere. These are local copies of this profile, kept on this device only, so a bad sync can't take them with it. One is saved when the app opens, at most one an hour while you use it, and always just before cloud data replaces what's here.</div>
+    <div class="card" id="restoreCard"></div>
+
     <div class="section-title">Liquidity</div>
     <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">Set these once. They drive the limit checks on the Liquidity tab, and nothing else in the app reads them.</div>
     <div class="card">
@@ -4031,6 +4279,7 @@ function renderSettings(c){
     if(!el) return;
     el.onchange = ()=>{ apply(Number(el.value)||0); saveState(); };
   };
+  renderRestorePoints();
   liqField('liqRunway', v=> L.limits.runwayMonths = v);
   const tierSel = document.getElementById('liqTier');
   if(tierSel) tierSel.onchange = ()=>{ L.runwayTier = tierSel.value; saveState(); };
@@ -4815,7 +5064,18 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V2.1', name: 'Edit mode', date: 'Sep 2026', current: true,
+    no: 'V2.2', name: 'Restore points, More menu, safer deletes', date: 'Sep 2026', current: true,
+    items: [
+      'Restore points: local copies of the whole profile, listed under Settings. One is saved when the app opens, at most one an hour while you use it, and always immediately before cloud data replaces what is on this device — which is the moment work actually disappears under last-write-wins sync.',
+      'They are stored separately from your data and are never pushed to Firestore, so the same bad sync that overwrites a profile cannot destroy its restore points. Six are kept at a time.',
+      'Restoring is itself reversible: the state being replaced is captured as a new point first.',
+      'The mobile tab bar is down from eight cramped buttons to five plus a More sheet holding Liquidity, Settings and Versions. When one of those is open, More shows its name and highlights.',
+      'Deleting an account or a holding now names it and lists what goes with it — the balance, how many holdings are inside, how many history entries including every price update — instead of asking “Delete this account?” with no way to tell which one. The destructive button is red and separated from Cancel.',
+      'A restore point is captured just before any delete, and the confirmation says so.'
+    ]
+  },
+  {
+    no: 'V2.1', name: 'Edit mode', date: 'Sep 2026',
     items: [
       'Net Worth now opens in a reading view. The cash speed and sleeve dropdowns, the target links, +Split and the delete ✕ are hidden behind an “Edit setup” button in the toolbar — settings you touch once a month no longer compete for attention every time you check a balance.',
       'When not editing, the sleeve and cash speed still show as plain text tags, so the information is visible without being changeable.',
@@ -5010,8 +5270,12 @@ if(AUTO_SAVE_SUPPORTED && state.settings.autoSaveEnabled && !autoSaveHandle){
 applyTheme(loadTheme());
 renderProfileSwitcher();
 renderCloudStatus();
+wireMoreSheet();
 render();
 refreshFxRates(false);
+// A copy of whatever we opened with, before this session can change anything.
+// Rate limited internally, so reopening the app repeatedly doesn't churn the list.
+captureRestorePoint('App opened', false);
 </script>
 </body>
 </html>
