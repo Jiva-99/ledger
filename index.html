@@ -689,6 +689,10 @@ function defaultState(){
       weeklyExcludedCategories: ["Housing - Rent/Mortgage"],
       autoSaveEnabled: false,
       excludedFromSummary: ["Income|||Opening Balance"],
+      // A second, stricter exclusion. ☆ Special keeps a category out of graphs and
+      // breakdowns but still moves the running balance — which is right for an
+      // opening balance, and wrong for entries that shouldn't count at all.
+      excludedFromBalance: [],
       // Categories you'd keep paying if income stopped. Keys are "Expenses|||<category>".
       essentialCategories: [],
       investing: {
@@ -877,6 +881,7 @@ function mergeWithDefaults(parsed){
   // Liquidity settings arrived after some profiles were already saved — backfill them
   // without disturbing anything the user has already set.
   merged.settings.essentialCategories = merged.settings.essentialCategories || [];
+  merged.settings.excludedFromBalance = merged.settings.excludedFromBalance || [];
   merged.settings.investing = { coreTarget:85, driftBand:5, staleDays:30, scope:'whole', contribution:0,
                                 ...(merged.settings.investing || {}) };
   // Sleeves used to be set per holding; they now live on the account and are
@@ -1261,6 +1266,13 @@ function txAmountAUD(tx){
   return toAUD(Number(tx.amount)||0, tx.currency||'AUD');
 }
 
+/* Categories that shouldn't move the running balance at all. Deliberately separate
+   from the ☆ list: an opening balance belongs in the balance but not in the graphs,
+   whereas a side-ledger entry belongs in neither. */
+function isBalanceExcluded(tx){
+  return (state.settings.excludedFromBalance || []).includes(tx.type + '|||' + tx.category);
+}
+
 function trackedTotals(year, monthIdx){
   const totals = {Income:{}, Expenses:{}, Savings:{}};
   const excluded = new Set(state.settings.excludedFromSummary || []);
@@ -1286,9 +1298,14 @@ function transactionsWithBalance(){
   const asc = sortedTransactions();
   let bal = 0;
   const withBal = asc.map(tx=>{
+    if(isBalanceExcluded(tx)){
+      // Still listed, but the balance doesn't move — and the row says so rather
+      // than repeating the previous figure as though nothing happened.
+      return {...tx, balance: bal, offBalance: true};
+    }
     const amtAUD = txAmountAUD(tx);
     bal += (tx.type==='Income' ? amtAUD : -amtAUD);
-    return {...tx, balance: bal};
+    return {...tx, balance: bal, offBalance: false};
   });
   return withBal.reverse(); // newest first for display
 }
@@ -2070,6 +2087,7 @@ function renderTransactions(c){
   const totalRecords = state.transactions.length;
   const thisYearRecords = state.transactions.filter(t=> t.date.slice(0,4)===String(TODAY.getFullYear())).length;
   const allTimeBalance = state.transactions.reduce((s,t)=>{
+    if(isBalanceExcluded(t)) return s;
     const amtAUD = txAmountAUD(t);
     return t.type==='Income' ? s+amtAUD : s-amtAUD;
   }, 0);
@@ -2132,7 +2150,7 @@ function renderTransactions(c){
               ${r.type==='Income'?'+':'−'}${moneyCur(r.amount, cur)}
               ${showAUD ? `<div class="muted" style="font-size:10.5px;">≈${moneyWhole(txAmountAUD(r))} AUD</div>` : ''}
             </td>
-            <td class="num">${money(r.balance)}</td>
+            <td class="num">${r.offBalance ? '<span class="muted" title="This category is set to stay out of the running balance">—</span>' : money(r.balance)}</td>
             <td>
               <button class="icon-btn" style="color:var(--gold);" data-edit="${r.id}" title="Edit">✎</button>
               <button class="icon-btn" data-del="${r.id}" title="Delete">✕</button>
@@ -4000,11 +4018,20 @@ function moveCategory(type, cat, direction){
   saveState(); render();
 }
 
+/* Un-starring hides the ⊘ toggle, so the stricter flag goes with it — otherwise it
+   would keep applying with no visible control to turn it off. */
+function clearBalanceExclusionIfNotSpecial(key){
+  if(!(state.settings.excludedFromSummary||[]).includes(key)){
+    state.settings.excludedFromBalance = (state.settings.excludedFromBalance||[]).filter(k=> k!==key);
+  }
+}
+
 function toggleCategorySpecial(type, cat){
   const key = type+'|||'+cat;
   const list = new Set(state.settings.excludedFromSummary||[]);
   if(list.has(key)) list.delete(key); else list.add(key);
   state.settings.excludedFromSummary = [...list];
+  clearBalanceExclusionIfNotSpecial(key);
   saveState(); render();
 }
 
@@ -4030,6 +4057,7 @@ function renameCategory(type, oldName, newName){
   }
   state.settings.excludedFromSummary = (state.settings.excludedFromSummary||[]).map(k=> k===`${type}|||${oldName}` ? `${type}|||${newName}` : k);
   state.settings.essentialCategories = (state.settings.essentialCategories||[]).map(k=> k===`${type}|||${oldName}` ? `${type}|||${newName}` : k);
+  state.settings.excludedFromBalance = (state.settings.excludedFromBalance||[]).map(k=> k===`${type}|||${oldName}` ? `${type}|||${newName}` : k);
 
   saveState(); render(); toast(`Renamed to "${newName}".`);
 }
@@ -4085,7 +4113,7 @@ function renderSettings(c){
     </div>
 
     <div class="section-title">Categories</div>
-    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">Use ↑↓ to reorder. On expenses, ◆ marks a category as <b>Essential</b> — one you'd keep paying if your income stopped. That's what the Liquidity tab uses for the essentials-only runway; it changes nothing else. The ☆ marks a category as <b>Special</b> — its transactions still count toward Transactions/Balance, but are left out of graphs, donuts, and breakdown totals (useful for things like an opening balance).</div>
+    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">Use ↑↓ to reorder. On expenses, ◆ marks a category as <b>Essential</b> — one you'd keep paying if your income stopped. That's what the Liquidity tab uses for the essentials-only runway; it changes nothing else. The ☆ marks a category as <b>Special</b> — left out of graphs, donuts and breakdown totals, but still counted in the running balance, which is what you want for an opening balance. On a Special category a second toggle appears: ⊘ <b>Off balance</b> keeps it out of the running balance as well, for entries that shouldn't count towards anything. Those rows still appear in the list, with a dash instead of a balance.</div>
     <div class="card">
       <div class="grid-cat">
         ${TYPES.map(t=>`
@@ -4096,6 +4124,7 @@ function renderSettings(c){
                 const key = t+'|||'+cat;
                 const isSpecial = (state.settings.excludedFromSummary||[]).includes(key);
                 const isEss = t==='Expenses' && isEssentialCategory(cat);
+                const offBal = (state.settings.excludedFromBalance||[]).includes(key);
                 return `
                 <div class="cat-item ${t}">
                   <div style="display:flex; align-items:center; gap:2px; min-width:0; overflow:hidden;">
@@ -4104,10 +4133,12 @@ function renderSettings(c){
                     <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-left:2px;">${cat}</span>
                     ${isSpecial?'<span class="pill Savings" style="margin-left:6px; flex-shrink:0;">Special</span>':''}
                     ${isEss?'<span class="pill Income" style="margin-left:6px; flex-shrink:0;">Essential</span>':''}
+                    ${offBal?'<span class="pill Expenses" style="margin-left:6px; flex-shrink:0;">Off balance</span>':''}
                   </div>
                   <div class="cat-actions">
                     ${t==='Expenses' ? `<button class="icon-btn" data-toggleessential="${cat}" title="${isEss?'Not essential — would be cut if income stopped':'Essential — would keep paying if income stopped'}" style="${isEss?'color:var(--green);':''}">${isEss?'◆':'◇'}</button>` : ''}
                     <button class="icon-btn" data-togglespecial="${key}" title="${isSpecial?'Include in graphs/summary':'Exclude from graphs/summary'}">${isSpecial?'★':'☆'}</button>
+                    ${isSpecial ? `<button class="icon-btn" data-togglebalance="${key}" title="${offBal?'Let this category move the running balance again':'Also keep this category out of the running balance'}" style="${offBal?'color:var(--pink);':''}">${offBal?'⊘':'○'}</button>` : ''}
                     <button class="icon-btn" style="color:var(--gold);" data-editcat="${key}" title="Rename">✎</button>
                     <button class="icon-btn" data-rmcat="${key}" title="Remove">✕</button>
                   </div>
@@ -4256,6 +4287,7 @@ function renderSettings(c){
         }
         state.settings.excludedFromSummary = (state.settings.excludedFromSummary||[]).filter(k=>k!==`${t}|||${cat}`);
         state.settings.essentialCategories = (state.settings.essentialCategories||[]).filter(k=>k!==`${t}|||${cat}`);
+        state.settings.excludedFromBalance = (state.settings.excludedFromBalance||[]).filter(k=>k!==`${t}|||${cat}`);
         saveState(); render();
       }
     };
@@ -4271,6 +4303,15 @@ function renderSettings(c){
   });
   c.querySelectorAll('[data-toggleessential]').forEach(btn=>{
     btn.onclick = ()=> toggleCategoryEssential(btn.dataset.toggleessential);
+  });
+  c.querySelectorAll('[data-togglebalance]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const key = btn.dataset.togglebalance;
+      const list = new Set(state.settings.excludedFromBalance || []);
+      list.has(key) ? list.delete(key) : list.add(key);
+      state.settings.excludedFromBalance = [...list];
+      saveState(); render();
+    };
   });
 
   // Liquidity limits — written straight back on change, no separate save step
@@ -5064,7 +5105,17 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V2.2', name: 'Restore points, More menu, safer deletes', date: 'Sep 2026', current: true,
+    no: 'V2.3', name: 'Off-balance categories', date: 'Sep 2026', current: true,
+    items: [
+      'A ☆ Special category was left out of graphs and breakdowns but still moved the running balance on the Transactions tab. That is correct for an opening balance, which should seed the balance without appearing in charts, but wrong for side entries that should not count towards anything — one flag was doing two jobs.',
+      'Special categories now have a second toggle, ⊘ Off balance, which also keeps them out of the running balance and the Lifetime Tracking Balance card. Those rows still appear in the list, showing a dash instead of a balance so it is clear the figure did not move.',
+      'The two flags are independent and nothing changes for existing categories until the new toggle is switched on, so opening balances keep behaving exactly as before.',
+      'Un-starring a category clears the stricter flag too, since the ⊘ control is only visible on Special categories.',
+      'Currency was not the problem here: a THB transaction was already being converted to AUD before it reached the balance.'
+    ]
+  },
+  {
+    no: 'V2.2', name: 'Restore points, More menu, safer deletes', date: 'Sep 2026',
     items: [
       'Restore points: local copies of the whole profile, listed under Settings. One is saved when the app opens, at most one an hour while you use it, and always immediately before cloud data replaces what is on this device — which is the moment work actually disappears under last-write-wins sync.',
       'They are stored separately from your data and are never pushed to Firestore, so the same bad sync that overwrites a profile cannot destroy its restore points. Six are kept at a time.',
