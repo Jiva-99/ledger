@@ -248,6 +248,12 @@
   .nw-weight{ padding:2px 4px; font-size:10.5px; width:52px; text-align:right; }
   input.reb-weight{ width:56px; padding:3px 6px; font-size:12.5px; text-align:right; display:inline-block; }
   .nw-stale{ color:var(--amber); }
+  .swatch{ display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:7px; vertical-align:baseline; }
+  table.inv-table td, table.inv-table th{ font-size:12.5px; }
+  table.inv-table tfoot td{ border-top:1px solid var(--border); border-bottom:none; padding-top:10px; }
+  table.inv-table td .sub{ font-size:10.5px; color:var(--text-faint); margin-left:16px; }
+  .inv-scroll{ overflow-x:auto; }
+  @media (max-width: 760px){ table.inv-table{ min-width:640px; } }
   .chart-key{ display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-top:10px;
     font-size:11.5px; color:var(--text-dim); }
   .chart-key i{ display:inline-block; width:10px; height:2.5px; border-radius:2px; margin-right:5px;
@@ -567,9 +573,10 @@
       <button data-tab="planning"><span class="num">03</span><span class="label">Planning</span></button>
       <button data-tab="networth"><span class="num">04</span><span class="label">Net Worth</span></button>
       <button data-tab="bills"><span class="num">05</span><span class="label">Bills</span></button>
-      <button data-tab="liquidity"><span class="num">06</span><span class="label">Liquidity</span></button>
-      <button data-tab="settings"><span class="num">07</span><span class="label">Settings</span></button>
-      <button data-tab="versions"><span class="num">08</span><span class="label">Versions</span></button>
+      <button data-tab="investments"><span class="num">06</span><span class="label">Investments</span></button>
+      <button data-tab="liquidity"><span class="num">07</span><span class="label">Liquidity</span></button>
+      <button data-tab="settings"><span class="num">08</span><span class="label">Settings</span></button>
+      <button data-tab="versions"><span class="num">09</span><span class="label">Versions</span></button>
     </nav>
     <div class="sidebar-foot">
       <button id="themeToggleBtn">☀ Light mode</button>
@@ -588,9 +595,10 @@
     <div class="sheet-back"></div>
     <div class="sheet">
       <h4>More</h4>
-      <button data-tab="liquidity"><span class="n">06</span>Liquidity</button>
-      <button data-tab="settings"><span class="n">07</span>Settings</button>
-      <button data-tab="versions"><span class="n">08</span>Versions</button>
+      <button data-tab="investments"><span class="n">06</span>Investments</button>
+      <button data-tab="liquidity"><span class="n">07</span>Liquidity</button>
+      <button data-tab="settings"><span class="n">08</span>Settings</button>
+      <button data-tab="versions"><span class="n">09</span>Versions</button>
     </div>
   </div>
   <nav id="mobileTabBar">
@@ -1370,7 +1378,7 @@ function handleNavClick(e){
 document.getElementById('navTabs').addEventListener('click', handleNavClick);
 document.getElementById('mobileTabBar').addEventListener('click', handleNavClick);
 
-const MORE_TABS = ['liquidity','settings','versions'];
+const MORE_TABS = ['investments','liquidity','settings','versions'];
 
 function openMoreSheet(open){
   const sheet = document.getElementById('mtbSheet');
@@ -1401,7 +1409,7 @@ function setActiveNav(){
     moreBtn.classList.toggle('active', inMore);
     const label = moreBtn.querySelector('span:last-child');
     if(label) label.textContent = inMore
-      ? ({liquidity:'Liquid', settings:'Set', versions:'Ver'})[state.ui.activeTab]
+      ? ({investments:'Invest', liquidity:'Liquid', settings:'Set', versions:'Ver'})[state.ui.activeTab]
       : 'More';
   }
   const sheet = document.getElementById('mtbSheet');
@@ -1504,6 +1512,7 @@ function renderTab(c, tab){
   else if(tab==='planning') renderPlanning(c);
   else if(tab==='networth') renderNetWorth(c);
   else if(tab==='bills') renderBills(c);
+  else if(tab==='investments') renderInvestments(c);
   else if(tab==='liquidity') renderLiquidity(c);
   else if(tab==='settings') renderSettings(c);
   else if(tab==='versions') renderVersions(c);
@@ -3785,6 +3794,321 @@ function projectionSectionHTML(){
     </div>`;
 }
 
+/* =========================================================
+   INVESTMENT ANALYTICS
+   Everything here reads the tagged history entries written by applyPriceUpdate:
+   contribution (money you put in), dividend (income the holding produced),
+   revaluation (price movement) and adjustment (reconciliation). Because those
+   are separated at the point of entry, cost basis and profit fall out of the
+   data instead of being estimated.
+========================================================= */
+const INVEST_COLOURS = ['#c9a227','#52a97d','#5b8bc9','#d98b3d','#a97dd9','#d9695f','#4fb3a5','#b8b04a'];
+
+function investDisplayCurrency(){
+  const c = state.ui.investCur;
+  return ['USD','AUD','THB'].includes(c) ? c : 'USD';
+}
+/* Values are held in each holding's own currency; AUD is the common ground, so
+   everything routes through it before being shown in whatever you've picked. */
+function fromAUD(amountAUD, currency){
+  if(!currency || currency === 'AUD') return amountAUD;
+  const rate = state.fxRates && state.fxRates[currency];
+  return rate ? amountAUD * rate : amountAUD;
+}
+function investMoney(amountAUD, decimals){
+  const cur = investDisplayCurrency();
+  return moneyCur(fromAUD(amountAUD, cur), cur, decimals === undefined ? 0 : decimals);
+}
+
+function historyTotals(unit, uptoISO){
+  let contributed = 0, dividends = 0, revaluation = 0;
+  const opening = Number(unit.openingBalance) || 0;
+  if(!uptoISO || (unit.openingDate || '0000-00-00') <= uptoISO) contributed += opening;
+  (unit.history||[]).forEach(h=>{
+    if(uptoISO && h.date > uptoISO) return;
+    const d = Number(h.delta) || 0;
+    if(h.kind === 'revaluation') revaluation += d;
+    else if(h.kind === 'dividend') dividends += (h.amount !== undefined ? Number(h.amount) : d);
+    else contributed += d;
+  });
+  return { contributed, dividends, revaluation };
+}
+
+/* One row per holding, all figures in AUD for the caller to convert. */
+function investmentRows(){
+  const today = isoDate(TODAY);
+  const units = investedUnits();
+  const rows = units.map((u,i)=>{
+    const t = historyTotals(u.unit, today);
+    const cost = toAUD(t.contributed, u.currency);
+    const value = u.valueAUD;
+    const unrealised = toAUD(t.revaluation, u.currency);
+    const realised = toAUD(t.dividends, u.currency);
+    return {
+      key: u.subId ? `${u.acc.id}|||${u.subId}` : u.acc.id,
+      name: u.subId ? u.unit.name : u.acc.name,
+      sleeve: u.sleeve, colour: INVEST_COLOURS[i % INVEST_COLOURS.length],
+      cost, value, unrealised, realised,
+      totalReturn: unrealised + realised,
+      pnlPct: cost > 0 ? (unrealised + realised)/cost*100 : null
+    };
+  });
+  const totalCost = rows.reduce((t,r)=>t+r.cost,0);
+  const totalValue = rows.reduce((t,r)=>t+r.value,0);
+  rows.forEach(r=>{
+    r.allocPct = totalCost > 0 ? r.cost/totalCost*100 : 0;      // by money invested
+    r.marketPct = totalValue > 0 ? r.value/totalValue*100 : 0;  // by what it's worth now
+  });
+  return { rows, totalCost, totalValue,
+           totalUnrealised: rows.reduce((t,r)=>t+r.unrealised,0),
+           totalRealised: rows.reduce((t,r)=>t+r.realised,0) };
+}
+
+/* Month-end buckets from the first recorded history to now. */
+function investMonthlySeries(){
+  const units = investedUnits();
+  if(!units.length) return { months: [], rows: [] };
+  let earliest = null;
+  units.forEach(u=>{
+    const ds = [u.unit.openingDate, ...(u.unit.history||[]).map(h=>h.date)].filter(Boolean);
+    ds.forEach(d=>{ if(!earliest || d < earliest) earliest = d; });
+  });
+  if(!earliest) return { months: [], rows: [] };
+
+  const months = [];
+  let y = Number(earliest.slice(0,4)), m = Number(earliest.slice(5,7)) - 1;
+  while(y < TODAY.getFullYear() || (y === TODAY.getFullYear() && m <= TODAY.getMonth())){
+    const end = new Date(y, m+1, 0);
+    months.push({ key: `${y}-${String(m+1).padStart(2,'0')}`, endISO: isoDate(end), y, m });
+    m++; if(m > 11){ m = 0; y++; }
+    if(months.length > 600) break;
+  }
+
+  const rows = units.map((u,i)=>{
+    let prev = { contributed:0, dividends:0, revaluation:0 };
+    const series = months.map(mo=>{
+      const cum = historyTotals(u.unit, mo.endISO);
+      const point = {
+        monthContribution: toAUD(cum.contributed - prev.contributed, u.currency),
+        monthDividend:     toAUD(cum.dividends   - prev.dividends,   u.currency),
+        cumContribution:   toAUD(cum.contributed, u.currency),
+        value:             toAUD(unitBalanceAsOf(u.unit, mo.endISO), u.currency)
+      };
+      point.unrealised = point.value - point.cumContribution - toAUD(cum.dividends, u.currency);
+      prev = cum;
+      return point;
+    });
+    return { name: u.subId ? u.unit.name : u.acc.name,
+             colour: INVEST_COLOURS[i % INVEST_COLOURS.length], series };
+  });
+  return { months, rows };
+}
+
+/* ---- Chart helpers ---------------------------------------------------------
+   Deliberately plain SVG: no library, no interactivity beyond a title tooltip.
+   Both helpers take values already converted to the display currency. */
+function investBarChart(items, opts){
+  const o = opts || {};
+  const W = 700, H = 220, padL = 66, padR = 12, padT = 12, padB = 46;
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+  if(!items.length) return '<div class="muted" style="font-size:12.5px;">Nothing to show yet.</div>';
+  const vals = items.map(i=>i.value);
+  const max = Math.max(0, ...vals), min = Math.min(0, ...vals);
+  const span = (max - min) || 1;
+  const Y = v=> padT + plotH - ((v-min)/span)*plotH;
+  const zeroY = Y(0);
+  const bw = plotW/items.length;
+  const short = v=> Math.abs(v)>=1e6 ? (v/1e6).toFixed(1)+'m' : Math.abs(v)>=1e3 ? Math.round(v/1e3)+'k' : Math.round(v);
+
+  let grid = '';
+  for(let i=0;i<=4;i++){
+    const v = min + span*i/4, y = Y(v);
+    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="0.5"/>
+      <text x="${padL-8}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--text-faint)">${short(v)}</text>`;
+  }
+  const bars = items.map((it,i)=>{
+    const x = padL + i*bw + bw*0.18, w = bw*0.64;
+    const y = it.value >= 0 ? Y(it.value) : zeroY;
+    const h = Math.max(1, Math.abs(Y(it.value) - zeroY));
+    const fill = it.colour || (it.value >= 0 ? 'var(--green)' : 'var(--red)');
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="${fill}" rx="2">
+        <title>${it.label}: ${o.fmt ? o.fmt(it.value) : it.value}</title></rect>
+      <text x="${(x+w/2).toFixed(1)}" y="${H-26}" text-anchor="middle" font-size="10" fill="var(--text-dim)">${it.label}</text>
+      <text x="${(x+w/2).toFixed(1)}" y="${H-13}" text-anchor="middle" font-size="9.5" fill="var(--text-faint)">${o.fmt ? o.fmt(it.value) : ''}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; display:block;" role="img" aria-label="${o.aria||''}">
+    ${grid}<line x1="${padL}" y1="${zeroY.toFixed(1)}" x2="${W-padR}" y2="${zeroY.toFixed(1)}" stroke="var(--text-faint)" stroke-width="0.8"/>${bars}</svg>`;
+}
+
+/* Stacked bars. Pass percent:true to normalise each column to 100%. */
+function investStackedChart(labels, series, opts){
+  const o = opts || {};
+  const W = 700, H = 240, padL = 66, padR = 12, padT = 12, padB = 34;
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+  if(!labels.length || !series.length) return '<div class="muted" style="font-size:12.5px;">Nothing to show yet.</div>';
+
+  const colTotals = labels.map((_,i)=> series.reduce((t,s)=> t + Math.max(0, s.values[i]||0), 0));
+  const max = o.percent ? 100 : Math.max(1, ...colTotals);
+  const Y = v=> padT + plotH - (v/max)*plotH;
+  const bw = plotW/labels.length;
+  const short = v=> o.percent ? v+'%' : (Math.abs(v)>=1e6 ? (v/1e6).toFixed(1)+'m' : Math.abs(v)>=1e3 ? Math.round(v/1e3)+'k' : Math.round(v));
+
+  let grid = '';
+  for(let i=0;i<=4;i++){
+    const v = max*i/4, y = Y(v);
+    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="0.5"/>
+      <text x="${padL-8}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--text-faint)">${short(v)}</text>`;
+  }
+
+  let cols = '';
+  labels.forEach((lab,i)=>{
+    const total = colTotals[i];
+    let acc = 0;
+    const x = padL + i*bw + bw*0.15, w = bw*0.7;
+    series.forEach(sr=>{
+      const raw = Math.max(0, sr.values[i]||0);
+      if(raw <= 0) return;
+      const v = o.percent ? (total>0 ? raw/total*100 : 0) : raw;
+      const y0 = Y(acc+v), y1 = Y(acc);
+      acc += v;
+      cols += `<rect x="${x.toFixed(1)}" y="${y0.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0.5,y1-y0).toFixed(1)}" fill="${sr.colour}">
+        <title>${lab} · ${sr.name}: ${o.fmt ? o.fmt(raw) : raw}${o.percent&&total>0?` (${(raw/total*100).toFixed(1)}%)`:''}</title></rect>`;
+    });
+  });
+
+  // Label every nth column so they stay legible on long histories
+  const step = Math.ceil(labels.length/12);
+  let xlab = '';
+  labels.forEach((lab,i)=>{
+    if(i % step !== 0) return;
+    xlab += `<text x="${(padL + i*bw + bw/2).toFixed(1)}" y="${H-12}" text-anchor="middle" font-size="9.5" fill="var(--text-faint)">${lab}</text>`;
+  });
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; display:block;" role="img" aria-label="${o.aria||''}">
+    ${grid}${cols}${xlab}</svg>`;
+}
+
+function investLegend(series){
+  return `<div class="chart-key">${series.map(sr=>
+    `<span><i style="background:${sr.colour}"></i>${sr.name}</span>`).join('')}</div>`;
+}
+
+function renderInvestments(c){
+  const { rows, totalCost, totalValue, totalUnrealised, totalRealised } = investmentRows();
+  const cur = investDisplayCurrency();
+
+  if(!rows.length){
+    c.innerHTML = `
+      <div class="section-title">Investments</div>
+      <div class="card"><div class="muted" style="font-size:12.5px;">
+        No holdings are tagged Core or Satellite yet. Set an account's sleeve on the Net Worth tab
+        and record units and prices, and this tab will fill in.</div></div>`;
+    return;
+  }
+
+  const pct = v=> v===null ? '—' : (v>=0?'+':'') + v.toFixed(1) + '%';
+  const sign = v=> (v>=0?'+':'') + investMoney(v);
+  const totalPnl = totalCost > 0 ? (totalUnrealised+totalRealised)/totalCost*100 : null;
+
+  const table = `
+    <table class="reb inv-table">
+      <thead><tr>
+        <th>Holding</th>
+        <th class="r">Invested</th><th class="r">Current value</th>
+        <th class="r">Unrealised</th><th class="r">Realised</th>
+        <th class="r">Return</th><th class="r">P/L %</th>
+        <th class="r">Alloc %</th><th class="r">Market %</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r=>`<tr>
+          <td><span class="swatch" style="background:${r.colour}"></span>${r.name}<div class="sub">${sleeveLabel(r.sleeve)}</div></td>
+          <td class="r">${investMoney(r.cost)}</td>
+          <td class="r">${investMoney(r.value)}</td>
+          <td class="r" style="color:${r.unrealised>=0?'var(--green)':'var(--red)'}">${sign(r.unrealised)}</td>
+          <td class="r muted">${r.realised>0?investMoney(r.realised):'—'}</td>
+          <td class="r" style="color:${r.totalReturn>=0?'var(--green)':'var(--red)'}">${sign(r.totalReturn)}</td>
+          <td class="r" style="color:${(r.pnlPct||0)>=0?'var(--green)':'var(--red)'}">${pct(r.pnlPct)}</td>
+          <td class="r muted">${r.allocPct.toFixed(1)}%</td>
+          <td class="r muted">${r.marketPct.toFixed(1)}%</td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot><tr>
+        <td><b>Total</b></td>
+        <td class="r"><b>${investMoney(totalCost)}</b></td>
+        <td class="r"><b>${investMoney(totalValue)}</b></td>
+        <td class="r" style="color:${totalUnrealised>=0?'var(--green)':'var(--red)'}"><b>${sign(totalUnrealised)}</b></td>
+        <td class="r muted">${totalRealised>0?investMoney(totalRealised):'—'}</td>
+        <td class="r" style="color:${(totalUnrealised+totalRealised)>=0?'var(--green)':'var(--red)'}"><b>${sign(totalUnrealised+totalRealised)}</b></td>
+        <td class="r" style="color:${(totalPnl||0)>=0?'var(--green)':'var(--red)'}"><b>${pct(totalPnl)}</b></td>
+        <td class="r muted">100%</td><td class="r muted">100%</td>
+      </tr></tfoot>
+    </table>`;
+
+  const ms = investMonthlySeries();
+  const labels = ms.months.map(m=> `${MONTHS[m.m]} ${String(m.y).slice(2)}`);
+  const mkSeries = pick=> ms.rows.map(r=> ({ name:r.name, colour:r.colour, values:r.series.map(pick) }));
+  const contribSeries = mkSeries(p=> p.monthContribution);
+  const cumSeries     = mkSeries(p=> p.cumContribution);
+  const fmt = v=> investMoney(v);
+
+  const monthlyUnrealised = ms.months.map((m,i)=>
+    ms.rows.reduce((t,r)=> t + r.series[i].unrealised, 0));
+
+  const chart = (n, title, note, body, legend)=> `
+    <div class="liq-q"><span class="n">${n}</span><span class="t">${title}</span></div>
+    <div class="liq-sub">${note}</div>
+    <div class="liq-body"><div class="card">${body}${legend||''}</div></div>`;
+
+  c.innerHTML = `
+    <div class="toolbar">
+      <div class="liq-basis">
+        <span>Show amounts in</span>
+        <select id="invCur" style="width:auto;">
+          ${['USD','AUD','THB'].map(x=>`<option value="${x}" ${cur===x?'selected':''}>${x}</option>`).join('')}
+        </select>
+      </div>
+      <div class="spacer"></div>
+      <div class="muted" style="font-size:11.5px;">Realised return is dividends only — no holdings have been sold.</div>
+    </div>
+
+    <div class="row" style="margin-bottom:14px;">
+      <div class="card metric"><h3>Invested</h3><div class="big">${investMoney(totalCost)}</div><div class="cap">across ${rows.length} holdings</div></div>
+      <div class="card metric"><h3>Current value</h3><div class="big" style="color:var(--gold-bright);">${investMoney(totalValue)}</div><div class="cap">${cur}</div></div>
+      <div class="card metric"><h3>Total return</h3>
+        <div class="big" style="color:${(totalUnrealised+totalRealised)>=0?'var(--green)':'var(--red)'};">${sign(totalUnrealised+totalRealised)}</div>
+        <div class="cap">${pct(totalPnl)} on what you invested</div></div>
+      <div class="card metric"><h3>Unrealised / realised</h3>
+        <div class="big" style="font-size:19px;">${investMoney(totalUnrealised)} <span class="muted">/</span> ${investMoney(totalRealised)}</div>
+        <div class="cap">price movement vs dividends</div></div>
+    </div>
+
+    <div class="card inv-scroll" style="margin-bottom:14px;">${table}</div>
+
+    ${chart(1,'Return by holding','What each holding has made or lost, price movement plus dividends.',
+      investBarChart(rows.map(r=>({ label:r.name, value:r.totalReturn, colour:r.totalReturn>=0?r.colour:'var(--red)' })),
+        { fmt, aria:'Return by holding' }))}
+
+    ${chart(2,'Monthly contributions','What went in each month, split by holding.',
+      investStackedChart(labels, contribSeries, { fmt, aria:'Monthly contributions by holding' }), investLegend(contribSeries))}
+
+    ${chart(3,'Monthly contributions — share','The same months normalised to 100%, so the mix is visible regardless of how much went in.',
+      investStackedChart(labels, contribSeries, { fmt, percent:true, aria:'Monthly contribution share' }), investLegend(contribSeries))}
+
+    ${chart(4,'Total invested over time','Cumulative money in, split by holding. Dividends are excluded — this is your money only.',
+      investStackedChart(labels, cumSeries, { fmt, aria:'Cumulative invested by holding' }), investLegend(cumSeries))}
+
+    ${chart(5,'Total invested — share','Your cost base as a mix. Compare it with the Market % column above: where they differ, price movement has done the work.',
+      investStackedChart(labels, cumSeries, { fmt, percent:true, aria:'Cumulative invested share' }), investLegend(cumSeries))}
+
+    ${chart(6,'Unrealised profit and loss by month','The standing gap between what the portfolio was worth at each month end and what had been put in by then. Below zero means it was worth less than you had contributed.',
+      investBarChart(labels.map((l,i)=>({ label: i % Math.ceil(labels.length/12) === 0 ? l : '', value: monthlyUnrealised[i] })),
+        { fmt, aria:'Unrealised profit and loss by month' }))}
+  `;
+
+  const sel = document.getElementById('invCur');
+  if(sel) sel.onchange = ()=>{ state.ui.investCur = sel.value; saveState(); render(); };
+}
+
 function investingSectionHTML(){
   const inv = investedUnits();
   if(!inv.length){
@@ -3999,7 +4323,7 @@ function openPriceModal(){
         <div class="page-sub">Enter how many units you hold and what one unit is worth. Changing the units records a contribution; changing the price records a gain or loss. Leave a row untouched to skip it.</div>
         <div class="price-scroll">
         <table class="price-grid">
-          <thead><tr><th>Holding</th><th>Ticker</th><th class="r">Units</th><th class="r">Price</th><th class="r">Value</th></tr></thead>
+          <thead><tr><th>Holding</th><th>Ticker</th><th class="r">Units</th><th class="r">Price</th><th class="r">Dividend</th><th class="r">Value</th></tr></thead>
           <tbody>
             ${rows.map((u,i)=>{
               const cur = u.currency;
@@ -4015,6 +4339,7 @@ function openPriceModal(){
                 <td><input type="text" id="pt${i}" value="${u.unit.ticker||''}" placeholder="${auto||'—'}" class="ticker-in" title="${auto?`Blank uses “${auto}”, taken from the name`:'No ticker detected from the name'}"></td>
                 <td class="r"><input type="number" step="any" min="0" id="pu${i}" value="${isPriced(u.unit)?u.unit.units:''}" placeholder="—"></td>
                 <td class="r"><input type="number" step="any" min="0" id="pp${i}" value="${isPriced(u.unit)?u.unit.price:''}" placeholder="—"></td>
+                <td class="r"><input type="number" step="any" min="0" id="pd${i}" value="" placeholder="0" title="Dividend received since the last update, in ${cur}"></td>
                 <td class="r val" id="pv${i}">${moneyCur(bal, cur)}<div class="sub" id="ps${i}">${cur!=='AUD'?'≈'+moneyWhole(toAUD(bal,cur)):''}</div></td>
               </tr>`;
             }).join('')}
@@ -4022,6 +4347,8 @@ function openPriceModal(){
         </table>
         </div>
         <div class="muted" style="font-size:11.5px; margin-top:8px; line-height:1.5;">
+          Dividend is what the holding paid you since the last update; if it was reinvested it is already in your
+          units, and recording it here keeps it out of your cost basis so the profit percentage stays honest.
           Where a holding is already named after its symbol, that name is used as the ticker — the grey
           text in the box shows what will be looked up, so leave it blank unless it's wrong.
           Fetched prices fill the boxes for you to check —
@@ -4097,7 +4424,7 @@ function openPriceModal(){
   };
 
   document.getElementById('fSave').onclick = ()=>{
-    let changed = 0, contributed = 0, revalued = 0;
+    let changed = 0, contributed = 0, revalued = 0, dividends = 0;
     rows.forEach((u,i)=>{
       // Only store a ticker that was actually typed. Leaving it blank keeps the
       // holding following its own name, so renaming VT to VTI just works.
@@ -4108,17 +4435,23 @@ function openPriceModal(){
       if(un === '' || pr === '') return;
       const nu = Number(un), np = Number(pr);
       if(!(nu >= 0) || !(np >= 0)) return;
-      if(isPriced(u.unit) && Number(u.unit.units) === nu && Number(u.unit.price) === np) return;
-      const entries = applyPriceUpdate(u.unit, nu, np);
+      const dEl = document.getElementById('pd'+i);
+      const dVal = dEl ? Number(dEl.value) || 0 : 0;
+      if(isPriced(u.unit) && Number(u.unit.units) === nu && Number(u.unit.price) === np && dVal === 0) return;
+      const divEl = document.getElementById('pd'+i);
+      const div = divEl ? Number(divEl.value) || 0 : 0;
+      const entries = applyPriceUpdate(u.unit, nu, np, undefined, div);
       if(entries.length) changed++;
       entries.forEach(e=>{
         const d = toAUD(e.delta, u.currency);
-        if(e.kind === 'revaluation') revalued += d; else contributed += d;
+        if(e.kind === 'revaluation') revalued += d;
+        else if(e.kind === 'dividend') dividends += d;
+        else contributed += d;
       });
     });
     saveState(); close(); render();
     toast(changed
-      ? `${changed} holding${changed>1?'s':''} updated — ${moneyWhole(contributed)} in, ${revalued>=0?'+':''}${moneyWhole(revalued)} market movement.`
+      ? `${changed} holding${changed>1?'s':''} updated — ${moneyWhole(contributed)} in, ${revalued>=0?'+':''}${moneyWhole(revalued)} market movement${dividends>0?`, ${moneyWhole(dividends)} dividends`:''}.`
       : 'Nothing changed.');
   };
 }
@@ -4887,19 +5220,32 @@ function investedUnits(){
      revaluation  = the old holding repriced
      residual     = anything left over, e.g. a manual adjustment made in between
    so the decomposition always reconciles exactly to the balance. */
-function applyPriceUpdate(unit, newUnits, newPrice, dateISO){
+function applyPriceUpdate(unit, newUnits, newPrice, dateISO, dividend){
   const date = dateISO || isoDate(TODAY);
   const oldValue = unitBalanceAsOf(unit, date);
   const hadBoth  = isPriced(unit);
   const oldUnits = hadBoth ? Number(unit.units) : null;
   const oldPrice = hadBoth ? Number(unit.price) : null;
   const target   = newUnits * newPrice;
+  const div      = Math.max(0, Number(dividend) || 0);
 
   const entries = [];
   if(hadBoth){
-    const contribution = (newUnits - oldUnits) * newPrice;
+    // A reinvested dividend shows up as extra units, but it is NOT money you put
+    // in — it's return the holding produced. Splitting it out here keeps the cost
+    // basis honest, and therefore the profit percentage honest too.
+    const unitChangeValue = (newUnits - oldUnits) * newPrice;
+    // A dividend can only have been reinvested to the extent the holding actually
+    // grew. Anything beyond that was taken as cash: it's income, but it never
+    // entered this holding, so it must not reduce the cost basis either.
+    const reinvested = Math.max(0, Math.min(div, unitChangeValue));
+    const cashDiv    = div - reinvested;
+    const contribution = unitChangeValue - reinvested;
     const revaluation  = oldUnits * (newPrice - oldPrice);
-    const residual     = target - oldValue - contribution - revaluation;
+    const residual     = target - oldValue - unitChangeValue - revaluation;
+    if(reinvested > 0.005) entries.push({ delta: reinvested, kind:'dividend' });
+    // delta 0 keeps it out of the balance; amount carries the figure for reporting.
+    if(cashDiv > 0.005)    entries.push({ delta: 0, amount: cashDiv, kind:'dividend' });
     if(Math.abs(contribution) > 0.005) entries.push({ delta: contribution, kind:'contribution' });
     if(Math.abs(revaluation)  > 0.005) entries.push({ delta: revaluation,  kind:'revaluation'  });
     if(Math.abs(residual)     > 0.005) entries.push({ delta: residual,     kind:'adjustment'   });
@@ -4911,10 +5257,13 @@ function applyPriceUpdate(unit, newUnits, newPrice, dateISO){
   }
 
   unit.history = unit.history || [];
-  entries.forEach(e=> unit.history.push({
-    id: uid(), date, delta: e.delta, kind: e.kind,
-    note: e.kind==='contribution' ? 'Units changed' : (e.kind==='revaluation' ? 'Price change' : 'Reconciliation')
-  }));
+  const noteFor = { contribution:'Units changed', revaluation:'Price change',
+                    dividend:'Dividend', adjustment:'Reconciliation' };
+  entries.forEach(e=>{
+    const rec = { id: uid(), date, delta: e.delta, kind: e.kind, note: noteFor[e.kind] || 'Adjustment' };
+    if(e.amount !== undefined){ rec.amount = e.amount; rec.note = 'Dividend (cash)'; }
+    unit.history.push(rec);
+  });
   unit.units = newUnits;
   unit.price = newPrice;
   unit.pricedAt = date;
@@ -4930,7 +5279,9 @@ function contributionSplit(units){
     value += u.valueAUD;
     (u.unit.history||[]).forEach(h=>{
       const d = toAUD(Number(h.delta)||0, u.currency);
-      if(h.kind === 'revaluation') gained += d; else contributed += d;
+      if(h.kind === 'revaluation') gained += d;
+      else if(h.kind === 'dividend') gained += (h.amount !== undefined ? Number(h.amount) : d);
+      else contributed += d;
     });
     contributed += toAUD(Number(u.unit.openingBalance)||0, u.currency);
   });
@@ -5524,7 +5875,17 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V2.8', name: 'Returns entered by hand', date: 'Sep 2026', current: true,
+    no: 'V2.9', name: 'Investments tab', date: 'Sep 2026', current: true,
+    items: [
+      'New Investments tab with a per-holding table: invested, current value, unrealised, realised, total return, profit/loss %, allocation by cost, and market share by value.',
+      'Allocation % and Market % answer different questions on purpose — the first is the mix of money you put in, the second is the mix of what it is worth now. Where they diverge, price movement did it rather than you.',
+      'Dividends can be recorded on the Update prices screen. A reinvested dividend arrives as extra units, which the app was previously counting as money you contributed — inflating your cost basis and understating your return. It is now recorded separately as realised income.',
+      'Six charts: return by holding, monthly contributions in amount and in share, cumulative invested in amount and in share, and unrealised profit and loss by month.',
+      'A currency selector switches the whole tab between USD, AUD and THB.'
+    ]
+  },
+  {
+    no: 'V2.8', name: 'Returns entered by hand', date: 'Sep 2026',
     items: [
       'Removed Fetch past returns and the history window. Stooq\'s historical CSV endpoint is separate from its quote endpoint and refuses browser requests far more often, and Finnhub\'s free tier has no historical candles, so there was no fallback worth keeping. Price fetching is unaffected and still works.',
       'The returns table now takes a nominal figure — the number you would find quoted anywhere you look one up — and works out the real rate itself by subtracting your inflation setting. No mental arithmetic before typing.',
