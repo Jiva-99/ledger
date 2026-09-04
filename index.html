@@ -242,6 +242,7 @@
   .nw-inv{ display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin-top:3px;
     font-size:10.5px; color:var(--text-faint); }
   .nw-weight{ padding:2px 4px; font-size:10.5px; width:52px; text-align:right; }
+  input.reb-weight{ width:56px; padding:3px 6px; font-size:12.5px; text-align:right; display:inline-block; }
   .nw-stale{ color:var(--amber); }
   table.reb{ width:100%; border-collapse:collapse; }
   table.reb th{ text-align:left; font-size:11.5px; color:var(--text-faint); font-weight:400;
@@ -783,6 +784,17 @@ function mergeWithDefaults(parsed){
   merged.settings.essentialCategories = merged.settings.essentialCategories || [];
   merged.settings.investing = { coreTarget:85, driftBand:5, staleDays:30, scope:'whole', contribution:0,
                                 ...(merged.settings.investing || {}) };
+  // Sleeves used to be set per holding; they now live on the account and are
+  // inherited. Lift any existing per-holding sleeve up to its parent, then clear
+  // it, so profiles saved under the old shape carry over untouched. Weights stay
+  // where they are — those are still per holding, just edited elsewhere now.
+  (merged.accounts||[]).forEach(a=>{
+    if(!a.sleeve && a.subCategories && a.subCategories.length){
+      const found = a.subCategories.find(sub=> sub.sleeve==='core' || sub.sleeve==='satellite');
+      if(found) a.sleeve = found.sleeve;
+    }
+    (a.subCategories||[]).forEach(sub=> { delete sub.sleeve; });
+  });
   const liqBase = { speeds:{}, spendBasis:'actuals', spendWindow:6, runwayTier:'week',
                     thbSpendShare:80, snapshots:[],
                     limits:{ runwayMonths:6, fixedPct:50, concPct:60, bufferToday:20000 } };
@@ -2709,7 +2721,8 @@ function renderNetWorth(c){
                   ${SPEED_ORDER.map(sp=>`<option value="${sp}" ${accountSpeed(a)===sp?'selected':''}>${SPEED_LABELS[sp]}</option>`).join('')}
                 </select>
               </div>
-              ${!hasSubs ? sleeveControlsHTML(a.id, a) : ''}
+              ${sleeveSelectHTML(a)}
+              ${!hasSubs ? pricedInfoHTML(a, a.currency) : ''}
             </div>
             <div class="nw-balance">
               <div style="font-size:14.5px;">${hasSubs ? moneyWhole(balAUD) : moneyCur(bal, a.currency)}${showAUD ? ` <span class="muted" style="font-size:11px;">(≈${moneyWhole(balAUD)})</span>` : ''}</div>
@@ -2734,7 +2747,7 @@ function renderNetWorth(c){
                   <div>
                     <div style="font-size:13px;">${sub.name} <button class="icon-btn" data-renamesub="${a.id}|||${sub.id}" style="font-size:9.5px; padding:0 2px; color:var(--text-faint);" title="Rename">✎</button> <span class="muted" style="font-size:10.5px;">${subCur}</span></div>
                     ${targetRowHTML(`${a.id}|||${sub.id}`, subBal, sub.target, subCur)}
-                    ${sleeveControlsHTML(`${a.id}|||${sub.id}`, sub)}
+                    ${pricedInfoHTML(sub, subCur)}
                   </div>
                   <div class="nw-balance">
                     <div style="font-size:13px;">${moneyCur(subBal, subCur)}${subShowAUD ? ` <span class="muted" style="font-size:10.5px;">(≈${moneyWhole(subBalAUD)})</span>` : ''}</div>
@@ -2847,8 +2860,8 @@ function renderNetWorth(c){
   };
   c.querySelectorAll('[data-sleeve]').forEach(sel=>{
     sel.onchange = ()=>{
-      const u = unitByKey(sel.dataset.sleeve); if(!u) return;
-      if(sel.value) u.sleeve = sel.value; else { delete u.sleeve; delete u.targetWeight; }
+      const acc = state.accounts.find(a=> a.id === sel.dataset.sleeve); if(!acc) return;
+      if(sel.value) acc.sleeve = sel.value; else delete acc.sleeve;
       saveState(); render();
     };
   });
@@ -3056,10 +3069,30 @@ function effectiveTicker(unit, fallbackName){
   return looksLikeTicker(fallbackName) ? String(fallbackName).trim().toUpperCase() : '';
 }
 
+/* The key can live in one of two places.
+
+   Device only  — localStorage, under its own key. Never leaves this browser, but
+                  has to be entered again on every device.
+   Synced       — inside state, so Firestore carries it to your other devices.
+                  state is private to your Firebase account and is not part of the
+                  public repository, so this is a reasonable trade for a read-only,
+                  rate-limited market-data key. It is stripped out of exported
+                  backups regardless, because those are files that get shared. */
 const QUOTE_TOKEN_KEY = 'ledger_quote_token';
-function quoteToken(){ try{ return localStorage.getItem(QUOTE_TOKEN_KEY) || ''; }catch(e){ return ''; } }
-function setQuoteToken(v){
-  try{ v ? localStorage.setItem(QUOTE_TOKEN_KEY, v) : localStorage.removeItem(QUOTE_TOKEN_KEY); }catch(e){}
+
+function quoteTokenSynced(){ return !!(state.settings && state.settings.quoteToken); }
+function quoteToken(){
+  if(state.settings && state.settings.quoteToken) return state.settings.quoteToken;
+  try{ return localStorage.getItem(QUOTE_TOKEN_KEY) || ''; }catch(e){ return ''; }
+}
+function setQuoteToken(v, synced){
+  const val = (v||'').trim();
+  // Whichever mode is chosen, make sure the key isn't left behind in the other one.
+  try{ localStorage.removeItem(QUOTE_TOKEN_KEY); }catch(e){}
+  if(state.settings) delete state.settings.quoteToken;
+  if(!val){ saveState(); return; }
+  if(synced){ state.settings.quoteToken = val; saveState(); }
+  else { try{ localStorage.setItem(QUOTE_TOKEN_KEY, val); }catch(e){} }
 }
 
 /* Returns a number, or throws with a reason worth showing the user. */
@@ -3125,7 +3158,10 @@ function investingSectionHTML(){
       <td>${r.name}</td>
       <td class="r">${moneyWhole(r.value)}</td>
       <td class="r">${r.currentPct.toFixed(1)}%</td>
-      <td class="r muted">${r.target.toFixed(1)}%</td>
+      ${scope==='whole'
+        ? `<td class="r muted">${r.target.toFixed(1)}%</td>`
+        : `<td class="r"><input class="reb-weight" type="number" step="1" min="0" max="100" data-weight="${r.key}"
+             value="${r.rawWeight !== null && r.rawWeight !== undefined ? r.rawWeight : ''}" placeholder="—"> <span class="muted">%</span></td>`}
       <td class="r"><span class="delta ${driftClass(r.driftPp)}">${pp(r.driftPp)}</span></td>
       ${plan.contribution > 0
         ? `<td class="r">${r.allocate > 0.5 ? moneyWhole(r.allocate) : '—'}</td>
@@ -3146,8 +3182,17 @@ function investingSectionHTML(){
   else
     verdict = `Worst drift is ${plan.worstDrift.toFixed(1)}pp against a ${band}pp band. Enter what you're about to invest and this will try to fix it with new money first, since selling triggers capital gains.`;
 
-  const weightWarn = (scope !== 'whole' && buckets.weightsSet === false)
-    ? `<div class="liq-banner" style="margin-top:12px;">No target weights set inside ${sleeveLabel(scope)}, so an equal split is assumed. Set a target % on each holding above for a real comparison.</div>` : '';
+  let weightWarn = '';
+  if(scope !== 'whole'){
+    if(buckets.weightsSet === false){
+      weightWarn = `<div class="liq-banner" style="margin-top:12px;">No target weights set inside ${sleeveLabel(scope)}, so an equal split is assumed. Type a target % against each holding above.</div>`;
+    } else {
+      const raw = buckets.buckets.reduce((t,b)=> t + (b.rawWeight||0), 0);
+      if(Math.abs(raw - 100) > 0.5){
+        weightWarn = `<div class="liq-banner" style="margin-top:12px;">Your weights add up to ${raw.toFixed(0)}%, not 100%. They're being scaled to 100% so the comparison still works — the Target column shows the scaled figures.</div>`;
+      }
+    }
+  }
 
   return `
     <div class="section-title">Core &amp; satellite <span class="muted" style="font-size:13px;">— all values in AUD</span></div>
@@ -3200,7 +3245,7 @@ function investingSectionHTML(){
         <thead>
           <tr>
             <th>${scope==='whole'?'Sleeve':'Holding'}</th>
-            <th class="r">Value</th><th class="r">Now</th><th class="r">Target</th><th class="r">Drift</th>
+            <th class="r">Value</th><th class="r">Now</th><th class="r">Target${scope!=='whole'?' %':''}</th><th class="r">Drift</th>
             ${plan.contribution>0 ? '<th class="r">Put in</th><th class="r">After</th>' : '<th class="r">To rebalance</th>'}
           </tr>
         </thead>
@@ -3211,8 +3256,50 @@ function investingSectionHTML(){
     </div>`;
 }
 
+function openQuoteKeyModal(onDone){
+  const root = document.getElementById('modalRoot');
+  const prev = root.innerHTML;            // the price screen, to restore afterwards
+  const cur = quoteToken();
+  const synced = quoteTokenSynced();
+  root.innerHTML = `
+    <div class="modal-backdrop" id="kb">
+      <div class="modal" style="max-width:520px;">
+        <h2>Price API key</h2>
+        <div class="page-sub">Only needed if the keyless source is blocked in your browser. A free Finnhub key works; it is read-only market data, rate limited, and can be regenerated at any time.</div>
+        <label class="field">Key <input type="text" id="qkVal" value="${cur.replace(/"/g,'&quot;')}" placeholder="paste key, or leave blank to remove"></label>
+        <div class="form-grid" style="margin-top:10px;">
+          <label class="field" style="flex-direction:row; align-items:flex-start; gap:9px;">
+            <input type="checkbox" id="qkSync" ${synced?'checked':''} style="width:16px; height:16px; margin-top:2px; flex:none;">
+            <span style="font-size:12.5px; line-height:1.5;">Sync this key to my other devices<br>
+              <span class="muted" style="font-size:11.5px;">Stores it with your data, so it travels through Firestore to your phone and iPad. Your data is private to your account and is not in the public repository. Leave unticked to keep the key in this browser only.</span>
+            </span>
+          </label>
+        </div>
+        <div class="muted" style="font-size:11.5px; margin-top:10px; line-height:1.5;">
+          Either way, the key is removed from downloaded backups — those are files you might send somewhere.
+        </div>
+        <div class="form-actions">
+          <button class="btn secondary" id="qkCancel">Cancel</button>
+          <button class="btn" id="qkSave">Save key</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const back = ()=>{ root.innerHTML = prev; };
+  document.getElementById('qkCancel').onclick = back;
+  document.getElementById('kb').addEventListener('click', e=>{ if(e.target.id==='kb') back(); });
+  document.getElementById('qkSave').onclick = ()=>{
+    const v = document.getElementById('qkVal').value.trim();
+    const sync = document.getElementById('qkSync').checked;
+    setQuoteToken(v, sync);
+    back();
+    if(onDone) onDone();
+    toast(!v ? 'API key removed.' : (sync ? 'API key saved and will sync to your other devices.' : 'API key saved on this device only.'));
+  };
+}
+
 function openPriceModal(){
-  const rows = allUnits().filter(u=> u.unit.sleeve || isPriced(u.unit));
+  const rows = allUnits().filter(u=> accountSleeve(u.acc) || isPriced(u.unit));
   const root = document.getElementById('modalRoot');
   if(!rows.length){
     toast('Assign a holding to Core or Satellite first, then prices can be tracked here.');
@@ -3286,14 +3373,9 @@ function openPriceModal(){
     document.getElementById('pp'+i).oninput = recalc;
   });
 
-  document.getElementById('fKey').onclick = ()=>{
-    const cur = quoteToken();
-    const v = prompt('Finnhub API key — stored on this device only, never in your saved data or the repository. Leave blank to remove.', cur);
-    if(v === null) return;
-    setQuoteToken(v.trim());
-    toast(v.trim() ? 'API key saved on this device.' : 'API key removed.');
-    document.getElementById('fKey').textContent = v.trim() ? 'Change API key' : 'Add API key';
-  };
+  document.getElementById('fKey').onclick = ()=> openQuoteKeyModal(()=>{
+    document.getElementById('fKey').textContent = quoteToken() ? 'Change API key' : 'Add API key';
+  });
 
   document.getElementById('fFetch').onclick = async ()=>{
     const btn = document.getElementById('fFetch');
@@ -3968,30 +4050,34 @@ function renderSettings(c){
 ========================================================= */
 function investSettings(){ return state.settings.investing; }
 
-/* The per-holding controls that appear under each row on the Net Worth tab.
-   Target weight is only shown once a sleeve is chosen — asking for a weight
-   before there's anything to weight against is just noise. */
-function sleeveControlsHTML(key, unit){
-  const sleeve = unit.sleeve || '';
-  const priced = isPriced(unit);
-  const age = daysSince(unit.pricedAt);
-  const limit = Number(investSettings().staleDays) || 30;
-  const stale = priced && (age === null || age > limit);
+/* The sleeve is set once on the ACCOUNT, and every holding inside it inherits.
+   An account called "Core Invesment" is core, so asking the same question again
+   for each of VT, QQQM and SCHD is just noise on the screen. */
+function accountSleeve(a){
+  return (a && (a.sleeve==='core' || a.sleeve==='satellite')) ? a.sleeve : null;
+}
+
+function sleeveSelectHTML(a){
+  const sleeve = accountSleeve(a) || '';
   return `
     <div class="nw-inv">
       <span>Sleeve</span>
-      <select class="nw-speed" data-sleeve="${key}" title="Part of your core/satellite structure">
+      <select class="nw-speed" data-sleeve="${a.id}" title="Core or satellite — every holding in this account inherits it">
         <option value="" ${!sleeve?'selected':''}>—</option>
         ${SLEEVES.map(([v,l])=>`<option value="${v}" ${sleeve===v?'selected':''}>${l}</option>`).join('')}
       </select>
-      ${sleeve ? `
-        <span>Target</span>
-        <input class="nw-weight" type="number" step="1" min="0" max="100" data-weight="${key}"
-               value="${unit.targetWeight!==undefined && unit.targetWeight!==null ? unit.targetWeight : ''}" placeholder="%">
-        <span>%</span>` : ''}
-      ${priced ? `<span class="${stale?'nw-stale':''}" title="${unit.units} × ${moneyCur(unit.price, unit.currency||'AUD')}">
-        ${unit.units} @ ${moneyCur(unit.price, unit.currency||'AUD')} · ${age===null?'never priced':(age===0?'priced today':`priced ${age}d ago`)}</span>` : ''}
+      ${sleeve ? `<span class="muted">applies to everything in this account · weights set under Rebalance</span>` : ''}
     </div>`;
+}
+
+/* The units-and-price line under a holding. Read-only here; editing happens on
+   the Update prices screen. */
+function pricedInfoHTML(unit, currency){
+  if(!isPriced(unit)) return '';
+  const age = daysSince(unit.pricedAt);
+  const limit = Number(investSettings().staleDays) || 30;
+  const stale = age === null || age > limit;
+  return `<div class="nw-inv ${stale?'nw-stale':''}">${unit.units} @ ${moneyCur(unit.price, currency||'AUD')} · ${age===null?'never priced':(age===0?'priced today':`priced ${age}d ago`)}</div>`;
 }
 
 const SLEEVES = [['core','Core'], ['satellite','Satellite']];
@@ -4030,11 +4116,11 @@ function allUnits(){
 /* Units taking part in the core/satellite structure, valued in AUD. */
 function investedUnits(){
   return allUnits()
-    .filter(u=> u.unit.sleeve === 'core' || u.unit.sleeve === 'satellite')
+    .filter(u=> accountSleeve(u.acc))
     .map(u=>{
       const bal = unitBalanceAsOf(u.unit, isoDate(TODAY));
       return { ...u,
-        sleeve: u.unit.sleeve,
+        sleeve: accountSleeve(u.acc),
         targetWeight: Number(u.unit.targetWeight) || 0,
         balance: bal,
         valueAUD: toAUD(bal, u.currency),
@@ -4132,9 +4218,10 @@ function rebalanceBuckets(scope){
   const inSleeve = inv.filter(u=> u.sleeve === scope);
   const weightSum = inSleeve.reduce((s,u)=> s + u.targetWeight, 0);
   const buckets = inSleeve.map(u=> ({
-    key: u.subId || u.acc.id,
-    name: u.name,
+    key: u.subId ? `${u.acc.id}|||${u.subId}` : u.acc.id,
+    name: u.subId ? u.unit.name : u.acc.name,
     value: u.valueAUD,
+    rawWeight: (u.unit.targetWeight === undefined || u.unit.targetWeight === null) ? null : u.unit.targetWeight,
     // With no weights set, an equal split is the only defensible default.
     target: weightSum > 0 ? u.targetWeight/weightSum*100 : 100/inSleeve.length,
     weightsSet: weightSum > 0
@@ -4687,7 +4774,25 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V1.8', name: 'Roomier price screen', date: 'Sep 2026', current: true,
+    no: 'V2.0', name: 'Sleeves on accounts, weights under Rebalance', date: 'Sep 2026', current: true,
+    items: [
+      'The Core/Satellite choice has moved from every individual holding up to the account. An account named Core Invesment is tagged once and everything inside it inherits — no more answering the same question for VT, QQQM, SCHD and IAU separately.',
+      'Target weights have moved off the Net Worth rows and into the Rebalance table, where they sit next to the drift they actually affect. Net Worth rows now show only the units, price and how recently it was priced.',
+      'Existing per-holding sleeves are lifted up to their parent account automatically, so nothing set up before this needs redoing.',
+      'If your weights add up to something other than 100%, they are scaled to 100% and a note says so, rather than silently producing targets that do not match what you typed.'
+    ]
+  },
+  {
+    no: 'V1.9', name: 'Syncable API key', date: 'Sep 2026',
+    items: [
+      'The price API key can now be synced to your other devices instead of being re-entered on each one. A checkbox on the key dialog chooses between syncing it with your data and keeping it in this browser only.',
+      'Syncing stores it with your data, which travels through Firestore. That is private to your Firebase account and is not part of the public repository, so it is a reasonable place for a read-only, rate-limited market-data key — unlike, say, a banking credential.',
+      'Either way the key is stripped out of downloaded backups, since those are files that get emailed and left in Downloads folders. Restoring a backup just asks for the key again.',
+      'Switching between the two modes clears the key from the other, so a copy is never left behind in the place you stopped using.'
+    ]
+  },
+  {
+    no: 'V1.8', name: 'Roomier price screen', date: 'Sep 2026',
     items: [
       'The Update prices dialog was too narrow: holding names wrapped over three lines and the value column was cut off. It is now wider, scrolls sideways on small screens rather than squeezing, and the value column no longer wraps.',
       'Holding names are shown on their own line with the parent account underneath, instead of one long “Account · Holding” string.',
@@ -4804,10 +4909,18 @@ function renderVersions(c){
 /* =========================================================
    BACKUP / RESTORE
 ========================================================= */
+/* A backup is a file that gets emailed, uploaded and left in Downloads, so any
+   credential comes out before it's written. Restoring simply asks for the key again. */
+function exportSafeState(){
+  const copy = JSON.parse(JSON.stringify(state));
+  if(copy.settings) delete copy.settings.quoteToken;
+  return copy;
+}
+
 function exportBackup(){
   const meta = profiles.list.find(p=>p.id===profiles.activeId);
   const safeName = (meta ? meta.name : 'profile').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const blob = new Blob([JSON.stringify(exportSafeState(), null, 2)], {type:'application/json'});
   downloadBlob(blob, `ledger-${safeName}-${isoDate(TODAY)}.json`);
   toast('Backup downloaded.');
 }
