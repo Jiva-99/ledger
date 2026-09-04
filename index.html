@@ -257,7 +257,19 @@
   table.price-grid tbody tr:last-child td{ border-bottom:none; }
   table.price-grid td .sub{ font-size:10.5px; color:var(--text-faint); margin-top:1px; }
   table.price-grid input{ width:92px; text-align:right; padding:5px 7px; font-size:12.5px; }
-  table.price-grid input.ticker-in{ width:74px; text-align:left; text-transform:uppercase; }
+  table.price-grid input.ticker-in{ width:82px; text-align:left; text-transform:uppercase; }
+  .modal.price-modal{ max-width:min(860px, 94vw); width:min(860px, 94vw); }
+  .price-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -2px; }
+  table.price-grid td.hold{ min-width:170px; }
+  table.price-grid td.hold .hn{ font-weight:600; font-size:13.5px; }
+  table.price-grid td.val{ white-space:nowrap; min-width:110px; }
+  table.price-grid th{ white-space:nowrap; }
+  @media (max-width: 700px){
+    table.price-grid{ min-width:560px; }
+    table.price-grid input{ width:80px; }
+    table.price-grid input.ticker-in{ width:66px; }
+    table.price-grid td.hold{ min-width:130px; }
+  }
   @media (max-width: 600px){ table.price-grid input{ width:70px; } }
   .fx-alert{ background:rgba(217,105,95,0.10); border:1px solid rgba(217,105,95,0.45);
     border-radius:var(--radius); padding:11px 14px; margin-bottom:16px; font-size:13px;
@@ -3033,6 +3045,17 @@ function openSubCategoryModal(accId){
    The key is kept in localStorage under a separate key, deliberately NOT in
    state: state syncs to Firestore and gets exported, and this repo is public.
    A token in the saved data is a token you've published. */
+/* Most holdings are already named after their ticker — VT, SCHD, QQQM — so asking
+   for it a second time is busywork. A name that looks like a symbol is used as one
+   unless an explicit ticker overrides it. */
+function looksLikeTicker(name){
+  return /^[A-Za-z]{1,5}(\.[A-Za-z]{1,3})?$/.test(String(name||'').trim());
+}
+function effectiveTicker(unit, fallbackName){
+  if(unit && unit.ticker) return unit.ticker;
+  return looksLikeTicker(fallbackName) ? String(fallbackName).trim().toUpperCase() : '';
+}
+
 const QUOTE_TOKEN_KEY = 'ledger_quote_token';
 function quoteToken(){ try{ return localStorage.getItem(QUOTE_TOKEN_KEY) || ''; }catch(e){ return ''; } }
 function setQuoteToken(v){
@@ -3197,9 +3220,10 @@ function openPriceModal(){
   }
   root.innerHTML = `
     <div class="modal-backdrop" id="mb">
-      <div class="modal" style="max-width:620px;">
+      <div class="modal price-modal">
         <h2>Update prices</h2>
         <div class="page-sub">Enter how many units you hold and what one unit is worth. Changing the units records a contribution; changing the price records a gain or loss. Leave a row untouched to skip it.</div>
+        <div class="price-scroll">
         <table class="price-grid">
           <thead><tr><th>Holding</th><th>Ticker</th><th class="r">Units</th><th class="r">Price</th><th class="r">Value</th></tr></thead>
           <tbody>
@@ -3207,19 +3231,26 @@ function openPriceModal(){
               const cur = u.currency;
               const bal = unitBalanceAsOf(u.unit, isoDate(TODAY));
               const age = daysSince(u.unit.pricedAt);
+              const auto = effectiveTicker(u.unit, u.unit.name);
               return `
               <tr>
-                <td>${u.name}<div class="sub" id="pn${i}">${cur}${u.unit.pricedAt?` · priced ${age===0?'today':age+'d ago'}`:' · never priced'}</div></td>
-                <td><input type="text" id="pt${i}" value="${u.unit.ticker||''}" placeholder="—" class="ticker-in"></td>
+                <td class="hold">
+                  <div class="hn">${u.unit.name || u.acc.name}</div>
+                  <div class="sub" id="pn${i}">${u.subId ? u.acc.name + ' · ' : ''}${cur}${u.unit.pricedAt?` · priced ${age===0?'today':age+'d ago'}`:' · never priced'}</div>
+                </td>
+                <td><input type="text" id="pt${i}" value="${u.unit.ticker||''}" placeholder="${auto||'—'}" class="ticker-in" title="${auto?`Blank uses “${auto}”, taken from the name`:'No ticker detected from the name'}"></td>
                 <td class="r"><input type="number" step="any" min="0" id="pu${i}" value="${isPriced(u.unit)?u.unit.units:''}" placeholder="—"></td>
                 <td class="r"><input type="number" step="any" min="0" id="pp${i}" value="${isPriced(u.unit)?u.unit.price:''}" placeholder="—"></td>
-                <td class="r" id="pv${i}">${moneyCur(bal, cur)}<div class="sub" id="ps${i}">${cur!=='AUD'?'≈'+moneyWhole(toAUD(bal,cur)):''}</div></td>
+                <td class="r val" id="pv${i}">${moneyCur(bal, cur)}<div class="sub" id="ps${i}">${cur!=='AUD'?'≈'+moneyWhole(toAUD(bal,cur)):''}</div></td>
               </tr>`;
             }).join('')}
           </tbody>
         </table>
+        </div>
         <div class="muted" style="font-size:11.5px; margin-top:8px; line-height:1.5;">
-          Add a ticker to fetch prices automatically. Fetched prices fill the boxes for you to check —
+          Where a holding is already named after its symbol, that name is used as the ticker — the grey
+          text in the box shows what will be looked up, so leave it blank unless it's wrong.
+          Fetched prices fill the boxes for you to check —
           nothing saves until you press Save. Units are never fetched: buying is your decision, not the market's.
           The fetched price is assumed to be in the holding's own currency.
         </div>
@@ -3269,7 +3300,8 @@ function openPriceModal(){
     btn.disabled = true; btn.textContent = 'Fetching…';
     let ok = 0, failed = [];
     for(let i=0; i<rows.length; i++){
-      const tick = document.getElementById('pt'+i).value.trim();
+      const typed = document.getElementById('pt'+i).value.trim();
+      const tick = typed || effectiveTicker(rows[i].unit, rows[i].unit.name);
       const note = document.getElementById('pn'+i);
       if(!tick){ continue; }
       try{
@@ -3298,6 +3330,8 @@ function openPriceModal(){
   document.getElementById('fSave').onclick = ()=>{
     let changed = 0, contributed = 0, revalued = 0;
     rows.forEach((u,i)=>{
+      // Only store a ticker that was actually typed. Leaving it blank keeps the
+      // holding following its own name, so renaming VT to VTI just works.
       const tick = document.getElementById('pt'+i).value.trim();
       if(tick) u.unit.ticker = tick.toUpperCase(); else delete u.unit.ticker;
       const un = document.getElementById('pu'+i).value;
@@ -4653,7 +4687,16 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V1.7', name: 'Price fetching and a drift colour fix', date: 'Sep 2026', current: true,
+    no: 'V1.8', name: 'Roomier price screen', date: 'Sep 2026', current: true,
+    items: [
+      'The Update prices dialog was too narrow: holding names wrapped over three lines and the value column was cut off. It is now wider, scrolls sideways on small screens rather than squeezing, and the value column no longer wraps.',
+      'Holding names are shown on their own line with the parent account underneath, instead of one long “Account · Holding” string.',
+      'Holdings named after their symbol — VT, SCHD, QQQM — are now used as their own ticker automatically. The detected symbol appears as grey placeholder text, so the ticker box only needs filling in when the name is not the symbol.',
+      'A typed ticker is still stored and takes precedence; leaving it blank keeps the holding following its own name, so renaming it updates what gets looked up.'
+    ]
+  },
+  {
+    no: 'V1.7', name: 'Price fetching and a drift colour fix', date: 'Sep 2026',
     items: [
       'Fixed a misleading colour on the drift column: being under target was shown in green, as though it were good. Direction of drift is neither good nor bad, so drift inside the band is now grey and drift outside it is amber either way.',
       'The Core & satellite section is labelled as being in AUD, and the Update prices screen shows an AUD equivalent under each non-AUD value.',
