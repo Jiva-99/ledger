@@ -244,6 +244,8 @@
   .nw-weight{ padding:2px 4px; font-size:10.5px; width:52px; text-align:right; }
   input.reb-weight{ width:56px; padding:3px 6px; font-size:12.5px; text-align:right; display:inline-block; }
   .nw-stale{ color:var(--amber); }
+  .nw-tag{ background:rgba(201,162,39,0.14); color:var(--gold-bright); padding:1px 7px; border-radius:var(--radius); font-size:10.5px; }
+  .nw-inv{ font-size:11px; }
   table.reb{ width:100%; border-collapse:collapse; }
   table.reb th{ text-align:left; font-size:11.5px; color:var(--text-faint); font-weight:400;
     padding:0 0 8px 0; border-bottom:1px solid var(--border); }
@@ -2468,9 +2470,13 @@ function openAccountTargetModal(accId){
 const NET_WORTH_PALETTE = ['#c9a227','#3b82f6','#22c55e','#ec4899','#a855f7','#f59e0b','#14b8a6','#64748b'];
 
 function targetRowHTML(editKey, balance, target, currency){
-  const editBtn = `<button class="icon-btn" data-edittarget="${editKey}" style="font-size:10px; padding:1px 3px; flex-shrink:0;" title="${target?'Edit':'Set'} target">${target?'✎':'+ target'}</button>`;
+  const editing = nwEditing();
+  const editBtn = editing
+    ? `<button class="icon-btn" data-edittarget="${editKey}" style="font-size:10px; padding:1px 3px; flex-shrink:0;" title="${target?'Edit':'Set'} target">${target?'✎':'+ target'}</button>`
+    : '';
   if(!target || target<=0){
-    return `<div style="display:flex; align-items:center; gap:4px; margin-top:2px;">${editBtn}</div>`;
+    // Nothing to show when there's no target and no way to set one right now.
+    return editing ? `<div style="display:flex; align-items:center; gap:4px; margin-top:2px;">${editBtn}</div>` : '';
   }
   const pct = (balance/target)*100;
   const displayPct = Math.max(0, Math.min(100, pct));
@@ -2712,16 +2718,17 @@ function renderNetWorth(c){
           return `
           <div class="nw-row">
             <div>
-              <div style="font-weight:600;">${a.name} <button class="icon-btn" data-renameacc="${a.id}" style="font-size:10px; padding:0 2px; color:var(--text-faint);" title="Rename">✎</button> <span class="muted" style="font-size:11px; font-weight:400;">${hasSubs ? 'mixed currencies' : a.currency}</span></div>
+              <div style="font-weight:600;">${a.name} ${nwEditing()?`<button class="icon-btn" data-renameacc="${a.id}" style="font-size:10px; padding:0 2px; color:var(--text-faint);" title="Rename">✎</button>`:''} <span class="muted" style="font-size:11px; font-weight:400;">${hasSubs ? 'mixed currencies' : a.currency}</span></div>
               ${targetRowHTML(a.id, targetBal, a.target, targetCur)}
-              <div class="muted" style="font-size:10.5px; margin-top:3px; display:flex; align-items:center; gap:5px;">
+              ${nwEditing() ? `
+              <div class="muted" style="font-size:11px; margin-top:3px; display:flex; align-items:center; gap:5px;">
                 <span>Cash speed</span>
                 <select class="nw-speed" data-speed="${a.id}" title="How quickly this money could actually be spent">
                   <option value="" ${!accountSpeed(a)?'selected':''}>Not set</option>
                   ${SPEED_ORDER.map(sp=>`<option value="${sp}" ${accountSpeed(a)===sp?'selected':''}>${SPEED_LABELS[sp]}</option>`).join('')}
                 </select>
               </div>
-              ${sleeveSelectHTML(a)}
+              ${sleeveSelectHTML(a)}` : nwTagsHTML(a)}
               ${!hasSubs ? pricedInfoHTML(a, a.currency) : ''}
             </div>
             <div class="nw-balance">
@@ -2731,8 +2738,8 @@ function renderNetWorth(c){
             <div class="nw-actions">
               ${!hasSubs ? `<button class="icon-btn" style="color:var(--gold);" data-adj="${a.id}" title="Manual adjustment">±</button>` : ''}
               ${!hasSubs ? `<button class="icon-btn" data-hist="${a.id}" title="View history" style="font-size:11px;">🕐</button>` : ''}
-              <button class="icon-btn" data-addsub="${a.id}" title="Add sub-category" style="font-size:11px;">+Split</button>
-              <button class="icon-btn" data-delacc="${a.id}" title="Delete account">✕</button>
+              ${nwEditing() ? `<button class="icon-btn" data-addsub="${a.id}" title="Add sub-category" style="font-size:11px;">+Split</button>` : ''}
+              ${nwEditing() ? `<button class="icon-btn" data-delacc="${a.id}" title="Delete account">✕</button>` : ''}
             </div>
           </div>
           ${hasSubs ? `
@@ -2745,7 +2752,7 @@ function renderNetWorth(c){
                 return `
                 <div class="nw-row">
                   <div>
-                    <div style="font-size:13px;">${sub.name} <button class="icon-btn" data-renamesub="${a.id}|||${sub.id}" style="font-size:9.5px; padding:0 2px; color:var(--text-faint);" title="Rename">✎</button> <span class="muted" style="font-size:10.5px;">${subCur}</span></div>
+                    <div style="font-size:13px;">${sub.name} ${nwEditing()?`<button class="icon-btn" data-renamesub="${a.id}|||${sub.id}" style="font-size:9.5px; padding:0 2px; color:var(--text-faint);" title="Rename">✎</button>`:''} <span class="muted" style="font-size:11px;">${subCur}</span></div>
                     ${targetRowHTML(`${a.id}|||${sub.id}`, subBal, sub.target, subCur)}
                     ${pricedInfoHTML(sub, subCur)}
                   </div>
@@ -2755,7 +2762,7 @@ function renderNetWorth(c){
                   <div class="nw-actions">
                     <button class="icon-btn" style="color:var(--gold);" data-adjsub="${a.id}|||${sub.id}" title="Manual adjustment">±</button>
                     <button class="icon-btn" data-histsub="${a.id}|||${sub.id}" title="View history" style="font-size:11px;">🕐</button>
-                    <button class="icon-btn" data-delsub="${a.id}|||${sub.id}" title="Remove split">✕</button>
+                    ${nwEditing() ? `<button class="icon-btn" data-delsub="${a.id}|||${sub.id}" title="Remove split">✕</button>` : ''}
                   </div>
                 </div>
               `;}).join('')}
@@ -2823,12 +2830,17 @@ function renderNetWorth(c){
       </div>
     </div>
 
-    <div class="toolbar"><div class="spacer"></div><button class="btn" id="addAccBtn">+ Add account</button></div>
+    <div class="toolbar">
+      <div class="spacer"></div>
+      <button class="btn secondary" id="nwEditBtn" aria-pressed="${nwEditing()}">${nwEditing()?'Done editing':'Edit setup'}</button>
+      ${nwEditing() ? `<button class="btn" id="addAccBtn">+ Add account</button>` : ''}
+    </div>
     ${state.accounts.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No accounts yet — add your emergency fund, super, or investment buckets.</div>` : `<div class="grid-cat" style="align-items:start;">${groupHtml}</div>`}
     ${investingHTML}
   `;
 
-  document.getElementById('addAccBtn').onclick = openAccountModal;
+  const addBtn = document.getElementById('addAccBtn');
+  if(addBtn) addBtn.onclick = openAccountModal;   // absent outside edit mode
   document.getElementById('refreshFxBtn').onclick = ()=> refreshFxRates(true);
   document.getElementById('manualFxBtn').onclick = openManualFxModal;
   document.getElementById('editPortfolioTargetBtn').onclick = openPortfolioTargetModal;
@@ -2873,6 +2885,8 @@ function renderNetWorth(c){
       saveState(); render();
     };
   });
+  const editBtn = document.getElementById('nwEditBtn');
+  if(editBtn) editBtn.onclick = ()=>{ state.ui.nwEdit = !state.ui.nwEdit; saveState(); render(); };
   const upBtn = document.getElementById('updatePricesBtn');
   if(upBtn) upBtn.onclick = ()=> openPriceModal();
   const scopeSel = document.getElementById('rebScope');
@@ -4048,6 +4062,22 @@ function renderSettings(c){
    history entries that are tagged as either a contribution or a revaluation, so
    "I put money in" and "the market moved" stop being the same number.
 ========================================================= */
+/* Net Worth carries a lot of setup — cash speed, sleeve, targets, splits — that is
+   configured once and then read hundreds of times. Edit mode hides the controls so
+   the default view is numbers, not knobs. Purely visual: nothing is locked, no data
+   moves, and leaving it on gives back exactly the old screen. */
+function nwEditing(){ return !!state.ui.nwEdit; }
+
+/* Two decimals is enough to recognise a holding; the stored value keeps full
+   precision so nothing is lost. Very small holdings widen rather than round to
+   0.00, which would read as "nothing here". */
+function fmtUnits(v){
+  const n = Number(v);
+  if(!isFinite(n)) return '—';
+  if(n !== 0 && Math.abs(n) < 0.005) return n.toPrecision(2);
+  return n.toLocaleString('en-AU', { minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+
 function investSettings(){ return state.settings.investing; }
 
 /* The sleeve is set once on the ACCOUNT, and every holding inside it inherits.
@@ -4055,6 +4085,17 @@ function investSettings(){ return state.settings.investing; }
    for each of VT, QQQM and SCHD is just noise on the screen. */
 function accountSleeve(a){
   return (a && (a.sleeve==='core' || a.sleeve==='satellite')) ? a.sleeve : null;
+}
+
+/* What the dropdowns say, as plain text, when not editing. */
+function nwTagsHTML(a){
+  const bits = [];
+  const sl = accountSleeve(a);
+  if(sl) bits.push(`<span class="nw-tag">${sleeveLabel(sl)}</span>`);
+  const sp = accountSpeed(a);
+  if(sp) bits.push(`<span>${SPEED_LABELS[sp]}</span>`);
+  if(!bits.length) return '';
+  return `<div class="nw-inv">${bits.join('<span class="muted">·</span>')}</div>`;
 }
 
 function sleeveSelectHTML(a){
@@ -4077,7 +4118,7 @@ function pricedInfoHTML(unit, currency){
   const age = daysSince(unit.pricedAt);
   const limit = Number(investSettings().staleDays) || 30;
   const stale = age === null || age > limit;
-  return `<div class="nw-inv ${stale?'nw-stale':''}">${unit.units} @ ${moneyCur(unit.price, currency||'AUD')} · ${age===null?'never priced':(age===0?'priced today':`priced ${age}d ago`)}</div>`;
+  return `<div class="nw-inv ${stale?'nw-stale':''}" title="${unit.units} units">${fmtUnits(unit.units)} @ ${moneyCur(unit.price, currency||'AUD')} · ${age===null?'never priced':(age===0?'priced today':`priced ${age}d ago`)}</div>`;
 }
 
 const SLEEVES = [['core','Core'], ['satellite','Satellite']];
@@ -4774,7 +4815,17 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V2.0', name: 'Sleeves on accounts, weights under Rebalance', date: 'Sep 2026', current: true,
+    no: 'V2.1', name: 'Edit mode', date: 'Sep 2026', current: true,
+    items: [
+      'Net Worth now opens in a reading view. The cash speed and sleeve dropdowns, the target links, +Split and the delete ✕ are hidden behind an “Edit setup” button in the toolbar — settings you touch once a month no longer compete for attention every time you check a balance.',
+      'When not editing, the sleeve and cash speed still show as plain text tags, so the information is visible without being changeable.',
+      'A side effect worth having: the delete ✕ only exists in edit mode, so it can no longer be mis-tapped while scrolling next to the ± and history buttons.',
+      'The choice is remembered between sessions, and it is purely visual — nothing is locked and no data moves. Leaving edit mode on gives back exactly the previous screen.',
+      'Units are displayed to two decimals — 33.84 rather than 33.8434959 — with the full figure on hover and the stored value unchanged. Holdings too small to show at two decimals widen automatically instead of rounding to 0.00.'
+    ]
+  },
+  {
+    no: 'V2.0', name: 'Sleeves on accounts, weights under Rebalance', date: 'Sep 2026',
     items: [
       'The Core/Satellite choice has moved from every individual holding up to the account. An account named Core Invesment is tagged once and everything inside it inherits — no more answering the same question for VT, QQQM, SCHD and IAU separately.',
       'Target weights have moved off the Net Worth rows and into the Rebalance table, where they sit next to the drift they actually affect. Net Worth rows now show only the units, price and how recently it was priced.',
