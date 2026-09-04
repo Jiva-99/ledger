@@ -153,6 +153,10 @@
   }
   select:focus, input:focus{ outline:2px solid var(--gold); outline-offset:1px; }
   label.field{ display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--text-dim); }
+  /* Hidden by default and switched on inside the mobile media query below. Matched
+     on label.field too, or the plain class loses the specificity contest and the
+     picker shows at every width. */
+  label.field.plan-mobile-month-picker{ display:none; }
 
   button.btn{
     all:unset; cursor:pointer; background:var(--gold); color:#181305; font-weight:600;
@@ -443,7 +447,7 @@
     table.plan.mobile-condensed td.catname{ min-width:0; max-width:150px; font-size:12px; }
 
     /* Planning: show only the selected month's column instead of all 12 side by side */
-    .plan-mobile-month-picker{ display:flex; }
+    label.field.plan-mobile-month-picker{ display:flex; }
     table.plan.mobile-condensed th:not(:first-child):not(:last-child),
     table.plan.mobile-condensed td:not(:first-child):not(:last-child){ display:none; }
     table.plan.mobile-condensed.pm-0 th:nth-child(2), table.plan.mobile-condensed.pm-0 td:nth-child(2){ display:table-cell; }
@@ -459,7 +463,6 @@
     table.plan.mobile-condensed.pm-10 th:nth-child(12), table.plan.mobile-condensed.pm-10 td:nth-child(12){ display:table-cell; }
     table.plan.mobile-condensed.pm-11 th:nth-child(13), table.plan.mobile-condensed.pm-11 td:nth-child(13){ display:table-cell; }
   }
-  .plan-mobile-month-picker{ display:none; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -882,6 +885,18 @@ function mergeWithDefaults(parsed){
   // without disturbing anything the user has already set.
   merged.settings.essentialCategories = merged.settings.essentialCategories || [];
   merged.settings.excludedFromBalance = merged.settings.excludedFromBalance || [];
+
+  // Drop planning years that are out of range or left over from a typo — but only
+  // when they hold no budget figures and no transaction actually falls in them, so
+  // a real year of work is never thrown away.
+  const txYears = new Set((merged.transactions||[]).map(tx=> new Date(tx.date).getFullYear()));
+  Object.keys(merged.planning||{}).forEach(key=>{
+    const yr = Number(key);
+    const hasBudget = Object.values(merged.planning[key]||{}).some(byType=>
+      Object.values(byType||{}).some(arr=> (arr||[]).some(v=> Number(v) > 0)));
+    if(hasBudget || txYears.has(yr)) return;
+    if(!isSaneYear(yr)) delete merged.planning[key];
+  });
   merged.settings.investing = { coreTarget:85, driftBand:5, staleDays:30, scope:'whole', contribution:0,
                                 ...(merged.settings.investing || {}) };
   // Sleeves used to be set per holding; they now live on the account and are
@@ -2051,12 +2066,19 @@ function renderDashboard(c){
   });
 }
 
+/* A mistyped date — "0006" for "2026" — used to seed a planning year that then
+   stuck around in the dropdown forever, because the year list is built from the
+   keys of state.planning and nothing ever removed them. */
+const YEAR_MIN = 1970, YEAR_MAX = 2200;
+function isSaneYear(y){ return Number.isFinite(y) && y >= YEAR_MIN && y <= YEAR_MAX; }
+
 function yearOptions(){
   const start = state.settings.startingYear;
   const years = new Set([start, TODAY.getFullYear()]);
-  Object.keys(state.planning).forEach(y=>years.add(Number(y)));
-  state.transactions.forEach(tx=>years.add(new Date(tx.date).getFullYear()));
-  const arr = [...years].sort((a,b)=>a-b);
+  Object.keys(state.planning).forEach(y=>{ const n = Number(y); if(isSaneYear(n)) years.add(n); });
+  state.transactions.forEach(tx=>{ const n = new Date(tx.date).getFullYear(); if(isSaneYear(n)) years.add(n); });
+  const arr = [...years].filter(isSaneYear).sort((a,b)=>a-b);
+  if(!arr.length) arr.push(TODAY.getFullYear());
   // pad a few future years for planning convenience
   const maxY = Math.max(...arr);
   for(let y=maxY+1; y<=maxY+3; y++) arr.push(y);
@@ -2202,7 +2224,7 @@ function openTxModal(editId){
       <div class="modal">
         <h2>${existing ? 'Edit transaction' : 'Add transaction'}</h2>
         <div class="form-grid">
-          <label class="field">Date <input type="date" id="fDate" value="${existing ? existing.date : isoDate(TODAY)}"></label>
+          <label class="field">Date <input type="date" id="fDate" min="1970-01-01" max="2200-12-31" value="${existing ? existing.date : isoDate(TODAY)}"></label>
           <label class="field">Type
             <select id="fType">${TYPES.map(t=>`<option ${t===type?'selected':''}>${t}</option>`).join('')}</select>
           </label>
@@ -2236,6 +2258,10 @@ function openTxModal(editId){
     const currency = document.getElementById('fCurrency').value;
     const details = document.getElementById('fDetails').value.trim();
     if(!date || !amt || amt<=0){ toast('Enter a date and an amount greater than 0.'); return; }
+    // A four-digit year typed as "0006" is almost always a slip for "2026", and it
+    // quietly pollutes the year dropdown and every year-based total.
+    const yr = Number(date.slice(0,4));
+    if(!isSaneYear(yr)){ toast(`Year ${date.slice(0,4)} doesn't look right — check the date.`); return; }
     if(existing){
       Object.assign(existing, {date, type:t, category:cat, amount:amt, currency, details});
       toast('Transaction updated.');
@@ -2251,6 +2277,7 @@ function openTxModal(editId){
    PLANNING
 ========================================================= */
 function renderPlanning(c){
+  if(!isSaneYear(Number(state.ui.planYear))) state.ui.planYear = TODAY.getFullYear();
   const y = state.ui.planYear;
   const years = yearOptions();
   ensurePlanningYear(y);
@@ -5109,7 +5136,17 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V2.4', name: 'Cents on transaction amounts', date: 'Sep 2026', current: true,
+    no: 'V2.5', name: 'Stray year cleanup and a stuck month picker', date: 'Sep 2026', current: true,
+    items: [
+      'A transaction mistyped as year 0006 created a planning year for 0006, and correcting the transaction did not remove it — the year dropdown is built from the keys of the planning data, and nothing ever cleaned them up. Out-of-range years are now filtered from the dropdown and pruned on load.',
+      'Pruning only removes a year that holds no budget figures and has no transactions in it, so a real year of planning is never discarded.',
+      'If the selected planning year is itself out of range, it resets to the current year instead of showing an empty grid for year 6.',
+      'Transaction dates outside 1970–2200 are now rejected on entry with a message naming the year, and the date field carries the same limits, so the mistype is caught at the source.',
+      'The month picker on the Planning tab was meant for narrow screens only, but label.field beat the hiding rule on specificity, so it showed at every width. It is now correctly hidden on desktop and tablet.'
+    ]
+  },
+  {
+    no: 'V2.4', name: 'Cents on transaction amounts', date: 'Sep 2026',
     items: [
       'The Amount column on the Transactions tab was rounded to whole units while the Balance column beside it showed cents, so the two did not visibly reconcile. Amount now shows two decimals to match.',
       'Only that column changed. Balances, net worth and the dashboard stay whole-number, where cents are clutter rather than detail.'
