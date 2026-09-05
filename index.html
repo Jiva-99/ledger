@@ -4475,13 +4475,17 @@ function investingSectionHTML(){
     ${projectionSectionHTML()}`;
 }
 
+/* Opened from on top of the price screen. Restoring that screen by stashing and
+   re-assigning innerHTML looked right but rebuilt every element as a fresh node,
+   dropping all its event handlers — the dialog closed and nothing was clickable
+   afterwards. Stacking a layer instead leaves the screen underneath untouched. */
 function openQuoteKeyModal(onDone){
   const root = document.getElementById('modalRoot');
-  const prev = root.innerHTML;            // the price screen, to restore afterwards
+  const layer = document.createElement('div');
   const cur = quoteToken();
   const synced = quoteTokenSynced();
-  root.innerHTML = `
-    <div class="modal-backdrop" id="kb">
+  layer.innerHTML = `
+    <div class="modal-backdrop" id="kb" style="z-index:60;">
       <div class="modal" style="max-width:520px;">
         <h2>Price API key</h2>
         <div class="page-sub">Only needed if the keyless source is blocked in your browser. A free Finnhub key works; it is read-only market data, rate limited, and can be regenerated at any time.</div>
@@ -4504,12 +4508,15 @@ function openQuoteKeyModal(onDone){
       </div>
     </div>
   `;
-  const back = ()=>{ root.innerHTML = prev; };
-  document.getElementById('qkCancel').onclick = back;
-  document.getElementById('kb').addEventListener('click', e=>{ if(e.target.id==='kb') back(); });
-  document.getElementById('qkSave').onclick = ()=>{
-    const v = document.getElementById('qkVal').value.trim();
-    const sync = document.getElementById('qkSync').checked;
+  root.appendChild(layer);
+  const back = ()=>{ layer.remove(); };
+  // Scoped to the layer, so these never collide with same-named ids underneath.
+  const q = sel=> layer.querySelector(sel);
+  q('#qkCancel').onclick = back;
+  q('#kb').addEventListener('click', e=>{ if(e.target.id==='kb') back(); });
+  q('#qkSave').onclick = ()=>{
+    const v = q('#qkVal').value.trim();
+    const sync = q('#qkSync').checked;
     setQuoteToken(v, sync);
     back();
     if(onDone) onDone();
@@ -4523,9 +4530,9 @@ function openQuoteKeyModal(onDone){
    row is caught by reading, not by luck. */
 function confirmDestructive(opts){
   const root = document.getElementById('modalRoot');
-  const prev = root.innerHTML;
-  root.innerHTML = `
-    <div class="modal-backdrop" id="cdb">
+  const layer = document.createElement('div');
+  layer.innerHTML = `
+    <div class="modal-backdrop" id="cdb" style="z-index:60;">
       <div class="modal" style="max-width:440px;">
         <h2>${opts.title}</h2>
         <div style="font-size:15px; margin:2px 0 10px 0;">${opts.what}</div>
@@ -4538,10 +4545,17 @@ function confirmDestructive(opts){
       </div>
     </div>
   `;
-  const close = ()=>{ root.innerHTML = prev; };
-  document.getElementById('cdCancel').onclick = close;
-  document.getElementById('cdb').addEventListener('click', e=>{ if(e.target.id==='cdb') close(); });
-  document.getElementById('cdGo').onclick = ()=>{ close(); opts.onConfirm(); };
+  root.appendChild(layer);
+  const close = ()=>{ layer.remove(); };
+  const q = sel=> layer.querySelector(sel);
+  q('#cdCancel').onclick = close;
+  q('#cdb').addEventListener('click', e=>{ if(e.target.id==='cdb') close(); });
+  q('#cdGo').onclick = ()=>{
+    close();
+    // Clear anything underneath too: the action about to run will re-render.
+    root.innerHTML = '';
+    opts.onConfirm();
+  };
 }
 
 /* Record one monthly buy across every holding. Laid out to match the Dime order
@@ -4647,20 +4661,20 @@ function openDividendModal(){
     <div class="modal-backdrop" id="db">
       <div class="modal price-modal">
         <h2>Record dividend</h2>
-        <div class="page-sub">Enter what each holding paid. If it was reinvested, put the extra shares in too — those cost you nothing, so they must not raise your cost basis. Leave shares blank for a cash dividend.</div>
+        <div class="page-sub">Put the amount paid in the first column. Only fill in Shares received if the dividend bought more units — those cost you nothing, so they must not raise your cost basis. Check the date matches the payment, not today.</div>
         <label class="field" style="max-width:200px;">Date
           <input type="date" id="divDate" value="${isoDate(TODAY)}" min="1970-01-01" max="2200-12-31">
         </label>
         <div class="price-scroll">
         <table class="price-grid">
-          <thead><tr><th>Holding</th><th class="r">Amount</th><th class="r">Shares received</th><th class="r">Type</th></tr></thead>
+          <thead><tr><th>Holding</th><th class="r">Amount<div class="sub">cash received</div></th><th class="r">Shares received<div class="sub">only if reinvested</div></th><th class="r">Type</th></tr></thead>
           <tbody>
             ${rows.map((u,i)=>`
               <tr>
                 <td class="hold"><div class="hn">${u.unit.name || u.acc.name}</div>
                   <div class="sub">${u.subId ? u.acc.name + ' · ' : ''}${u.currency}</div></td>
                 <td class="r"><input type="number" step="any" min="0" id="da${i}" placeholder="—"></td>
-                <td class="r"><input type="number" step="any" min="0" id="ds${i}" placeholder="cash"></td>
+                <td class="r"><input type="number" step="any" min="0" id="ds${i}" placeholder="leave blank"></td>
                 <td class="r val muted" id="dt${i}">—</td>
               </tr>`).join('')}
           </tbody>
@@ -6273,7 +6287,23 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V3.7', name: 'Cloud sync can no longer overwrite good data with a blank profile', date: 'Sep 2026', current: true,
+    no: 'V3.9', name: 'Stacked dialogs no longer freeze the screen underneath', date: 'Sep 2026', current: true,
+    items: [
+      'Fixed the Update prices screen going dead after opening Add API key. The key dialog stashed the price screen\'s HTML and put it back on close, which rebuilt every element as a new node and left all their event handlers behind — the screen reappeared looking normal but no button, input or checkbox responded.',
+      'Dialogs opened on top of another dialog are now stacked as a separate layer and simply removed on close, so the screen underneath keeps its handlers and stays live.',
+      'Their internal lookups are scoped to their own layer rather than searching the whole page, so two dialogs cannot collide over an element id.',
+      'The delete confirmation had the same flaw and would have frozen the screen the same way when opened from inside another dialog.'
+    ]
+  },
+  {
+    no: 'V3.8', name: 'Clearer dividend columns', date: 'Sep 2026',
+    items: [
+      'The Shares received box showed the grey placeholder "cash", which read like a column label rather than an instruction, so a cash amount could easily be typed into the shares column. It now says "leave blank".',
+      'Both columns carry a subtitle — "cash received" and "only if reinvested" — and the instructions lead with where the amount goes rather than with the reinvestment case.'
+    ]
+  },
+  {
+    no: 'V3.7', name: 'Cloud sync can no longer overwrite good data with a blank profile', date: 'Sep 2026',
     items: [
       'Fixed the cause of data disappearing after an update. On sign-in the app read the cloud, and if that read came back empty it assumed the cloud had nothing and uploaded whatever was on the device — so a failed read, or a browser with empty local storage, would replace a full account with a blank one.',
       'A failed read is now treated as a failure rather than as proof the cloud is empty. Nothing is uploaded, the status shows an error, and the session refuses to write to the cloud until reloaded.',
