@@ -4509,13 +4509,27 @@ function openPurchaseModal(){
     <div class="modal-backdrop" id="pb">
       <div class="modal price-modal">
         <h2>Record purchase</h2>
-        <div class="page-sub">Copy the figures from each Dime order. Leave a row blank to skip it. The total is what actually left your account, fees included — that is what becomes your cost.</div>
-        <label class="field" style="max-width:200px;">Date
-          <input type="date" id="buyDate" value="${isoDate(TODAY)}" min="1970-01-01" max="2200-12-31">
-        </label>
+        <div class="page-sub">Copy the figures from each Dime order. Leave a row blank to skip it. The total is what actually left your account, fees included — that is what becomes your cost. Dime charges commission and VAT in baht while the trade itself is in dollars, so enter the rate from the confirmation note and the fees are converted for you.</div>
+        <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;">
+          <label class="field" style="max-width:170px;">Date
+            <input type="date" id="buyDate" value="${isoDate(TODAY)}" min="1970-01-01" max="2200-12-31">
+          </label>
+          <label class="field" style="max-width:150px;">Fees charged in
+            <select id="buyFeeCur">
+              <option value="THB" ${(state.ui.buyFeeCur||'THB')==='THB'?'selected':''}>THB</option>
+              <option value="USD" ${state.ui.buyFeeCur==='USD'?'selected':''}>Same as holding</option>
+            </select>
+          </label>
+          <label class="field" style="max-width:170px;" id="buyRateWrap">1 USD =
+            <input type="number" step="any" min="0" id="buyRate" value="${state.ui.buyFeeRate||''}" placeholder="32.9793">
+          </label>
+        </div>
         <div class="price-scroll">
         <table class="price-grid">
-          <thead><tr><th>Holding</th><th class="r">Shares</th><th class="r">Executed price</th><th class="r">Commission</th><th class="r">VAT</th><th class="r">Total</th></tr></thead>
+          <thead><tr><th>Holding</th><th class="r">Shares</th><th class="r">Executed price</th>
+            <th class="r">Commission<div class="sub" id="feeHdr1">THB</div></th>
+            <th class="r">VAT<div class="sub" id="feeHdr2">THB</div></th>
+            <th class="r">Total</th></tr></thead>
           <tbody>
             ${rows.map((u,i)=>`
               <tr>
@@ -4543,36 +4557,72 @@ function openPurchaseModal(){
   document.getElementById('pb').addEventListener('click', e=>{ if(e.target.id==='pb') close(); });
 
   const num = id=> Number(document.getElementById(id).value) || 0;
+  const feeCur = ()=> document.getElementById('buyFeeCur').value;
+  /* Fees in baht divided by the note's own rate, rather than the app's daily FX —
+     the point is to reproduce what the broker actually charged on the day. */
+  const feeToHolding = ()=>{
+    if(feeCur() !== 'THB') return 1;
+    const r = num('buyRate');
+    return r > 0 ? 1/r : null;
+  };
+  const syncFeeLabels = ()=>{
+    const thb = feeCur() === 'THB';
+    document.getElementById('buyRateWrap').style.display = thb ? '' : 'none';
+    document.getElementById('feeHdr1').textContent = thb ? 'THB' : '';
+    document.getElementById('feeHdr2').textContent = thb ? 'THB' : '';
+  };
   const recalc = ()=>{
+    const k = feeToHolding();
     let grand = 0, feeTotal = 0, n = 0;
     rows.forEach((u,i)=>{
       const units = num('bu'+i), price = num('bp'+i);
       const cell = document.getElementById('bt'+i);
       if(units > 0 && price > 0){
-        const total = units*price + num('bc'+i) + num('bv'+i);
+        const fee = k === null ? 0 : (num('bc'+i) + num('bv'+i)) * k;
+        const total = units*price + fee;
         cell.textContent = moneyCur(total, u.currency, 2);
         grand += toAUD(total, u.currency);
-        feeTotal += toAUD(num('bc'+i) + num('bv'+i), u.currency);
+        feeTotal += toAUD(fee, u.currency);
         n++;
       } else cell.textContent = '—';
     });
-    document.getElementById('buySummary').textContent = n
-      ? `${n} holding${n>1?'s':''} · ${moneyWhole(grand)} total, of which ${moneyCur(feeTotal,'AUD',2)} is fees.`
-      : 'Nothing entered yet.';
+    const missingRate = feeCur() === 'THB' && !(num('buyRate') > 0);
+    document.getElementById('buySummary').textContent = !n
+      ? 'Nothing entered yet.'
+      : missingRate
+        ? `${n} holding${n>1?'s':''} · enter the USD to THB rate from the note to include the fees.`
+        : `${n} holding${n>1?'s':''} · ${moneyWhole(grand)} total, of which ${moneyCur(feeTotal,'AUD',2)} is fees.`;
   };
   rows.forEach((u,i)=> ['bu','bp','bc','bv'].forEach(pre=>{
     document.getElementById(pre+i).oninput = recalc;
   }));
+  document.getElementById('buyRate').oninput = recalc;
+  document.getElementById('buyFeeCur').onchange = ()=>{ syncFeeLabels(); recalc(); };
+  syncFeeLabels();
 
   document.getElementById('buySave').onclick = ()=>{
     const date = document.getElementById('buyDate').value;
     if(!date || !isSaneYear(Number(date.slice(0,4)))){ toast('Check the date.'); return; }
+    if(feeCur() === 'THB' && !(num('buyRate') > 0)){
+      toast('Enter the USD to THB rate from the confirmation note.'); return;
+    }
+    state.ui.buyFeeCur = feeCur();
+    state.ui.buyFeeRate = num('buyRate') || null;
     let n = 0, spent = 0;
     rows.forEach((u,i)=>{
       const units = num('bu'+i), price = num('bp'+i);
       if(!(units > 0 && price > 0)) return;
+      const k = feeToHolding();
       const lot = { id: uid(), date, units, price,
-                    commission: num('bc'+i), vat: num('bv'+i) };
+                    commission: (num('bc'+i)) * (k||0), vat: (num('bv'+i)) * (k||0) };
+      if(feeCur() === 'THB'){
+        // Keep what was typed alongside the converted figure, so the entry can be
+        // checked against the confirmation note later.
+        lot.feeCurrency = 'THB';
+        lot.feeRate = num('buyRate');
+        lot.commissionRaw = num('bc'+i);
+        lot.vatRaw = num('bv'+i);
+      }
       lot.total = lotTotal(lot);
       u.unit.lots = unitLots(u.unit).concat([lot]);
       // Opening position: whatever was already there becomes the starting basis,
@@ -6228,7 +6278,17 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V3.4', name: 'Reset investment records and a Net Worth tie-out', date: 'Sep 2026', current: true,
+    no: 'V3.5', name: 'Fees in baht', date: 'Sep 2026', current: true,
+    items: [
+      'Dime charges commission and VAT in baht while the trade itself is in dollars. Record purchase now takes a USD to THB rate from the confirmation note and converts the fees, instead of adding baht figures straight onto a dollar total.',
+      'The note\'s own rate is used rather than the app\'s daily FX, because the point is to reproduce what the broker actually charged on the day.',
+      'What you typed is stored alongside the converted figure, so an entry can still be checked against the note months later.',
+      'Saving is blocked until the rate is entered, since a missing rate would silently drop the fees rather than fail visibly. The rate and the fee currency are remembered for next time.',
+      'Fees can be switched to the holding\'s own currency for brokers that charge that way, which hides the rate field.'
+    ]
+  },
+  {
+    no: 'V3.4', name: 'Reset investment records and a Net Worth tie-out', date: 'Sep 2026',
     items: [
       'Reset investment records clears every purchase, dividend, price and balance history for holdings in Core or Satellite accounts, so the whole portfolio can be re-entered from the broker confirmations rather than carrying an inferred opening cost.',
       'It keeps what describes the holding rather than what it is worth: names, currencies, sleeve, target weights, target amounts, assumed returns and tickers all survive. Cash and other accounts are untouched.',
