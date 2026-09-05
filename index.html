@@ -248,17 +248,16 @@
   .nw-weight{ padding:2px 4px; font-size:10.5px; width:52px; text-align:right; }
   input.reb-weight{ width:56px; padding:3px 6px; font-size:12.5px; text-align:right; display:inline-block; }
   .nw-stale{ color:var(--amber); }
-  /* Two columns, so the charts pair up the way they're meant to be read:
-     row 1 is the per-holding view, row 2 the monthly pair, row 3 the cumulative
-     pair, row 4 the timeline. Three columns split those pairs across rows. */
-  .chart-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px 20px; align-items:start; }
-  .chart-cell.wide{ grid-column:1 / -1; }
+  /* Three across, two down — all six the same size. */
+  .chart-grid{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:16px 20px; align-items:start; }
+  .chart-cell.wide{ grid-column:auto; }
+  @media (max-width: 1100px){ .chart-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
   .chart-cell .chart-head{ display:flex; align-items:baseline; gap:8px; margin-bottom:3px; }
   .chart-cell .chart-head .n{ font-family:var(--mono); font-size:11px; color:var(--gold); }
   .chart-cell .chart-head .t{ font-size:14px; }
   .chart-cell .chart-note{ font-size:11.5px; color:var(--text-faint); line-height:1.5; margin-bottom:8px; min-height:34px; }
   .chart-cell .chart-key{ font-size:10.5px; gap:10px; }
-  .chart-cell:last-child{ grid-column:1 / -1; }
+
 
   @media (max-width: 700px){
     .chart-grid{ grid-template-columns:1fr; }
@@ -3839,6 +3838,50 @@ function costBasisAsOf(unit, uptoISO){
   return { cost, units, fees, dividends: divTotal, dividendCash: divCash, dividendUnits: divUnits };
 }
 
+/* Wipes the investment record for every holding in a Core or Satellite account so
+   it can be re-entered from the broker's confirmations. Deliberately narrow: this
+   clears what a holding is WORTH and how it got there, and leaves everything that
+   describes what it IS — name, currency, sleeve, target weight, target amount,
+   assumed return, ticker. Cash accounts are untouched. */
+function resetInvestmentRecords(){
+  let holdings = 0, accounts = 0;
+  (state.accounts||[]).forEach(a=>{
+    if(!accountSleeve(a)) return;
+    accounts++;
+    const wipe = u=>{
+      u.lots = []; u.divs = [];
+      delete u.openingCost; delete u.openingUnits;
+      delete u.units; delete u.price; delete u.pricedAt;
+      u.history = [];
+      u.openingBalance = 0;
+      u.openingDate = isoDate(TODAY);
+      holdings++;
+    };
+    if(a.subCategories && a.subCategories.length) a.subCategories.forEach(wipe);
+    else wipe(a);
+  });
+  return { holdings, accounts };
+}
+
+/* What Net Worth shows for the sleeved accounts, against what the Investments
+   table adds up to. They are computed differently — balance history versus units
+   times price — so showing both is the only way to know they agree. */
+function investmentTieOut(){
+  // Net Worth reads the balance history; the holding itself knows its units and
+  // price. Comparing the table against the balance would be circular — both come
+  // from the same place — so the check is balance history against units x price.
+  let balance = 0, marked = 0, unpriced = 0;
+  allUnits().forEach(u=>{
+    if(!accountSleeve(u.acc)) return;
+    balance += toAUD(unitBalanceAsOf(u.unit, isoDate(TODAY)), u.currency);
+    if(isPriced(u.unit)) marked += toAUD((Number(u.unit.units)||0) * (Number(u.unit.price)||0), u.currency);
+    else unpriced++;
+  });
+  const diff = balance - marked;
+  return { netWorth: balance, table: marked, diff, unpriced,
+           matches: unpriced === 0 && Math.abs(diff) < 1 };
+}
+
 function hasOrderData(unit){ return unitLots(unit).length > 0 || unitDivs(unit).length > 0; }
 
 function historyTotals(unit, uptoISO){
@@ -4041,6 +4084,7 @@ function investLegend(series){
 function renderInvestments(c){
   const { rows, totalCost, totalValue, totalUnrealised, totalRealised, totalFees, anyLots } = investmentRows();
   const cur = investDisplayCurrency();
+  const tie = investmentTieOut();
 
   if(!rows.length){
     c.innerHTML = `
@@ -4123,7 +4167,15 @@ function renderInvestments(c){
       <button class="btn secondary" id="invDivBtn">Record dividend</button>
       <button class="btn secondary" id="invPriceBtn">Update prices</button>
     </div>
-    <div class="muted" style="font-size:11.5px; margin:-4px 0 14px 0;">Realised return is dividends only — no holdings have been sold.</div>
+    <div class="muted" style="font-size:11.5px; margin:-4px 0 12px 0; display:flex; gap:14px; flex-wrap:wrap; align-items:baseline;">
+      <span>Realised return is dividends only — no holdings have been sold.</span>
+      <span>${tie.unpriced
+        ? `<span style="color:var(--amber);">${tie.unpriced} holding${tie.unpriced>1?'s have':' has'} no price yet, so Net Worth and this table can't be compared.</span>`
+        : tie.matches
+          ? `Net Worth agrees at ${investMoney(tie.netWorth)}.`
+          : `<span style="color:var(--amber);">Net Worth carries ${investMoney(tie.netWorth)} but units × price come to ${investMoney(tie.table)} — ${investMoney(Math.abs(tie.diff))} apart. A manual adjustment is likely the cause.</span>`}</span>
+      <button class="btn secondary" id="invResetBtn" style="margin-left:auto; font-size:11.5px; padding:3px 10px;">Reset investment records</button>
+    </div>
 
     <div class="row" style="margin-bottom:14px;">
       <div class="card metric"><h3>Invested</h3><div class="big">${investMoney(totalCost)}</div><div class="cap">across ${rows.length} holdings</div></div>
@@ -4144,7 +4196,7 @@ function renderInvestments(c){
     <div class="chart-grid">
     ${chart(1,'Return by holding','What each holding has made or lost, price movement plus dividends.',
       investBarChart(rows.map(r=>({ label:r.name, value:r.totalReturn, colour:r.totalReturn>=0?r.colour:'var(--red)' })),
-        { fmt, aria:'Return by holding' }), '', true)}
+        { fmt, aria:'Return by holding' }))}
 
     ${chart(2,'Monthly contributions','What went in each month, split by holding.',
       investStackedChart(labels, contribSeries, { fmt, aria:'Monthly contributions by holding' }), investLegend(contribSeries))}
@@ -4160,7 +4212,7 @@ function renderInvestments(c){
 
     ${chart(6,'Unrealised profit and loss by month','The standing gap between what the portfolio was worth at each month end and what had been put in by then. Below zero means it was worth less than you had contributed.',
       investBarChart(labels.map((l,i)=>({ label: i % Math.ceil(labels.length/12) === 0 ? l : '', value: monthlyUnrealised[i] })),
-        { fmt, aria:'Unrealised profit and loss by month' }), '', true)}
+        { fmt, aria:'Unrealised profit and loss by month' }))}
     </div>
 
     ${investingSectionHTML()}
@@ -4173,6 +4225,27 @@ function renderInvestments(c){
   bind('invBuyBtn',   ()=> openPurchaseModal());
   bind('invDivBtn',   ()=> openDividendModal());
   bind('invPriceBtn', ()=> openPriceModal());
+  bind('invResetBtn', ()=>{
+    const affected = (state.accounts||[]).filter(a=> accountSleeve(a));
+    const names = affected.map(a=> a.name).join(', ');
+    confirmDestructive({
+      title: 'Reset investment records',
+      what: names || 'No sleeved accounts',
+      lines: [
+        'Clears every purchase, dividend, price and balance history for these holdings',
+        'Keeps the holdings themselves — names, currencies, sleeve, target weights, targets, assumed returns and tickers',
+        'Cash and other accounts are untouched',
+        'Net Worth for these accounts will read zero until you record your first purchase'
+      ],
+      confirmLabel: 'Reset records',
+      onConfirm: ()=>{
+        captureRestorePoint('Before resetting investment records', true);
+        const r = resetInvestmentRecords();
+        saveState(); render();
+        toast(`${r.holdings} holding${r.holdings===1?'':'s'} cleared across ${r.accounts} account${r.accounts===1?'':'s'}. Settings → Restore points has a copy from just before.`);
+      }
+    });
+  });
   wireInvestingSection(c);   // Core & satellite and Projection now live on this tab
 }
 
@@ -6155,7 +6228,22 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V3.2', name: 'Everything investment-related on one tab', date: 'Sep 2026', current: true,
+    no: 'V3.4', name: 'Reset investment records and a Net Worth tie-out', date: 'Sep 2026', current: true,
+    items: [
+      'Reset investment records clears every purchase, dividend, price and balance history for holdings in Core or Satellite accounts, so the whole portfolio can be re-entered from the broker confirmations rather than carrying an inferred opening cost.',
+      'It keeps what describes the holding rather than what it is worth: names, currencies, sleeve, target weights, target amounts, assumed returns and tickers all survive. Cash and other accounts are untouched.',
+      'A restore point is captured immediately before, so a reset is reversible from Settings.',
+      'The Investments tab now states what Net Worth shows for the same accounts. The two are computed differently — balance history against units times price — so any drift between them is now visible rather than having to be trusted.'
+    ]
+  },
+  {
+    no: 'V3.3', name: 'Six charts, three by two', date: 'Sep 2026',
+    items: [
+      'The chart grid is three columns and two rows, all six the same size, dropping to two columns on a narrow window and one on a phone.'
+    ]
+  },
+  {
+    no: 'V3.2', name: 'Everything investment-related on one tab', date: 'Sep 2026',
     items: [
       'Core & satellite, Projection to 2060, Exchange rate risk and Assumed returns have moved off Net Worth and onto the Investments tab, below the charts. Net Worth is back to being about balances; everything you do with the portfolio is now in one place.',
       'Their controls moved with them rather than staying bound to whichever tab rendered first — rebalancing scope, core target, contribution, return ceiling, inflation and the per-holding weight and return inputs all still work.',
