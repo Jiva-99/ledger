@@ -248,6 +248,18 @@
   .nw-weight{ padding:2px 4px; font-size:10.5px; width:52px; text-align:right; }
   input.reb-weight{ width:56px; padding:3px 6px; font-size:12.5px; text-align:right; display:inline-block; }
   .nw-stale{ color:var(--amber); }
+  .chart-grid{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:16px; align-items:start; }
+  .chart-cell .chart-head{ display:flex; align-items:baseline; gap:8px; margin-bottom:3px; }
+  .chart-cell .chart-head .n{ font-family:var(--mono); font-size:11px; color:var(--gold); }
+  .chart-cell .chart-head .t{ font-size:14px; }
+  .chart-cell .chart-note{ font-size:11.5px; color:var(--text-faint); line-height:1.5; margin-bottom:8px; min-height:34px; }
+  .chart-cell .chart-key{ font-size:10.5px; gap:10px; }
+  .chart-cell:last-child{ grid-column:1 / -1; }
+  @media (max-width: 1100px){ .chart-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 700px){
+    .chart-grid{ grid-template-columns:1fr; }
+    .chart-cell .chart-note{ min-height:0; }
+  }
   .swatch{ display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:7px; vertical-align:baseline; }
   table.inv-table td, table.inv-table th{ font-size:12.5px; }
   table.inv-table tfoot td{ border-top:1px solid var(--border); border-bottom:none; padding-top:10px; }
@@ -3127,6 +3139,10 @@ function renderNetWorth(c){
   if(editBtn) editBtn.onclick = ()=>{ state.ui.nwEdit = !state.ui.nwEdit; saveState(); render(); };
   const upBtn = document.getElementById('updatePricesBtn');
   if(upBtn) upBtn.onclick = ()=> openPriceModal();
+  const buyBtn = document.getElementById('recordBuyBtn');
+  if(buyBtn) buyBtn.onclick = ()=> openPurchaseModal();
+  const divBtn = document.getElementById('recordDivBtn');
+  if(divBtn) divBtn.onclick = ()=> openDividendModal();
   const scopeSel = document.getElementById('rebScope');
   if(scopeSel) scopeSel.onchange = ()=>{ investSettings().scope = scopeSel.value; saveState(); render(); };
   const contribInput = document.getElementById('rebContribution');
@@ -3820,6 +3836,48 @@ function investMoney(amountAUD, decimals){
   return moneyCur(fromAUD(amountAUD, cur), cur, decimals === undefined ? 0 : decimals);
 }
 
+/* ---- Cost basis -------------------------------------------------------------
+   Cost is now a stored figure built from recorded orders rather than inferred by
+   comparing unit counts between stocktakes. It matters because what you PAY and
+   what the stock is WORTH differ by the fee: buy $74.21 of IAU for $74.33 and the
+   12c gap is a permanent drag that should show in the return, not vanish.
+
+   unit.lots = [{date, units, price, commission, vat, total}]   purchases
+   unit.divs = [{date, amount, units}]                          dividends
+   unit.openingCost                                             pre-order basis  */
+function unitLots(unit){ return Array.isArray(unit.lots) ? unit.lots : []; }
+function unitDivs(unit){ return Array.isArray(unit.divs) ? unit.divs : []; }
+
+function lotTotal(lot){
+  const gross = (Number(lot.units)||0) * (Number(lot.price)||0);
+  return gross + (Number(lot.commission)||0) + (Number(lot.vat)||0);
+}
+function lotFees(lot){ return (Number(lot.commission)||0) + (Number(lot.vat)||0); }
+
+/* Everything up to a date, in the holding's own currency. */
+function costBasisAsOf(unit, uptoISO){
+  let cost = Number(unit.openingCost) || 0;
+  let units = Number(unit.openingUnits) || 0;
+  let fees = 0, divCash = 0, divUnits = 0, divTotal = 0;
+  unitLots(unit).forEach(l=>{
+    if(uptoISO && l.date > uptoISO) return;
+    cost += lotTotal(l);
+    units += Number(l.units) || 0;
+    fees += lotFees(l);
+  });
+  unitDivs(unit).forEach(d=>{
+    if(uptoISO && d.date > uptoISO) return;
+    const amt = Number(d.amount) || 0;
+    divTotal += amt;
+    // Units from a dividend cost you nothing — they must not raise the basis.
+    if(Number(d.units) > 0) units += Number(d.units); else divCash += amt;
+    if(Number(d.units) > 0) divUnits += Number(d.units);
+  });
+  return { cost, units, fees, dividends: divTotal, dividendCash: divCash, dividendUnits: divUnits };
+}
+
+function hasOrderData(unit){ return unitLots(unit).length > 0 || unitDivs(unit).length > 0; }
+
 function historyTotals(unit, uptoISO){
   let contributed = 0, dividends = 0, revaluation = 0;
   const opening = Number(unit.openingBalance) || 0;
@@ -3839,16 +3897,21 @@ function investmentRows(){
   const today = isoDate(TODAY);
   const units = investedUnits();
   const rows = units.map((u,i)=>{
+    // Recorded orders are exact; the inferred history is the fallback for holdings
+    // that pre-date order recording.
+    const useLots = hasOrderData(u.unit);
+    const cb = costBasisAsOf(u.unit, today);
     const t = historyTotals(u.unit, today);
-    const cost = toAUD(t.contributed, u.currency);
+    const cost = toAUD(useLots ? cb.cost : t.contributed, u.currency);
     const value = u.valueAUD;
-    const unrealised = toAUD(t.revaluation, u.currency);
-    const realised = toAUD(t.dividends, u.currency);
+    const realised = toAUD(useLots ? cb.dividends : t.dividends, u.currency);
+    const unrealised = useLots ? (value - cost) : toAUD(t.revaluation, u.currency);
+    const fees = toAUD(useLots ? cb.fees : 0, u.currency);
     return {
       key: u.subId ? `${u.acc.id}|||${u.subId}` : u.acc.id,
       name: u.subId ? u.unit.name : u.acc.name,
       sleeve: u.sleeve, colour: INVEST_COLOURS[i % INVEST_COLOURS.length],
-      cost, value, unrealised, realised,
+      cost, value, unrealised, realised, fees, useLots,
       totalReturn: unrealised + realised,
       pnlPct: cost > 0 ? (unrealised + realised)/cost*100 : null
     };
@@ -3861,7 +3924,9 @@ function investmentRows(){
   });
   return { rows, totalCost, totalValue,
            totalUnrealised: rows.reduce((t,r)=>t+r.unrealised,0),
-           totalRealised: rows.reduce((t,r)=>t+r.realised,0) };
+           totalRealised: rows.reduce((t,r)=>t+r.realised,0),
+           totalFees: rows.reduce((t,r)=>t+r.fees,0),
+           anyLots: rows.some(r=>r.useLots) };
 }
 
 /* Month-end buckets from the first recorded history to now. */
@@ -3886,15 +3951,21 @@ function investMonthlySeries(){
 
   const rows = units.map((u,i)=>{
     let prev = { contributed:0, dividends:0, revaluation:0 };
+    const useLots = hasOrderData(u.unit);
     const series = months.map(mo=>{
-      const cum = historyTotals(u.unit, mo.endISO);
+      const cum = useLots
+        ? (()=>{ const cb = costBasisAsOf(u.unit, mo.endISO);
+                 return { contributed: cb.cost, dividends: cb.dividends }; })()
+        : historyTotals(u.unit, mo.endISO);
       const point = {
         monthContribution: toAUD(cum.contributed - prev.contributed, u.currency),
         monthDividend:     toAUD(cum.dividends   - prev.dividends,   u.currency),
         cumContribution:   toAUD(cum.contributed, u.currency),
         value:             toAUD(unitBalanceAsOf(u.unit, mo.endISO), u.currency)
       };
-      point.unrealised = point.value - point.cumContribution - toAUD(cum.dividends, u.currency);
+      point.unrealised = useLots
+        ? point.value - point.cumContribution
+        : point.value - point.cumContribution - toAUD(cum.dividends, u.currency);
       prev = cum;
       return point;
     });
@@ -3994,7 +4065,7 @@ function investLegend(series){
 }
 
 function renderInvestments(c){
-  const { rows, totalCost, totalValue, totalUnrealised, totalRealised } = investmentRows();
+  const { rows, totalCost, totalValue, totalUnrealised, totalRealised, totalFees, anyLots } = investmentRows();
   const cur = investDisplayCurrency();
 
   if(!rows.length){
@@ -4017,7 +4088,7 @@ function renderInvestments(c){
         <th class="r">Invested</th><th class="r">Current value</th>
         <th class="r">Unrealised</th><th class="r">Realised</th>
         <th class="r">Return</th><th class="r">P/L %</th>
-        <th class="r">Alloc %</th><th class="r">Market %</th>
+        <th class="r">Fees</th><th class="r">Alloc %</th><th class="r">Market %</th>
       </tr></thead>
       <tbody>
         ${rows.map(r=>`<tr>
@@ -4028,6 +4099,7 @@ function renderInvestments(c){
           <td class="r muted">${r.realised>0?investMoney(r.realised):'—'}</td>
           <td class="r" style="color:${r.totalReturn>=0?'var(--green)':'var(--red)'}">${sign(r.totalReturn)}</td>
           <td class="r" style="color:${(r.pnlPct||0)>=0?'var(--green)':'var(--red)'}">${pct(r.pnlPct)}</td>
+          <td class="r muted">${r.fees>0?investMoney(r.fees,2):'—'}</td>
           <td class="r muted">${r.allocPct.toFixed(1)}%</td>
           <td class="r muted">${r.marketPct.toFixed(1)}%</td>
         </tr>`).join('')}
@@ -4040,6 +4112,7 @@ function renderInvestments(c){
         <td class="r muted">${totalRealised>0?investMoney(totalRealised):'—'}</td>
         <td class="r" style="color:${(totalUnrealised+totalRealised)>=0?'var(--green)':'var(--red)'}"><b>${sign(totalUnrealised+totalRealised)}</b></td>
         <td class="r" style="color:${(totalPnl||0)>=0?'var(--green)':'var(--red)'}"><b>${pct(totalPnl)}</b></td>
+        <td class="r muted"><b>${totalFees>0?investMoney(totalFees,2):'—'}</b></td>
         <td class="r muted">100%</td><td class="r muted">100%</td>
       </tr></tfoot>
     </table>`;
@@ -4054,10 +4127,14 @@ function renderInvestments(c){
   const monthlyUnrealised = ms.months.map((m,i)=>
     ms.rows.reduce((t,r)=> t + r.series[i].unrealised, 0));
 
+  // Six charts stacked full width made the tab enormous, so they sit in a grid
+  // that drops to two columns on tablet and one on a phone.
   const chart = (n, title, note, body, legend)=> `
-    <div class="liq-q"><span class="n">${n}</span><span class="t">${title}</span></div>
-    <div class="liq-sub">${note}</div>
-    <div class="liq-body"><div class="card">${body}${legend||''}</div></div>`;
+    <div class="chart-cell">
+      <div class="chart-head"><span class="n">${n}</span><span class="t">${title}</span></div>
+      <div class="chart-note">${note}</div>
+      <div class="card">${body}${legend||''}</div>
+    </div>`;
 
   c.innerHTML = `
     <div class="toolbar">
@@ -4080,10 +4157,14 @@ function renderInvestments(c){
       <div class="card metric"><h3>Unrealised / realised</h3>
         <div class="big" style="font-size:19px;">${investMoney(totalUnrealised)} <span class="muted">/</span> ${investMoney(totalRealised)}</div>
         <div class="cap">price movement vs dividends</div></div>
+      ${anyLots ? `<div class="card metric"><h3>Paid in fees</h3>
+        <div class="big" style="font-size:19px; color:var(--amber);">${investMoney(totalFees, 2)}</div>
+        <div class="cap">${totalCost>0?(totalFees/totalCost*100).toFixed(2)+'% of what you invested':'—'}</div></div>` : ''}
     </div>
 
     <div class="card inv-scroll" style="margin-bottom:14px;">${table}</div>
 
+    <div class="chart-grid">
     ${chart(1,'Return by holding','What each holding has made or lost, price movement plus dividends.',
       investBarChart(rows.map(r=>({ label:r.name, value:r.totalReturn, colour:r.totalReturn>=0?r.colour:'var(--red)' })),
         { fmt, aria:'Return by holding' }))}
@@ -4103,6 +4184,7 @@ function renderInvestments(c){
     ${chart(6,'Unrealised profit and loss by month','The standing gap between what the portfolio was worth at each month end and what had been put in by then. Below zero means it was worth less than you had contributed.',
       investBarChart(labels.map((l,i)=>({ label: i % Math.ceil(labels.length/12) === 0 ? l : '', value: monthlyUnrealised[i] })),
         { fmt, aria:'Unrealised profit and loss by month' }))}
+    </div>
   `;
 
   const sel = document.getElementById('invCur');
@@ -4219,6 +4301,8 @@ function investingSectionHTML(){
         <div class="liq-basis"><span>About to invest</span>
           <input type="number" id="rebContribution" step="100" min="0" value="${IS.contribution||0}" style="width:96px;"></div>
         <div class="spacer"></div>
+        <button class="btn secondary" id="recordBuyBtn">Record purchase</button>
+        <button class="btn secondary" id="recordDivBtn">Record dividend</button>
         <button class="btn secondary" id="updatePricesBtn">Update prices</button>
       </div>
 
@@ -4309,6 +4393,173 @@ function confirmDestructive(opts){
   document.getElementById('cdGo').onclick = ()=>{ close(); opts.onConfirm(); };
 }
 
+/* Record one monthly buy across every holding. Laid out to match the Dime order
+   screen field for field — shares, executed price, commission, VAT — so the
+   numbers can be copied across without any mental arithmetic. The computed total
+   is shown back so a typo is caught against the figure on the phone. */
+function openPurchaseModal(){
+  const rows = allUnits().filter(u=> accountSleeve(u.acc));
+  const root = document.getElementById('modalRoot');
+  if(!rows.length){ toast('Tag an account as Core or Satellite first.'); return; }
+
+  root.innerHTML = `
+    <div class="modal-backdrop" id="pb">
+      <div class="modal price-modal">
+        <h2>Record purchase</h2>
+        <div class="page-sub">Copy the figures from each Dime order. Leave a row blank to skip it. The total is what actually left your account, fees included — that is what becomes your cost.</div>
+        <label class="field" style="max-width:200px;">Date
+          <input type="date" id="buyDate" value="${isoDate(TODAY)}" min="1970-01-01" max="2200-12-31">
+        </label>
+        <div class="price-scroll">
+        <table class="price-grid">
+          <thead><tr><th>Holding</th><th class="r">Shares</th><th class="r">Executed price</th><th class="r">Commission</th><th class="r">VAT</th><th class="r">Total</th></tr></thead>
+          <tbody>
+            ${rows.map((u,i)=>`
+              <tr>
+                <td class="hold"><div class="hn">${u.unit.name || u.acc.name}</div>
+                  <div class="sub">${u.subId ? u.acc.name + ' · ' : ''}${u.currency}</div></td>
+                <td class="r"><input type="number" step="any" min="0" id="bu${i}" placeholder="—"></td>
+                <td class="r"><input type="number" step="any" min="0" id="bp${i}" placeholder="—"></td>
+                <td class="r"><input type="number" step="any" min="0" id="bc${i}" placeholder="0"></td>
+                <td class="r"><input type="number" step="any" min="0" id="bv${i}" placeholder="0"></td>
+                <td class="r val" id="bt${i}">—</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        </div>
+        <div class="liq-note" id="buySummary">Nothing entered yet.</div>
+        <div class="form-actions">
+          <button class="btn secondary" id="buyCancel">Cancel</button>
+          <button class="btn" id="buySave">Save purchase</button>
+        </div>
+      </div>
+    </div>`;
+
+  const close = ()=> root.innerHTML='';
+  document.getElementById('buyCancel').onclick = close;
+  document.getElementById('pb').addEventListener('click', e=>{ if(e.target.id==='pb') close(); });
+
+  const num = id=> Number(document.getElementById(id).value) || 0;
+  const recalc = ()=>{
+    let grand = 0, feeTotal = 0, n = 0;
+    rows.forEach((u,i)=>{
+      const units = num('bu'+i), price = num('bp'+i);
+      const cell = document.getElementById('bt'+i);
+      if(units > 0 && price > 0){
+        const total = units*price + num('bc'+i) + num('bv'+i);
+        cell.textContent = moneyCur(total, u.currency, 2);
+        grand += toAUD(total, u.currency);
+        feeTotal += toAUD(num('bc'+i) + num('bv'+i), u.currency);
+        n++;
+      } else cell.textContent = '—';
+    });
+    document.getElementById('buySummary').textContent = n
+      ? `${n} holding${n>1?'s':''} · ${moneyWhole(grand)} total, of which ${moneyCur(feeTotal,'AUD',2)} is fees.`
+      : 'Nothing entered yet.';
+  };
+  rows.forEach((u,i)=> ['bu','bp','bc','bv'].forEach(pre=>{
+    document.getElementById(pre+i).oninput = recalc;
+  }));
+
+  document.getElementById('buySave').onclick = ()=>{
+    const date = document.getElementById('buyDate').value;
+    if(!date || !isSaneYear(Number(date.slice(0,4)))){ toast('Check the date.'); return; }
+    let n = 0, spent = 0;
+    rows.forEach((u,i)=>{
+      const units = num('bu'+i), price = num('bp'+i);
+      if(!(units > 0 && price > 0)) return;
+      const lot = { id: uid(), date, units, price,
+                    commission: num('bc'+i), vat: num('bv'+i) };
+      lot.total = lotTotal(lot);
+      u.unit.lots = unitLots(u.unit).concat([lot]);
+      // Opening position: whatever was already there becomes the starting basis,
+      // recorded once so earlier holdings aren't lost or double counted.
+      if(u.unit.openingCost === undefined){
+        const prior = unitBalanceAsOf(u.unit, date);
+        u.unit.openingCost = Math.max(0, prior);
+        u.unit.openingUnits = Number(u.unit.units) || 0;
+      }
+      const newUnits = (Number(u.unit.units)||0) + units;
+      applyPriceUpdate(u.unit, newUnits, price, date);
+      n++; spent += toAUD(lot.total, u.currency);
+    });
+    if(!n){ toast('Enter shares and a price for at least one holding.'); return; }
+    saveState(); close(); render();
+    toast(`${n} purchase${n>1?'s':''} recorded — ${moneyWhole(spent)} invested.`);
+  };
+}
+
+/* Dividends: date, amount, and whether it bought units. All Dime gives you. */
+function openDividendModal(){
+  const rows = allUnits().filter(u=> accountSleeve(u.acc));
+  const root = document.getElementById('modalRoot');
+  if(!rows.length){ toast('Tag an account as Core or Satellite first.'); return; }
+
+  root.innerHTML = `
+    <div class="modal-backdrop" id="db">
+      <div class="modal price-modal">
+        <h2>Record dividend</h2>
+        <div class="page-sub">Enter what each holding paid. If it was reinvested, put the extra shares in too — those cost you nothing, so they must not raise your cost basis. Leave shares blank for a cash dividend.</div>
+        <label class="field" style="max-width:200px;">Date
+          <input type="date" id="divDate" value="${isoDate(TODAY)}" min="1970-01-01" max="2200-12-31">
+        </label>
+        <div class="price-scroll">
+        <table class="price-grid">
+          <thead><tr><th>Holding</th><th class="r">Amount</th><th class="r">Shares received</th><th class="r">Type</th></tr></thead>
+          <tbody>
+            ${rows.map((u,i)=>`
+              <tr>
+                <td class="hold"><div class="hn">${u.unit.name || u.acc.name}</div>
+                  <div class="sub">${u.subId ? u.acc.name + ' · ' : ''}${u.currency}</div></td>
+                <td class="r"><input type="number" step="any" min="0" id="da${i}" placeholder="—"></td>
+                <td class="r"><input type="number" step="any" min="0" id="ds${i}" placeholder="cash"></td>
+                <td class="r val muted" id="dt${i}">—</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        </div>
+        <div class="form-actions">
+          <button class="btn secondary" id="divCancel">Cancel</button>
+          <button class="btn" id="divSave">Save dividend</button>
+        </div>
+      </div>
+    </div>`;
+
+  const close = ()=> root.innerHTML='';
+  document.getElementById('divCancel').onclick = close;
+  document.getElementById('db').addEventListener('click', e=>{ if(e.target.id==='db') close(); });
+  const num = id=> Number(document.getElementById(id).value) || 0;
+  rows.forEach((u,i)=> ['da','ds'].forEach(pre=>{
+    document.getElementById(pre+i).oninput = ()=>{
+      const a = num('da'+i), sh = num('ds'+i);
+      document.getElementById('dt'+i).textContent = a > 0 ? (sh > 0 ? 'reinvested' : 'cash') : '—';
+    };
+  }));
+
+  document.getElementById('divSave').onclick = ()=>{
+    const date = document.getElementById('divDate').value;
+    if(!date || !isSaneYear(Number(date.slice(0,4)))){ toast('Check the date.'); return; }
+    let n = 0, total = 0;
+    rows.forEach((u,i)=>{
+      const amount = num('da'+i);
+      if(!(amount > 0)) return;
+      const shares = num('ds'+i);
+      u.unit.divs = unitDivs(u.unit).concat([{ id: uid(), date, amount, units: shares }]);
+      if(u.unit.openingCost === undefined){
+        u.unit.openingCost = Math.max(0, unitBalanceAsOf(u.unit, date));
+        u.unit.openingUnits = Number(u.unit.units) || 0;
+      }
+      if(shares > 0 && isPriced(u.unit)){
+        applyPriceUpdate(u.unit, (Number(u.unit.units)||0) + shares, Number(u.unit.price), date, amount);
+      }
+      n++; total += toAUD(amount, u.currency);
+    });
+    if(!n){ toast('Enter an amount for at least one holding.'); return; }
+    saveState(); close(); render();
+    toast(`${n} dividend${n>1?'s':''} recorded — ${moneyWhole(total)}.`);
+  };
+}
+
 function openPriceModal(){
   const rows = allUnits().filter(u=> accountSleeve(u.acc) || isPriced(u.unit));
   const root = document.getElementById('modalRoot');
@@ -4323,7 +4574,7 @@ function openPriceModal(){
         <div class="page-sub">Enter how many units you hold and what one unit is worth. Changing the units records a contribution; changing the price records a gain or loss. Leave a row untouched to skip it.</div>
         <div class="price-scroll">
         <table class="price-grid">
-          <thead><tr><th>Holding</th><th>Ticker</th><th class="r">Units</th><th class="r">Price</th><th class="r">Dividend</th><th class="r">Value</th></tr></thead>
+          <thead><tr><th>Holding</th><th>Ticker</th><th class="r">Units</th><th class="r">Price</th><th class="r">Value</th></tr></thead>
           <tbody>
             ${rows.map((u,i)=>{
               const cur = u.currency;
@@ -4339,7 +4590,6 @@ function openPriceModal(){
                 <td><input type="text" id="pt${i}" value="${u.unit.ticker||''}" placeholder="${auto||'—'}" class="ticker-in" title="${auto?`Blank uses “${auto}”, taken from the name`:'No ticker detected from the name'}"></td>
                 <td class="r"><input type="number" step="any" min="0" id="pu${i}" value="${isPriced(u.unit)?u.unit.units:''}" placeholder="—"></td>
                 <td class="r"><input type="number" step="any" min="0" id="pp${i}" value="${isPriced(u.unit)?u.unit.price:''}" placeholder="—"></td>
-                <td class="r"><input type="number" step="any" min="0" id="pd${i}" value="" placeholder="0" title="Dividend received since the last update, in ${cur}"></td>
                 <td class="r val" id="pv${i}">${moneyCur(bal, cur)}<div class="sub" id="ps${i}">${cur!=='AUD'?'≈'+moneyWhole(toAUD(bal,cur)):''}</div></td>
               </tr>`;
             }).join('')}
@@ -4347,8 +4597,8 @@ function openPriceModal(){
         </table>
         </div>
         <div class="muted" style="font-size:11.5px; margin-top:8px; line-height:1.5;">
-          Dividend is what the holding paid you since the last update; if it was reinvested it is already in your
-          units, and recording it here keeps it out of your cost basis so the profit percentage stays honest.
+          Use Record purchase for buys and Record dividend for income — this screen is only for what a share is
+          worth today, so it never touches your cost basis.
           Where a holding is already named after its symbol, that name is used as the ticker — the grey
           text in the box shows what will be looked up, so leave it blank unless it's wrong.
           Fetched prices fill the boxes for you to check —
@@ -5875,7 +6125,19 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V2.9', name: 'Investments tab', date: 'Sep 2026', current: true,
+    no: 'V3.0', name: 'Orders, fees and a tighter chart grid', date: 'Sep 2026', current: true,
+    items: [
+      'Purchases are recorded directly from the Dime order screen rather than inferred by comparing unit counts between stocktakes. Record purchase takes shares, executed price, commission and VAT as separate fields, matching the app field for field, and shows the computed total back so a typo is caught against the figure on your phone.',
+      'Cost basis is now the total you actually paid, fees included. Buying $74.21 of IAU for $74.33 leaves a 12c gap that is a permanent drag; it previously vanished and quietly flattered every return figure.',
+      'Dividends have their own screen: date, amount, and shares received if it was reinvested. Reinvested shares cost you nothing, so they raise your holding without raising your cost basis.',
+      'Update prices is now only about what a share is worth today and never touches cost basis. Three separate actions: buy, dividend, reprice.',
+      'A Paid in fees card and a per-holding Fees column show the lifetime drag, in money and as a percentage of what you have invested.',
+      'The six charts sit in a three-column grid instead of stacked full width, dropping to two columns on tablet and one on a phone. The monthly profit and loss chart stays full width.',
+      'Holdings recorded before this version keep their existing figures as an opening cost basis, so nothing needs re-entering and no old orders need back-filling.'
+    ]
+  },
+  {
+    no: 'V2.9', name: 'Investments tab', date: 'Sep 2026',
     items: [
       'New Investments tab with a per-holding table: invested, current value, unrealised, realised, total return, profit/loss %, allocation by cost, and market share by value.',
       'Allocation % and Market % answer different questions on purpose — the first is the mix of money you put in, the second is the mix of what it is worth now. Where they diverge, price movement did it rather than you.',
