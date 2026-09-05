@@ -248,14 +248,18 @@
   .nw-weight{ padding:2px 4px; font-size:10.5px; width:52px; text-align:right; }
   input.reb-weight{ width:56px; padding:3px 6px; font-size:12.5px; text-align:right; display:inline-block; }
   .nw-stale{ color:var(--amber); }
-  .chart-grid{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:16px; align-items:start; }
+  /* Two columns, so the charts pair up the way they're meant to be read:
+     row 1 is the per-holding view, row 2 the monthly pair, row 3 the cumulative
+     pair, row 4 the timeline. Three columns split those pairs across rows. */
+  .chart-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px 20px; align-items:start; }
+  .chart-cell.wide{ grid-column:1 / -1; }
   .chart-cell .chart-head{ display:flex; align-items:baseline; gap:8px; margin-bottom:3px; }
   .chart-cell .chart-head .n{ font-family:var(--mono); font-size:11px; color:var(--gold); }
   .chart-cell .chart-head .t{ font-size:14px; }
   .chart-cell .chart-note{ font-size:11.5px; color:var(--text-faint); line-height:1.5; margin-bottom:8px; min-height:34px; }
   .chart-cell .chart-key{ font-size:10.5px; gap:10px; }
   .chart-cell:last-child{ grid-column:1 / -1; }
-  @media (max-width: 1100px){ .chart-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+
   @media (max-width: 700px){
     .chart-grid{ grid-template-columns:1fr; }
     .chart-cell .chart-note{ min-height:0; }
@@ -3007,7 +3011,6 @@ function renderNetWorth(c){
     `;
   }).join('');
 
-  const investingHTML = investingSectionHTML();
   const pt = state.portfolioTarget || { amount: null, currency: 'AUD' };
   const totalInTargetCur = fromAUD(total, pt.currency);
   const ptPct = pt.amount ? (totalInTargetCur/pt.amount)*100 : null;
@@ -3069,7 +3072,6 @@ function renderNetWorth(c){
       ${nwEditing() ? `<button class="btn" id="addAccBtn">+ Add account</button>` : ''}
     </div>
     ${state.accounts.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No accounts yet — add your emergency fund, super, or investment buckets.</div>` : `<div class="grid-cat" style="align-items:start;">${groupHtml}</div>`}
-    ${investingHTML}
   `;
 
   const addBtn = document.getElementById('addAccBtn');
@@ -3127,47 +3129,8 @@ function renderNetWorth(c){
       saveState(); render();
     };
   });
-  c.querySelectorAll('[data-weight]').forEach(inp=>{
-    inp.onchange = ()=>{
-      const u = unitByKey(inp.dataset.weight); if(!u) return;
-      const v = inp.value === '' ? null : Math.max(0, Math.min(100, Number(inp.value)||0));
-      if(v === null) delete u.targetWeight; else u.targetWeight = v;
-      saveState(); render();
-    };
-  });
   const editBtn = document.getElementById('nwEditBtn');
   if(editBtn) editBtn.onclick = ()=>{ state.ui.nwEdit = !state.ui.nwEdit; saveState(); render(); };
-  const upBtn = document.getElementById('updatePricesBtn');
-  if(upBtn) upBtn.onclick = ()=> openPriceModal();
-  const buyBtn = document.getElementById('recordBuyBtn');
-  if(buyBtn) buyBtn.onclick = ()=> openPurchaseModal();
-  const divBtn = document.getElementById('recordDivBtn');
-  if(divBtn) divBtn.onclick = ()=> openDividendModal();
-  const scopeSel = document.getElementById('rebScope');
-  if(scopeSel) scopeSel.onchange = ()=>{ investSettings().scope = scopeSel.value; saveState(); render(); };
-  const contribInput = document.getElementById('rebContribution');
-  if(contribInput) contribInput.onchange = ()=>{
-    investSettings().contribution = Math.max(0, Number(contribInput.value)||0); saveState(); render();
-  };
-  c.querySelectorAll('[data-assumed]').forEach(inp=>{
-    inp.onchange = ()=>{
-      const u = unitByKey(inp.dataset.assumed); if(!u) return;
-      if(inp.value === '') delete u.nominalReturn;
-      else u.nominalReturn = Number(inp.value)||0;
-      saveState(); render();
-    };
-  });
-  const projField = (id, apply)=>{
-    const el = document.getElementById(id);
-    if(el) el.onchange = ()=>{ apply(Number(el.value)||0); saveState(); render(); };
-  };
-  projField('projCap',   v=> investSettings().returnCap = Math.max(0, v));
-  projField('projInf',   v=> investSettings().inflation = Math.max(0, v));
-
-  const coreInput = document.getElementById('rebCoreTarget');
-  if(coreInput) coreInput.onchange = ()=>{
-    investSettings().coreTarget = Math.max(0, Math.min(100, Number(coreInput.value)||0)); saveState(); render();
-  };
   c.querySelectorAll('[data-speed]').forEach(sel=>{
     sel.onchange = ()=>{
       const speeds = liqSettings().speeds || (liqSettings().speeds = {});
@@ -3984,12 +3947,19 @@ function investBarChart(items, opts){
   const plotW = W-padL-padR, plotH = H-padT-padB;
   if(!items.length) return '<div class="muted" style="font-size:12.5px;">Nothing to show yet.</div>';
   const vals = items.map(i=>i.value);
+  if(vals.every(v=> Math.abs(v) < 0.005))
+    return '<div class="muted" style="font-size:12.5px; padding:12px 0;">Nothing to plot yet — every figure here is zero. This fills in once prices move or dividends arrive.</div>';
   const max = Math.max(0, ...vals), min = Math.min(0, ...vals);
   const span = (max - min) || 1;
   const Y = v=> padT + plotH - ((v-min)/span)*plotH;
   const zeroY = Y(0);
   const bw = plotW/items.length;
-  const short = v=> Math.abs(v)>=1e6 ? (v/1e6).toFixed(1)+'m' : Math.abs(v)>=1e3 ? Math.round(v/1e3)+'k' : Math.round(v);
+  // Rounding to whole numbers makes a chart of small values render as a stack of
+  // identical "0" labels. Pick the precision from the range being drawn.
+  const dp = span >= 100 ? 0 : span >= 10 ? 1 : span >= 1 ? 2 : 3;
+  const short = v=> Math.abs(v)>=1e6 ? (v/1e6).toFixed(1)+'m'
+                  : Math.abs(v)>=1e3 ? Math.round(v/1e3)+'k'
+                  : v.toFixed(dp);
 
   let grid = '';
   for(let i=0;i<=4;i++){
@@ -4022,7 +3992,11 @@ function investStackedChart(labels, series, opts){
   const max = o.percent ? 100 : Math.max(1, ...colTotals);
   const Y = v=> padT + plotH - (v/max)*plotH;
   const bw = plotW/labels.length;
-  const short = v=> o.percent ? v+'%' : (Math.abs(v)>=1e6 ? (v/1e6).toFixed(1)+'m' : Math.abs(v)>=1e3 ? Math.round(v/1e3)+'k' : Math.round(v));
+  const sdp = max >= 100 ? 0 : max >= 10 ? 1 : max >= 1 ? 2 : 3;
+  const short = v=> o.percent ? v+'%'
+                  : (Math.abs(v)>=1e6 ? (v/1e6).toFixed(1)+'m'
+                  : Math.abs(v)>=1e3 ? Math.round(v/1e3)+'k'
+                  : v.toFixed(sdp));
 
   let grid = '';
   for(let i=0;i<=4;i++){
@@ -4129,8 +4103,8 @@ function renderInvestments(c){
 
   // Six charts stacked full width made the tab enormous, so they sit in a grid
   // that drops to two columns on tablet and one on a phone.
-  const chart = (n, title, note, body, legend)=> `
-    <div class="chart-cell">
+  const chart = (n, title, note, body, legend, wide)=> `
+    <div class="chart-cell${wide?' wide':''}">
       <div class="chart-head"><span class="n">${n}</span><span class="t">${title}</span></div>
       <div class="chart-note">${note}</div>
       <div class="card">${body}${legend||''}</div>
@@ -4145,8 +4119,11 @@ function renderInvestments(c){
         </select>
       </div>
       <div class="spacer"></div>
-      <div class="muted" style="font-size:11.5px;">Realised return is dividends only — no holdings have been sold.</div>
+      <button class="btn secondary" id="invBuyBtn">Record purchase</button>
+      <button class="btn secondary" id="invDivBtn">Record dividend</button>
+      <button class="btn secondary" id="invPriceBtn">Update prices</button>
     </div>
+    <div class="muted" style="font-size:11.5px; margin:-4px 0 14px 0;">Realised return is dividends only — no holdings have been sold.</div>
 
     <div class="row" style="margin-bottom:14px;">
       <div class="card metric"><h3>Invested</h3><div class="big">${investMoney(totalCost)}</div><div class="cap">across ${rows.length} holdings</div></div>
@@ -4167,7 +4144,7 @@ function renderInvestments(c){
     <div class="chart-grid">
     ${chart(1,'Return by holding','What each holding has made or lost, price movement plus dividends.',
       investBarChart(rows.map(r=>({ label:r.name, value:r.totalReturn, colour:r.totalReturn>=0?r.colour:'var(--red)' })),
-        { fmt, aria:'Return by holding' }))}
+        { fmt, aria:'Return by holding' }), '', true)}
 
     ${chart(2,'Monthly contributions','What went in each month, split by holding.',
       investStackedChart(labels, contribSeries, { fmt, aria:'Monthly contributions by holding' }), investLegend(contribSeries))}
@@ -4183,12 +4160,65 @@ function renderInvestments(c){
 
     ${chart(6,'Unrealised profit and loss by month','The standing gap between what the portfolio was worth at each month end and what had been put in by then. Below zero means it was worth less than you had contributed.',
       investBarChart(labels.map((l,i)=>({ label: i % Math.ceil(labels.length/12) === 0 ? l : '', value: monthlyUnrealised[i] })),
-        { fmt, aria:'Unrealised profit and loss by month' }))}
+        { fmt, aria:'Unrealised profit and loss by month' }), '', true)}
     </div>
+
+    ${investingSectionHTML()}
   `;
 
   const sel = document.getElementById('invCur');
   if(sel) sel.onchange = ()=>{ state.ui.investCur = sel.value; saveState(); render(); };
+  // The same three actions as the Net Worth tab — this is where you'd look for them.
+  const bind = (id, fn)=>{ const b = document.getElementById(id); if(b) b.onclick = fn; };
+  bind('invBuyBtn',   ()=> openPurchaseModal());
+  bind('invDivBtn',   ()=> openDividendModal());
+  bind('invPriceBtn', ()=> openPriceModal());
+  wireInvestingSection(c);   // Core & satellite and Projection now live on this tab
+}
+
+/* Wiring for the Core & satellite and Projection blocks. They used to live on the
+   Net Worth tab and now sit under Investments, so the handlers travel with them
+   rather than being tied to whichever tab happened to render them first. */
+function wireInvestingSection(c){
+  const unitByKey = key=>{
+    const [accId, subId] = key.split('|||');
+    const acc = state.accounts.find(a=> a.id === accId);
+    if(!acc) return null;
+    return subId ? (acc.subCategories||[]).find(x=> x.id === subId) : acc;
+  };
+  c.querySelectorAll('[data-weight]').forEach(inp=>{
+    inp.onchange = ()=>{
+      const u = unitByKey(inp.dataset.weight); if(!u) return;
+      const v = inp.value === '' ? null : Math.max(0, Math.min(100, Number(inp.value)||0));
+      if(v === null) delete u.targetWeight; else u.targetWeight = v;
+      saveState(); render();
+    };
+  });
+  c.querySelectorAll('[data-assumed]').forEach(inp=>{
+    inp.onchange = ()=>{
+      const u = unitByKey(inp.dataset.assumed); if(!u) return;
+      if(inp.value === '') delete u.nominalReturn;
+      else u.nominalReturn = Number(inp.value)||0;
+      saveState(); render();
+    };
+  });
+  const bind = (id, fn, ev)=>{ const el = document.getElementById(id); if(el) el[ev||'onclick'] = fn; };
+  bind('updatePricesBtn', ()=> openPriceModal());
+  bind('recordBuyBtn',    ()=> openPurchaseModal());
+  bind('recordDivBtn',    ()=> openDividendModal());
+  bind('rebScope', function(){ investSettings().scope = this.value; saveState(); render(); }, 'onchange');
+  bind('rebContribution', function(){
+    investSettings().contribution = Math.max(0, Number(this.value)||0); saveState(); render();
+  }, 'onchange');
+  bind('rebCoreTarget', function(){
+    investSettings().coreTarget = Math.max(0, Math.min(100, Number(this.value)||0)); saveState(); render();
+  }, 'onchange');
+  const projField = (id, apply)=>{
+    const el = document.getElementById(id);
+    if(el) el.onchange = ()=>{ apply(Number(el.value)||0); saveState(); render(); };
+  };
+  projField('projCap', v=> investSettings().returnCap = Math.max(0, v));
+  projField('projInf', v=> investSettings().inflation = Math.max(0, v));
 }
 
 function investingSectionHTML(){
@@ -4260,7 +4290,7 @@ function investingSectionHTML(){
   }
 
   return `
-    <div class="section-title">Core &amp; satellite <span class="muted" style="font-size:13px;">— all values in AUD</span></div>
+    <div class="section-title" style="margin-top:26px;">Core &amp; satellite <span class="muted" style="font-size:13px;">— rebalancing, all values in AUD</span></div>
     ${stale.length ? `<div class="fx-alert" style="color:var(--amber); border-color:rgba(217,139,61,0.45); background:rgba(217,139,61,0.09);">
       <div><b>${stale.length} holding${stale.length>1?'s have':' has'} a stale price.</b>
       ${stale.slice(0,3).map(x=> `${x.name} (${x.days===null?'never':x.days+'d'})`).join(', ')}${stale.length>3?` and ${stale.length-3} more`:''}.
@@ -6125,7 +6155,24 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V3.0', name: 'Orders, fees and a tighter chart grid', date: 'Sep 2026', current: true,
+    no: 'V3.2', name: 'Everything investment-related on one tab', date: 'Sep 2026', current: true,
+    items: [
+      'Core & satellite, Projection to 2060, Exchange rate risk and Assumed returns have moved off Net Worth and onto the Investments tab, below the charts. Net Worth is back to being about balances; everything you do with the portfolio is now in one place.',
+      'Their controls moved with them rather than staying bound to whichever tab rendered first — rebalancing scope, core target, contribution, return ceiling, inflation and the per-holding weight and return inputs all still work.',
+      'The chart grid is two columns instead of three, so the pairs read together: return by holding across the top, the two monthly charts on one row, the two cumulative charts on the next, and the monthly profit and loss timeline across the bottom.'
+    ]
+  },
+  {
+    no: 'V3.1', name: 'Record buttons on the right tab, readable small-value axes', date: 'Sep 2026',
+    items: [
+      'Record purchase, Record dividend and Update prices are now on the Investments tab as well as Net Worth. They were only on Net Worth, which is not where you go to look at investments.',
+      'Chart axes pick their precision from the range being drawn. With only fees to show, returns of -0.23 and -0.12 were rounding to a column of identical zeros and ones, which read as a broken chart rather than a small number.',
+      'A bar chart whose values are all zero now says so instead of drawing an empty axis.',
+      'Chart 6 was checked against the table and reconciles exactly — the mismatch was the axis labels, not the arithmetic.'
+    ]
+  },
+  {
+    no: 'V3.0', name: 'Orders, fees and a tighter chart grid', date: 'Sep 2026',
     items: [
       'Purchases are recorded directly from the Dime order screen rather than inferred by comparing unit counts between stocktakes. Record purchase takes shares, executed price, commission and VAT as separate fields, matching the app field for field, and shows the computed total back so a typo is caught against the figure on your phone.',
       'Cost basis is now the total you actually paid, fees included. Buying $74.21 of IAU for $74.33 leaves a 12c gap that is a permanent drag; it previously vanished and quietly flattered every return figure.',
