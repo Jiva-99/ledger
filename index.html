@@ -1003,7 +1003,10 @@ function saveState(){
    live collaborative editing. If the same profile is edited on
    two devices before either syncs, the later push wins.
 ========================================================= */
-let cloudUser = null; // {uid,email,name} or null when signed out
+let cloudUser = null;
+/* Set when a cloud read failed, or when this device has nothing worth uploading.
+   While it's on, this session will not write to the cloud at all. */
+let cloudBlocked = false; // {uid,email,name} or null when signed out
 let cloudAuthChecked = false; // true once Firebase confirms sign-in state at least once (avoids a "flash" of the Sign In button right after a redirect completes)
 let cloudSignInPending = false; // true the instant the button is tapped, until the redirect navigates away
 let cloudSyncTimer = null;
@@ -1086,21 +1089,64 @@ window.onLedgerAuthChange = async function(user){
 /* On sign-in: if the cloud already has data, it becomes the source of truth (pulled down,
    overwriting the local cache). If the cloud is empty — first time signing in — whatever's
    local right now gets pushed up to seed it, so nothing already entered is lost. */
+/* A profile with no transactions, no accounts and no bills is almost certainly a
+   blank slate rather than someone's real book. Uploading one over a good cloud
+   copy is the single worst thing this app can do, so it never happens by itself. */
+function stateLooksEmpty(st){
+  if(!st) return true;
+  return !(st.transactions||[]).length
+      && !(st.accounts||[]).length
+      && !(st.bills||[]).length;
+}
+
 async function pullFromCloudOrSeed(){
   if(!cloudUser) return;
-  const cloudMeta = await window.LedgerCloud.pullMeta(cloudUser.uid);
+
+  let cloudMeta = null;
+  try{
+    cloudMeta = await window.LedgerCloud.pullMeta(cloudUser.uid);
+  }catch(e){
+    // A failed read is NOT proof the cloud is empty. Treating it as such and
+    // seeding from local is how good data gets overwritten by a blank profile.
+    console.error('Could not read cloud data', e);
+    cloudStatus = 'error';
+    cloudBlocked = true;
+    renderCloudStatus();
+    toast("Couldn't reach your cloud data. Nothing has been uploaded — reload before making changes.");
+    return;
+  }
+
   if(cloudMeta && Array.isArray(cloudMeta.list) && cloudMeta.list.length){
     profiles = cloudMeta;
     try{ localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles)); }catch(e){}
-    const cloudProfileData = await window.LedgerCloud.pullProfile(cloudUser.uid, profiles.activeId);
+    let cloudProfileData = null;
+    try{
+      cloudProfileData = await window.LedgerCloud.pullProfile(cloudUser.uid, profiles.activeId);
+    }catch(e){
+      console.error('Could not read profile from cloud', e);
+      cloudStatus = 'error';
+      cloudBlocked = true;
+      renderCloudStatus();
+      toast("Couldn't read this profile from the cloud. Nothing has been uploaded.");
+      return;
+    }
     // The cloud copy is about to replace what's on this device. If the two have
     // diverged, this is the exact moment local work disappears — so keep a copy.
     captureRestorePoint('Before cloud sync replaced local data', true);
     state = cloudProfileData ? mergeWithDefaults(cloudProfileData) : loadState(profiles.activeId);
     try{ localStorage.setItem(DATA_PREFIX + profiles.activeId, JSON.stringify(state)); }catch(e){}
   } else {
+    // Genuinely nothing up there yet: seed it, but only from profiles that hold
+    // something. Otherwise a fresh browser would write blanks over the account.
+    const worth = profiles.list.filter(p=> !stateLooksEmpty(loadState(p.id)));
+    if(!worth.length){
+      cloudBlocked = true;
+      cloudStatus = 'idle';
+      renderCloudStatus();
+      return;
+    }
     await window.LedgerCloud.pushMeta(cloudUser.uid, profiles);
-    for(const p of profiles.list){
+    for(const p of worth){
       await window.LedgerCloud.pushProfile(cloudUser.uid, p.id, loadState(p.id));
     }
   }
@@ -1108,6 +1154,13 @@ async function pullFromCloudOrSeed(){
 
 function scheduleCloudPush(){
   if(!cloudUser) return;
+  // Belt and braces: even if something above goes wrong, an empty book is never
+  // pushed automatically over whatever is already stored.
+  if(cloudBlocked || stateLooksEmpty(state)){
+    cloudStatus = 'idle';
+    renderCloudStatus();
+    return;
+  }
   clearTimeout(cloudSyncTimer);
   cloudStatus = 'syncing';
   renderCloudStatus();
@@ -6220,7 +6273,17 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V3.6', name: 'Purchases are shares and price only', date: 'Sep 2026', current: true,
+    no: 'V3.7', name: 'Cloud sync can no longer overwrite good data with a blank profile', date: 'Sep 2026', current: true,
+    items: [
+      'Fixed the cause of data disappearing after an update. On sign-in the app read the cloud, and if that read came back empty it assumed the cloud had nothing and uploaded whatever was on the device — so a failed read, or a browser with empty local storage, would replace a full account with a blank one.',
+      'A failed read is now treated as a failure rather than as proof the cloud is empty. Nothing is uploaded, the status shows an error, and the session refuses to write to the cloud until reloaded.',
+      'Seeding the cloud from a device now skips profiles that hold no transactions, accounts or bills, so a blank slate is never written over a real one.',
+      'A second guard sits on every automatic push: an empty book is never sent to the cloud, whatever else has gone wrong upstream.',
+      'Storage was never the problem — data lives in local storage and Firestore, and replacing index.html on GitHub Pages does not touch either.'
+    ]
+  },
+  {
+    no: 'V3.6', name: 'Purchases are shares and price only', date: 'Sep 2026',
     items: [
       'Record purchase now asks for shares and executed price, nothing else. Commission, VAT and the USD to THB rate have been removed, along with the Fees column and the paid-in-fees card, since there is no longer anything to put in them.',
       'Cost basis is shares times executed price. On a Dime order that is the Stock Amount line — 74.21 rather than the 74.33 that left the account — so the roughly 0.16% of brokerage sits outside the record and your return reads very slightly better than it was.',
