@@ -25,6 +25,7 @@
     --pink: #ec4899;
     --red: #d9695f;
     --amber: #d98b3d;
+    --violet: #a855f7;
     --sans: 'Ledger Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     --serif: var(--sans);
     --mono: var(--sans);
@@ -64,6 +65,7 @@
     --gold-bright:#8a6a15;
     --red:#c1453c;
     --amber:#a6631b;
+    --violet:#7c3aed;
   }
   body[data-theme="light"] .modal-backdrop{ background:rgba(20,18,10,0.35); }
   ::selection{ background:var(--gold); color:#12141a; }
@@ -351,7 +353,25 @@
   .cev.reb{ background:rgba(201,162,39,0.14); color:var(--gold-bright); border-left-color:var(--gold); }
   .cev.todo{ background:var(--surface-raised); color:var(--text-dim); border-left-color:var(--text-faint); }
   .cev.todo.done{ text-decoration:line-through; opacity:0.5; }
+  .cev.event{ background:rgba(168,85,247,0.14); color:var(--violet); border-left-color:var(--violet); }
+  .cev.event .tm{ font-family:var(--mono); opacity:0.8; }
+  /* A span reads as one bar: only the first day keeps its left marker. */
+  .cev.event.span-mid, .cev.event.span-end{ border-left-color:transparent; }
   .cev:hover{ filter:brightness(1.25); }
+
+  .cal-day[data-calday]{ cursor:pointer; }
+  .cal-day[data-calday]:hover{ background:rgba(201,162,39,0.05); }
+  .cal-day.out[data-calday]:hover{ background:rgba(201,162,39,0.04); }
+
+  .ev-2col{ display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:end; }
+  .ev-unit{ font-size:13px; color:var(--text-dim); padding:8px 0; }
+  .ev-days{ display:flex; gap:5px; flex-wrap:wrap; }
+  .ev-day{ all:unset; cursor:pointer; width:27px; height:27px; line-height:27px; text-align:center;
+    border-radius:50%; border:1px solid var(--border); background:var(--surface-raised);
+    color:var(--text-dim); font-size:12px; }
+  .ev-day:hover{ border-color:var(--gold); }
+  .ev-day.on{ background:var(--gold); border-color:var(--gold); color:#181305; font-weight:600; }
+  .ev-preview{ font-size:11.5px; margin-top:12px; min-height:16px; }
 
   .cal-agenda{ display:none; }
   .cal-ag-day{ display:flex; gap:11px; padding:9px 0; border-bottom:1px solid var(--border); }
@@ -802,6 +822,20 @@ const TODAY = new Date();
 const BILL_KINDS = [['expense','Money out'], ['income','Money in'], ['saving','To savings']];
 const BILL_KIND_LABEL = { expense:'Money out', income:'Money in', saving:'To savings' };
 const DEFAULT_TODO_LIST = 'todo-default';
+/* The repeat patterns offered, and the unit each one counts in when you ask for
+   "every N". Monthly-on-the-second-Tuesday is deliberately absent: it needs its
+   own arithmetic and is rare outside work meetings. */
+const EVENT_FREQS = [
+  ['none',    'Does not repeat', ''],
+  ['daily',   'Daily',           'days'],
+  ['weekday', 'Every weekday',   ''],
+  ['weekly',  'Weekly',          'weeks'],
+  ['monthly', 'Monthly',         'months'],
+  ['yearly',  'Annually',        'years']
+];
+/* Monday first, matching the calendar grid and the app's Mon-Sun weeks, but the
+   value stored is JavaScript's own day number so no conversion is needed later. */
+const WEEKDAYS = [[1,'M'],[2,'T'],[3,'W'],[4,'T'],[5,'F'],[6,'S'],[0,'S']];
 
 function defaultState(){
   return {
@@ -872,6 +906,10 @@ function defaultState(){
     // dated item across every list on each render — one filter instead of a walk.
     todoLists: [{ id: DEFAULT_TODO_LIST, name: 'To do', locked: true }],
     todos: [],         // {id,listId,text,done,dueDate,createdAt,doneAt}
+    // Personal events. One record per series rather than one per occurrence: the
+    // dates are worked out when the month is drawn, so editing the series changes
+    // every occurrence and there is only ever one copy of the details.
+    events: [],        // {id,title,note,startDate,startTime,endDate,repeat:{...}}
     ui: { dashYear: TODAY.getFullYear(), dashMonth: TODAY.getMonth(), dashViewMode: 'month', planYear: TODAY.getFullYear(), activeTab:'dashboard',
       trendSeries: { Budget:true, Income:true, Expenses:true, Savings:true },
       lineSeries: { Income:true, Expenses:true, Savings:true } }
@@ -1095,6 +1133,26 @@ function mergeWithDefaults(parsed){
     if(b.dueDay === undefined) b.dueDay = b.dueDate ? Number(b.dueDate.slice(8,10)) : null;
     if(!Array.isArray(b.paidMonths)) b.paidMonths = [];
   });
+  // Personal events. Normalised on load rather than trusted, because a bad repeat
+  // rule would throw while drawing the month and take the whole tab down with it.
+  merged.events = Array.isArray(merged.events) ? merged.events : [];
+  merged.events.forEach(ev=>{
+    if(typeof ev.title !== 'string') ev.title = String(ev.title || 'Untitled');
+    if(typeof ev.note !== 'string') ev.note = '';
+    if(typeof ev.startTime !== 'string') ev.startTime = '';
+    if(typeof ev.endDate !== 'string') ev.endDate = '';
+    if(ev.endDate && ev.endDate < ev.startDate) ev.endDate = '';
+    const r = (ev.repeat && typeof ev.repeat === 'object') ? ev.repeat : {};
+    ev.repeat = {
+      freq:     EVENT_FREQS.some(f=> f[0] === r.freq) ? r.freq : 'none',
+      interval: Math.max(1, Math.min(99, Number(r.interval) || 1)),
+      weekdays: Array.isArray(r.weekdays) ? r.weekdays.filter(d=> d >= 0 && d <= 6) : [],
+      endMode:  ['never','on','after'].includes(r.endMode) ? r.endMode : 'never',
+      endDate:  typeof r.endDate === 'string' ? r.endDate : '',
+      count:    Math.max(1, Math.min(999, Number(r.count) || 10))
+    };
+  });
+  merged.events = merged.events.filter(ev=> !!ev.startDate);
   // To-do lists. A profile always has at least one list that can't be deleted, so
   // there is always a valid home for a new item and never a blank first screen.
   merged.todoLists = Array.isArray(merged.todoLists) ? merged.todoLists : [];
@@ -1376,6 +1434,18 @@ function buildWorkbook(){
   state.bills.forEach(b=> billRows.push([b.name, BILL_KIND_LABEL[b.kind]||'Money out', Number(b.amount)||0,
     b.currency||'AUD', b.frequency, b.dueDate||'', b.lastPaidDate||'', b.notes||'']));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(billRows), 'Bills');
+
+  const eventRows = [['Title','Starts','Time','Ends','Repeats','Note']];
+  (state.events||[]).forEach(e=> eventRows.push([e.title, e.startDate, e.startTime||'',
+    e.endDate||'', repeatSummary(e) || 'Does not repeat', e.note||'']));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(eventRows), 'Events');
+
+  const todoRows = [['List','Item','Done','Due']];
+  (state.todos||[]).forEach(t=>{
+    const list = (state.todoLists||[]).find(l=> l.id === t.listId);
+    todoRows.push([list ? list.name : '', t.text, t.done ? 'Yes' : 'No', t.dueDate||'']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(todoRows), 'To Do');
 
   return wb;
 }
@@ -5405,6 +5475,104 @@ function openBillModal(editId){
 let calMonth = null;        // 'YYYY-MM' being viewed; null means the current month
 let calPane  = 'calendar';  // phone only — which of the two panes is showing
 let todoActiveList = null;
+/* Which layers are drawn. Personal events will usually outnumber money events, and
+   the point of this tab is seeing when money lands — so the layers can be muted
+   individually rather than letting the cashflow signal get buried. */
+let calLayers = { money:true, events:true, todos:true };
+
+/* ---------- Personal events ---------- */
+
+/* Occurrence start dates for one event, in order, generated from the series start
+   rather than from the window — an "ends after 10 times" rule has to count from
+   the beginning or the tenth occurrence moves depending on which month you happen
+   to be looking at. Capped so a malformed rule can't spin. */
+function eventOccurrenceDates(ev, stopISO){
+  const rep = ev.repeat || { freq:'none' };
+  const start = new Date(ev.startDate+'T00:00:00');
+  const out = [];
+  if(!rep.freq || rep.freq === 'none') return [start];
+
+  const interval = Math.max(1, Number(rep.interval) || 1);
+  const maxCount = rep.endMode === 'after' ? Math.max(1, Number(rep.count) || 1) : Infinity;
+  const untilISO = (rep.endMode === 'on' && rep.endDate) ? rep.endDate : null;
+
+  // Returns false when the series is finished or has run past the window.
+  const push = d=>{
+    const iso = isoDate(d);
+    if(untilISO && iso > untilISO) return false;
+    out.push(d);
+    if(out.length >= maxCount) return false;
+    return iso <= stopISO;
+  };
+
+  if(rep.freq === 'weekly'){
+    const wds = (rep.weekdays && rep.weekdays.length)
+      ? rep.weekdays.slice().sort((a,b)=> ((a+6)%7) - ((b+6)%7))
+      : [start.getDay()];
+    const weekBase = mondayOf(start);
+    outer: for(let w=0; w<4000; w++){
+      const base = addDays(weekBase, w * 7 * interval);
+      for(const wd of wds){
+        const d = addDays(base, (wd + 6) % 7);   // offset from the Monday
+        if(d < start) continue;
+        if(!push(d)) break outer;
+      }
+    }
+  } else if(rep.freq === 'weekday'){
+    for(let k=0; k<9000; k++){
+      const d = addDays(start, k);
+      const dw = d.getDay();
+      if(dw === 0 || dw === 6) continue;
+      if(!push(d)) break;
+    }
+  } else {
+    for(let k=0; k<4000; k++){
+      const d = rep.freq === 'daily'   ? addDays(start, k * interval)
+              : rep.freq === 'monthly' ? addPeriod(start, 'Monthly',  k * interval)
+              : rep.freq === 'yearly'  ? addPeriod(start, 'Annually', k * interval)
+              : null;
+      if(!d || !push(d)) break;
+    }
+  }
+  return out;
+}
+
+/* The occurrences that touch a window, as start/end pairs. A multi-day event keeps
+   its length on every repeat, so a three-day trip repeated monthly stays three days. */
+function eventOccurrences(ev, fromISO, toISO){
+  if(!ev.startDate) return [];
+  const span = ev.endDate
+    ? Math.max(0, dayDiff(new Date(ev.startDate+'T00:00:00'), new Date(ev.endDate+'T00:00:00')))
+    : 0;
+  return eventOccurrenceDates(ev, toISO).map(d=>{
+    const startISO = isoDate(d), endISO = isoDate(addDays(d, span));
+    return { startISO, endISO, span };
+  }).filter(o=> o.endISO >= fromISO && o.startISO <= toISO);
+}
+
+function eventTimeLabel(ev){
+  if(!ev.startTime) return '';
+  const [h, m] = ev.startTime.split(':');
+  return `${Number(h)}:${m}`;
+}
+
+function repeatSummary(ev){
+  const r = ev.repeat || { freq:'none' };
+  const meta = EVENT_FREQS.find(f=> f[0] === r.freq);
+  if(!meta || r.freq === 'none') return '';
+  const n = Math.max(1, Number(r.interval)||1);
+  let base = r.freq === 'weekday' ? 'Every weekday'
+           : n === 1 ? meta[1]
+           : `Every ${n} ${meta[2]}`;
+  if(r.freq === 'weekly' && (r.weekdays||[]).length){
+    const names = WEEKDAYS.filter(([d])=> r.weekdays.includes(d))
+      .map(([d])=> ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]);
+    base += ` on ${names.join(', ')}`;
+  }
+  if(r.endMode === 'on' && r.endDate) base += `, until ${formatDateShort(r.endDate)}`;
+  if(r.endMode === 'after') base += `, ${r.count} time${r.count===1?'':'s'}`;
+  return base;
+}
 
 function escHTML(s){
   return String(s == null ? '' : s).replace(/[&<>"]/g, ch=>
@@ -5454,21 +5622,43 @@ function rebalanceDates(fromISO, toISO){
   return out;
 }
 
-/* Everything that falls inside a window, keyed by date. */
-function calendarEvents(fromISO, toISO){
+/* Everything that falls inside a window, keyed by date. Layers that are muted are
+   left out of the map entirely rather than hidden in CSS, so a muted layer also
+   drops out of the agenda and out of anything that counts events. */
+function calendarEvents(fromISO, toISO, opts){
+  const layers = (opts && opts.layers) || calLayers;
   const map = {};
   const add = (iso, ev)=>{ (map[iso] = map[iso] || []).push(ev); };
-  (state.bills||[]).forEach(b=>{
-    const signed = billSignedAUD(b);
-    billOccurrences(b, fromISO, toISO).forEach(iso=>
-      add(iso, { type:'money', kind:b.kind, name:b.name, signed, id:b.id }));
-  });
-  rebalanceDates(fromISO, toISO).forEach(iso=>
-    add(iso, { type:'rebalance', name:'Rebalance due', signed:0 }));
-  (state.todos||[]).forEach(t=>{
-    if(!t.dueDate || t.dueDate < fromISO || t.dueDate > toISO) return;
-    add(t.dueDate, { type:'todo', name:t.text, done:!!t.done, signed:0, id:t.id });
-  });
+  if(layers.money !== false){
+    (state.bills||[]).forEach(b=>{
+      const signed = billSignedAUD(b);
+      billOccurrences(b, fromISO, toISO).forEach(iso=>
+        add(iso, { type:'money', kind:b.kind, name:b.name, signed, id:b.id }));
+    });
+    rebalanceDates(fromISO, toISO).forEach(iso=>
+      add(iso, { type:'rebalance', name:'Rebalance due', signed:0 }));
+  }
+  if(layers.events !== false){
+    (state.events||[]).forEach(ev=>{
+      eventOccurrences(ev, fromISO, toISO).forEach(o=>{
+        // A span is drawn on each day it covers, so paging to a month in the middle
+        // of a trip still shows it.
+        for(let i=0; i<=o.span; i++){
+          const iso = isoDate(addDays(new Date(o.startISO+'T00:00:00'), i));
+          if(iso < fromISO || iso > toISO) continue;
+          add(iso, { type:'event', name:ev.title, signed:0, id:ev.id,
+                     time: i === 0 ? eventTimeLabel(ev) : '',
+                     part: o.span ? (i === 0 ? 'start' : (i === o.span ? 'end' : 'mid')) : '' });
+        }
+      });
+    });
+  }
+  if(layers.todos !== false){
+    (state.todos||[]).forEach(t=>{
+      if(!t.dueDate || t.dueDate < fromISO || t.dueDate > toISO) return;
+      add(t.dueDate, { type:'todo', name:t.text, done:!!t.done, signed:0, id:t.id });
+    });
+  }
   return map;
 }
 
@@ -5484,7 +5674,9 @@ function cashflowProjection(){
   const startISO = isoDate(start), endISO = isoDate(end), horizonISO = isoDate(horizon);
 
   const opening = liquidityLadder().cum.today;
-  const events  = calendarEvents(startISO, endISO);
+  // Money only, and explicitly regardless of which layers are being shown — muting
+  // the money layer is a display choice and must not silently change the forecast.
+  const events  = calendarEvents(startISO, endISO, { layers:{ money:true, events:false, todos:false } });
   const balances = {};
   let bal = opening;
   let min = { date: startISO, balance: opening };
@@ -5501,14 +5693,19 @@ function cashflowProjection(){
 function calEventHTML(ev, compact){
   const cls = ev.type === 'money'
     ? ({ expense:'out', income:'in', saving:'save' })[ev.kind]
-    : (ev.type === 'rebalance' ? 'reb' : 'todo' + (ev.done ? ' done' : ''));
+    : ev.type === 'rebalance' ? 'reb'
+    : ev.type === 'event' ? 'event' + (ev.part ? ' span-' + ev.part : '')
+    : 'todo' + (ev.done ? ' done' : '');
   const amt = ev.type === 'money'
     ? `<span class="amt">${ev.signed >= 0 ? '+' : '−'}${moneyWhole(Math.abs(ev.signed))}</span>`
     : '';
-  const attr = ev.type === 'todo' ? `data-caltodo="${ev.id}"`
-             : ev.type === 'money' ? `data-calbill="${ev.id}"` : 'data-calreb="1"';
+  const attr = ev.type === 'todo'  ? `data-caltodo="${ev.id}"`
+             : ev.type === 'money' ? `data-calbill="${ev.id}"`
+             : ev.type === 'event' ? `data-calevent="${ev.id}"`
+             : 'data-calreb="1"';
   const label = escHTML(ev.name);
-  return `<button class="cev ${cls}" ${attr} title="${label}">${
+  const time  = ev.type === 'event' && ev.time ? `<span class="tm">${ev.time}</span> ` : '';
+  return `<button class="cev ${cls}" ${attr} title="${label}">${time}${
     compact ? `${label}${amt ? ' ' + amt : ''}` : `${label}${amt ? ' · ' + amt : ''}`}</button>`;
 }
 
@@ -5520,9 +5717,12 @@ function renderCalendar(c){
   const events = calendarEvents(mb.firstISO, mb.lastISO);
   const buffer = (liqSettings().limits||{}).bufferToday || 0;
 
-  // Net of everything scheduled inside the month being viewed.
+  // Same reasoning as the projection: the month's net is a fact about the month,
+  // not about what happens to be on screen.
   let monthNet = 0;
-  Object.values(events).forEach(list=> list.forEach(e=> { monthNet += e.signed; }));
+  Object.values(calendarEvents(mb.firstISO, mb.lastISO,
+    { layers:{ money:true, events:false, todos:false } }))
+    .forEach(list=> list.forEach(e=> { monthNet += e.signed; }));
 
   const minDays = dayDiff(todayDate(), new Date(proj.min.date+'T00:00:00'));
   const noSchedule = !(state.bills||[]).some(b=> b.dueDate);
@@ -5538,7 +5738,7 @@ function renderCalendar(c){
     const bal = proj.balances[iso];
     const showBal = bal !== undefined && evs.some(e=> e.type === 'money');
     cells.push(`
-      <div class="cal-day${outside?' out':''}${iso===todayISO?' today':''}">
+      <div class="cal-day${outside?' out':''}${iso===todayISO?' today':''}" data-calday="${iso}" title="Add an event on ${formatDateShort(iso)}">
         <div class="cd-top">
           <span class="cd-num">${d.getDate()}</span>
           ${showBal ? `<span class="cd-bal${bal < buffer ? ' low':''}">${moneyWhole(bal)}</span>` : ''}
@@ -5603,6 +5803,13 @@ function renderCalendar(c){
           <span class="cal-title">${calMonthLabel(key)}</span>
           <button class="cal-nav" id="calNext" title="Next month">›</button>
           ${key === currentMonthKey() ? '' : `<button class="cal-nav" id="calToday">Today</button>`}
+          <div class="spacer" style="flex:1;"></div>
+          <button class="btn" id="calAddEvent">+ Event</button>
+        </div>
+        <div class="todo-chips" style="margin-bottom:10px;">
+          <button class="tchip${calLayers.money?' active':''}" data-callayer="money">Money</button>
+          <button class="tchip${calLayers.events?' active':''}" data-callayer="events">Events</button>
+          <button class="tchip${calLayers.todos?' active':''}" data-callayer="todos">To dos</button>
         </div>
         <div class="cal-grid">
           ${DOW.map(d=>`<div class="cal-dow">${d}</div>`).join('')}
@@ -5616,6 +5823,7 @@ function renderCalendar(c){
           <span><i style="background:var(--pink);"></i>Money out</span>
           <span><i style="background:var(--blue-bright);"></i>To savings</span>
           <span><i style="background:var(--gold);"></i>Rebalance</span>
+          <span><i style="background:var(--violet);"></i>Event</span>
           <span><i style="background:var(--text-faint);"></i>To do</span>
         </div>
       </div>
@@ -5629,11 +5837,20 @@ function renderCalendar(c){
   bind('calToday', ()=>{ calMonth = null; render(); });
   c.querySelectorAll('[data-calpane]').forEach(b=>
     b.onclick = ()=>{ calPane = b.dataset.calpane; render(); });
+  c.querySelectorAll('[data-callayer]').forEach(b=>
+    b.onclick = ()=>{ const k = b.dataset.callayer; calLayers[k] = !calLayers[k]; render(); });
+  bind('calAddEvent', ()=> openEventModal(null, isoDate(TODAY)));
+  // Clicking the empty part of a day adds an event there. Chips sit on top and
+  // stop the click, so tapping one still opens the thing it points at.
+  c.querySelectorAll('[data-calday]').forEach(cell=>
+    cell.onclick = e=>{ if(e.target === cell || e.target.closest('.cd-top') === e.target.parentElement)
+      openEventModal(null, cell.dataset.calday); });
   // A derived event is a view of something owned elsewhere, so tapping it goes to
   // where it is actually edited rather than opening a second editor for it here.
-  c.querySelectorAll('[data-calbill]').forEach(b=> b.onclick = ()=> goToTab('bills'));
-  c.querySelectorAll('[data-calreb]').forEach(b=> b.onclick = ()=> goToTab('investments'));
-  c.querySelectorAll('[data-caltodo]').forEach(b=> b.onclick = ()=> openTodoModal(b.dataset.caltodo));
+  c.querySelectorAll('[data-calbill]').forEach(b=> b.onclick = e=>{ e.stopPropagation(); goToTab('bills'); });
+  c.querySelectorAll('[data-calreb]').forEach(b=> b.onclick = e=>{ e.stopPropagation(); goToTab('investments'); });
+  c.querySelectorAll('[data-caltodo]').forEach(b=> b.onclick = e=>{ e.stopPropagation(); openTodoModal(b.dataset.caltodo); });
+  c.querySelectorAll('[data-calevent]').forEach(b=> b.onclick = e=>{ e.stopPropagation(); openEventModal(b.dataset.calevent); });
   wireTodoPane(c);
 }
 
@@ -5839,6 +6056,141 @@ function openTodoModal(id){
     t.dueDate = document.getElementById('tiDue').value || '';
     saveState(); close(); render();
   };
+}
+
+/* The repeat controls appear only once a pattern is chosen, and the "every N"
+   unit follows the pattern, so the form stays a single field until you ask it for
+   more. Laid out to read the way the rule is spoken: every 2 weeks on Tue, Thu,
+   until 30 June. */
+function openEventModal(id, prefillDate){
+  const root = document.getElementById('modalRoot');
+  const ev = id ? (state.events||[]).find(e=> e.id === id) : null;
+  const r  = ev ? ev.repeat : { freq:'none', interval:1, weekdays:[], endMode:'never', endDate:'', count:10 };
+  const startDate = ev ? ev.startDate : (prefillDate || isoDate(TODAY));
+
+  root.innerHTML = `
+    <div class="modal-backdrop" id="evb">
+      <div class="modal" style="max-width:480px;">
+        <h2>${ev ? 'Edit event' : 'New event'}</h2>
+        <div class="form-grid">
+          <label class="field">Title <input type="text" id="evTitle" placeholder="e.g. Dentist"
+            value="${ev ? escHTML(ev.title) : ''}"></label>
+          <div class="ev-2col">
+            <label class="field">Starts <input type="date" id="evStart" value="${startDate}"></label>
+            <label class="field">Time <input type="time" id="evTime" value="${ev ? (ev.startTime||'') : ''}"></label>
+          </div>
+          <label class="field">Ends
+            <input type="date" id="evEnd" value="${ev ? (ev.endDate||'') : ''}">
+            <span class="muted" style="font-size:11px;">Leave blank for a single day. Set it for something spanning several, like a trip.</span>
+          </label>
+          <label class="field">Repeats
+            <select id="evFreq">${EVENT_FREQS.map(([k,lab])=>
+              `<option value="${k}" ${r.freq===k?'selected':''}>${lab}</option>`).join('')}</select>
+          </label>
+          <div id="evRepeatOpts">
+            <div class="ev-2col" id="evEveryRow">
+              <label class="field">Every <input type="number" id="evInterval" min="1" max="99" step="1" value="${r.interval||1}"></label>
+              <div class="field"><span>&nbsp;</span><div class="ev-unit" id="evUnit"></div></div>
+            </div>
+            <label class="field" id="evDaysRow" style="margin-top:10px;">On
+              <div class="ev-days">${WEEKDAYS.map(([d,lab])=>
+                `<button type="button" class="ev-day${(r.weekdays||[]).includes(d)?' on':''}" data-evday="${d}">${lab}</button>`).join('')}</div>
+            </label>
+            <label class="field" style="margin-top:10px;">Ends
+              <select id="evEndMode">
+                <option value="never" ${r.endMode==='never'?'selected':''}>Never</option>
+                <option value="on" ${r.endMode==='on'?'selected':''}>On a date</option>
+                <option value="after" ${r.endMode==='after'?'selected':''}>After a number of times</option>
+              </select>
+            </label>
+            <label class="field" id="evUntilRow" style="margin-top:10px;">Until
+              <input type="date" id="evUntil" value="${r.endDate||''}"></label>
+            <label class="field" id="evCountRow" style="margin-top:10px;">Number of times
+              <input type="number" id="evCount" min="1" max="999" step="1" value="${r.count||10}"></label>
+          </div>
+          <label class="field">Note <input type="text" id="evNote" placeholder="optional"
+            value="${ev ? escHTML(ev.note||'') : ''}"></label>
+        </div>
+        <div class="ev-preview muted" id="evPreview"></div>
+        <div class="form-actions">
+          ${ev ? `<button class="btn danger" id="evDel" style="margin-right:auto;">Delete</button>` : ''}
+          <button class="btn secondary" id="evCancel">Cancel</button>
+          <button class="btn" id="evSave">${ev ? 'Save' : 'Add event'}</button>
+        </div>
+      </div>
+    </div>`;
+
+  const close = ()=> root.innerHTML = '';
+  const q = sel=> root.querySelector(sel);
+  const picked = new Set(r.weekdays || []);
+
+  const syncForm = ()=>{
+    const freq = q('#evFreq').value;
+    const meta = EVENT_FREQS.find(f=> f[0] === freq);
+    const repeats = freq !== 'none';
+    q('#evRepeatOpts').style.display = repeats ? 'block' : 'none';
+    // "Every N weekdays" is not a thing, so the interval row goes away for it.
+    q('#evEveryRow').style.display = (repeats && meta[2]) ? 'grid' : 'none';
+    q('#evUnit').textContent = meta[2] || '';
+    q('#evDaysRow').style.display = freq === 'weekly' ? 'flex' : 'none';
+    const mode = q('#evEndMode').value;
+    q('#evUntilRow').style.display = mode === 'on' ? 'flex' : 'none';
+    q('#evCountRow').style.display = mode === 'after' ? 'flex' : 'none';
+    q('#evPreview').textContent = repeats
+      ? repeatSummary({ repeat:{ freq, interval:Number(q('#evInterval').value)||1,
+          weekdays:[...picked], endMode:mode, endDate:q('#evUntil').value, count:Number(q('#evCount').value)||1 } })
+      : '';
+  };
+
+  q('#evCancel').onclick = close;
+  q('#evb').addEventListener('click', e=>{ if(e.target.id==='evb') close(); });
+  ['#evFreq','#evEndMode','#evInterval','#evUntil','#evCount'].forEach(sel=>
+    q(sel).addEventListener('change', syncForm));
+  root.querySelectorAll('[data-evday]').forEach(b=> b.onclick = ()=>{
+    const d = Number(b.dataset.evday);
+    if(picked.has(d)) picked.delete(d); else picked.add(d);
+    b.classList.toggle('on', picked.has(d));
+    syncForm();
+  });
+  if(ev) q('#evDel').onclick = ()=>{
+    confirmDestructive({
+      title:'Delete event',
+      what:`Delete "${escHTML(ev.title)}"?`,
+      lines: (ev.repeat && ev.repeat.freq !== 'none')
+        ? ['This is a repeating event — every occurrence goes, not just one.'] : [],
+      confirmLabel:'Delete event',
+      onConfirm: ()=>{
+        state.events = (state.events||[]).filter(x=> x.id !== ev.id);
+        saveState(); render(); toast('Event deleted.');
+      }
+    });
+  };
+  q('#evSave').onclick = ()=>{
+    const title = q('#evTitle').value.trim();
+    const start = q('#evStart').value;
+    if(!title){ toast('Give the event a title.'); return; }
+    if(!start){ toast('Pick a start date.'); return; }
+    const end = q('#evEnd').value || '';
+    if(end && end < start){ toast('The end date is before the start date.'); return; }
+    const freq = q('#evFreq').value;
+    const repeat = {
+      freq,
+      interval: Math.max(1, Math.min(99, Number(q('#evInterval').value)||1)),
+      // Weekly with nothing ticked repeats on the start date's own weekday, which
+      // is what "weekly" means without further instruction.
+      weekdays: freq === 'weekly' ? [...picked] : [],
+      endMode: q('#evEndMode').value,
+      endDate: q('#evUntil').value || '',
+      count: Math.max(1, Math.min(999, Number(q('#evCount').value)||10))
+    };
+    const payload = { title, note:q('#evNote').value.trim(), startDate:start,
+                      startTime:q('#evTime').value || '', endDate:end, repeat };
+    if(ev){ Object.assign(ev, payload); toast('Event updated.'); }
+    else { (state.events || (state.events = [])).push({ id:uid(), ...payload }); toast('Event added.'); }
+    saveState(); close(); render();
+  };
+  syncForm();
+  q('#evTitle').focus();
 }
 
 /* =========================================================
@@ -6967,7 +7319,21 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.0', name: 'Calendar, scheduled money, and to-do lists', date: 'Sep 2026', current: true,
+    no: 'V4.1', name: 'Personal events on the calendar', date: 'Sep 2026', current: true,
+    items: [
+      'The calendar now holds your own events alongside the money — appointments, trips, birthdays. They live in Ledger and sync through Firestore like everything else, so they work offline and travel between the phone and the iPad.',
+      'An event has a title, a start date, an optional time, an optional end date for something spanning several days, and a note. A span is drawn on every day it covers, so paging into the middle of a trip still shows it.',
+      'Repeats: daily, every weekday, weekly on chosen days, monthly, annually, or every N of any of those. Ends never, on a date, or after a set number of times. Monthly clamps the way bills do — the 31st shows as the 30th in a short month and returns to the 31st afterwards rather than drifting down.',
+      'One record is stored per series, not one per occurrence, so the dates are worked out as the month is drawn and editing a repeating event changes every occurrence at once.',
+      'Individual occurrences cannot be cancelled or edited. Doing that means storing a patch per date, which is where recurrence bugs live and roughly doubles the model, so it is deliberately absent — delete the series or end it early instead.',
+      'Money, Events and To dos are separate layers with a toggle each, so the personal layer can be muted when you are reading cashflow and the money signal does not get buried.',
+      'Muting a layer only changes what is drawn. The projected balance and the month total are always computed from money alone, so hiding a layer can never quietly change a forecast.',
+      'Clicking an empty part of any day adds an event on that date; the + Event button adds one on today.',
+      'Backups and the Excel export now include Events and To Do sheets.'
+    ]
+  },
+  {
+    no: 'V4.0', name: 'Calendar, scheduled money, and to-do lists', date: 'Sep 2026',
     items: [
       'New Calendar tab showing when money actually lands rather than only how much. Bills, income and transfers to savings are drawn from the Bills tab on every render and never stored, so changing an amount there changes the calendar immediately and there is only ever one copy of a due date.',
       'Tapping a bill or a rebalance reminder on the calendar jumps to the tab that owns it instead of opening a second editor for the same record.',
