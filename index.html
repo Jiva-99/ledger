@@ -313,6 +313,84 @@
     table.price-grid td.hold{ min-width:130px; }
   }
   @media (max-width: 600px){ table.price-grid input{ width:70px; } }
+  /* ---- Calendar & To do ---- */
+  .pill.kind-expense{ background:rgba(236,72,153,0.15); color:var(--pink); }
+  .pill.kind-income{ background:rgba(34,197,94,0.15); color:var(--green); }
+  .pill.kind-saving{ background:rgba(59,120,176,0.18); color:var(--blue-bright); }
+
+  .cal-wrap{ display:grid; grid-template-columns:minmax(0,1fr) 322px; gap:20px; align-items:start; }
+  @media (max-width: 1080px){ .cal-wrap{ grid-template-columns:minmax(0,1fr); } }
+  .cal-pane-tabs{ display:none; gap:6px; margin-bottom:14px; }
+  .cal-head{ display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .cal-head .cal-title{ font-family:var(--serif); font-size:16px; min-width:132px; }
+  .cal-nav{ all:unset; cursor:pointer; color:var(--text-dim); border:1px solid var(--border);
+    background:var(--surface-raised); border-radius:var(--radius); padding:4px 10px; font-size:13px; line-height:1.4; }
+  .cal-nav:hover{ color:var(--gold-bright); border-color:var(--gold); }
+
+  .cal-grid{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:1px;
+    background:var(--border); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .cal-dow{ background:var(--surface); padding:6px 7px; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:0.6px; color:var(--text-dim); font-weight:700; text-align:left; }
+  .cal-day{ background:var(--surface); min-height:86px; padding:5px 6px 6px 6px; display:flex; flex-direction:column; gap:3px; }
+  .cal-day.out{ background:var(--bg); }
+  .cal-day.out .cd-num{ color:var(--text-faint); opacity:0.5; }
+  .cal-day.today{ box-shadow:inset 0 0 0 1px var(--gold); }
+  .cal-day .cd-top{ display:flex; align-items:baseline; gap:6px; }
+  .cal-day .cd-num{ font-family:var(--mono); font-size:11.5px; color:var(--text-dim); }
+  .cal-day.today .cd-num{ color:var(--gold-bright); font-weight:700; }
+  .cal-day .cd-bal{ margin-left:auto; font-family:var(--mono); font-size:10px; color:var(--text-faint); }
+  .cal-day .cd-bal.low{ color:var(--red); }
+
+  .cev{ all:unset; box-sizing:border-box; display:block; width:100%; cursor:pointer; border-radius:3px;
+    padding:2px 5px; font-size:10.5px; line-height:1.35; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; border-left:2px solid transparent; }
+  .cev .amt{ font-family:var(--mono); }
+  .cev.out{ background:rgba(236,72,153,0.12); color:var(--pink); border-left-color:var(--pink); }
+  .cev.in{ background:rgba(34,197,94,0.12); color:var(--green); border-left-color:var(--green); }
+  .cev.save{ background:rgba(59,120,176,0.14); color:var(--blue-bright); border-left-color:var(--blue-bright); }
+  .cev.reb{ background:rgba(201,162,39,0.14); color:var(--gold-bright); border-left-color:var(--gold); }
+  .cev.todo{ background:var(--surface-raised); color:var(--text-dim); border-left-color:var(--text-faint); }
+  .cev.todo.done{ text-decoration:line-through; opacity:0.5; }
+  .cev:hover{ filter:brightness(1.25); }
+
+  .cal-agenda{ display:none; }
+  .cal-ag-day{ display:flex; gap:11px; padding:9px 0; border-bottom:1px solid var(--border); }
+  .cal-ag-day:last-child{ border-bottom:none; }
+  .cal-ag-date{ width:44px; flex-shrink:0; text-align:center; }
+  .cal-ag-date .d{ font-family:var(--mono); font-size:17px; line-height:1.1; }
+  .cal-ag-date .w{ font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.5px; }
+  .cal-ag-day.today .cal-ag-date .d{ color:var(--gold-bright); }
+  .cal-ag-evs{ flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+  .cal-ag-evs .cev{ font-size:12px; padding:4px 8px; white-space:normal; }
+  .cal-ag-bal{ font-family:var(--mono); font-size:10.5px; color:var(--text-faint); margin-top:1px; }
+  .cal-ag-bal.low{ color:var(--red); }
+
+  .cal-legend{ display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--text-faint); margin-top:11px; }
+  .cal-legend i{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; vertical-align:baseline; }
+
+  .todo-chips{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:11px; }
+  .tchip{ all:unset; cursor:pointer; font-size:11.5px; padding:3px 10px; border-radius:20px;
+    border:1px solid var(--border); background:var(--surface-raised); color:var(--text-dim); }
+  .tchip:hover{ border-color:var(--gold); color:var(--gold-bright); }
+  .tchip.active{ background:rgba(201,162,39,0.16); border-color:var(--gold); color:var(--gold-bright); }
+  .tchip .c{ font-family:var(--mono); font-size:10px; opacity:0.75; margin-left:5px; }
+  .tchip.add{ color:var(--text-faint); }
+  .todo-add{ display:flex; gap:7px; margin-bottom:10px; }
+  .todo-add input{ flex:1; min-width:0; }
+  .todo-item{ display:flex; align-items:flex-start; gap:9px; padding:7px 0; border-bottom:1px solid var(--border); }
+  .todo-item:last-of-type{ border-bottom:none; }
+  .todo-item input[type=checkbox]{ margin-top:2px; flex:none; width:15px; height:15px; }
+  .todo-item .tt{ flex:1; min-width:0; font-size:13px; line-height:1.45; word-break:break-word; }
+  .todo-item.done .tt{ text-decoration:line-through; color:var(--text-faint); }
+  .todo-item .tdue{ font-size:10.5px; margin-top:2px; color:var(--text-faint); }
+  .todo-item .tdue.over{ color:var(--red); }
+  .todo-item .tdue.soon{ color:var(--amber); }
+  .todo-foot{ display:flex; gap:8px; align-items:center; margin-top:12px; padding-top:10px;
+    border-top:1px solid var(--border); font-size:11.5px; color:var(--text-faint); flex-wrap:wrap; }
+  .todo-foot button{ all:unset; cursor:pointer; color:var(--text-faint); }
+  .todo-foot button:hover{ color:var(--gold-bright); }
+  .todo-foot button.del:hover{ color:var(--red); }
+
   .fx-alert{ background:rgba(217,105,95,0.10); border:1px solid rgba(217,105,95,0.45);
     border-radius:var(--radius); padding:11px 14px; margin-bottom:16px; font-size:13px;
     color:var(--red); line-height:1.5; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
@@ -471,6 +549,14 @@
     .row .card.metric{ width:100%; }
     table.plan.mobile-condensed td.catname{ min-width:0; max-width:150px; font-size:12px; }
 
+    /* A 7-column month grid is unreadable at this width, so the same month is
+       listed as an agenda of the days that actually have something on them. */
+    .cal-grid{ display:none; }
+    .cal-agenda{ display:block; }
+    .cal-pane-tabs{ display:flex; }
+    .cal-wrap.pane-calendar .cal-pane-todo{ display:none; }
+    .cal-wrap.pane-todo .cal-pane-cal{ display:none; }
+
     /* Planning: show only the selected month's column instead of all 12 side by side */
     label.field.plan-mobile-month-picker{ display:flex; }
     table.plan.mobile-condensed th:not(:first-child):not(:last-child),
@@ -588,10 +674,11 @@
       <button data-tab="planning"><span class="num">03</span><span class="label">Planning</span></button>
       <button data-tab="networth"><span class="num">04</span><span class="label">Net Worth</span></button>
       <button data-tab="bills"><span class="num">05</span><span class="label">Bills</span></button>
-      <button data-tab="investments"><span class="num">06</span><span class="label">Investments</span></button>
-      <button data-tab="liquidity"><span class="num">07</span><span class="label">Liquidity</span></button>
-      <button data-tab="settings"><span class="num">08</span><span class="label">Settings</span></button>
-      <button data-tab="versions"><span class="num">09</span><span class="label">Versions</span></button>
+      <button data-tab="calendar"><span class="num">06</span><span class="label">Calendar</span></button>
+      <button data-tab="investments"><span class="num">07</span><span class="label">Investments</span></button>
+      <button data-tab="liquidity"><span class="num">08</span><span class="label">Liquidity</span></button>
+      <button data-tab="settings"><span class="num">09</span><span class="label">Settings</span></button>
+      <button data-tab="versions"><span class="num">10</span><span class="label">Versions</span></button>
     </nav>
     <div class="sidebar-foot">
       <button id="themeToggleBtn">☀ Light mode</button>
@@ -610,10 +697,11 @@
     <div class="sheet-back"></div>
     <div class="sheet">
       <h4>More</h4>
-      <button data-tab="investments"><span class="n">06</span>Investments</button>
-      <button data-tab="liquidity"><span class="n">07</span>Liquidity</button>
-      <button data-tab="settings"><span class="n">08</span>Settings</button>
-      <button data-tab="versions"><span class="n">09</span>Versions</button>
+      <button data-tab="bills"><span class="n">05</span>Bills</button>
+      <button data-tab="investments"><span class="n">07</span>Investments</button>
+      <button data-tab="liquidity"><span class="n">08</span>Liquidity</button>
+      <button data-tab="settings"><span class="n">09</span>Settings</button>
+      <button data-tab="versions"><span class="n">10</span>Versions</button>
     </div>
   </div>
   <nav id="mobileTabBar">
@@ -621,7 +709,7 @@
     <button data-tab="transactions"><span class="mtb-num">02</span><span>Trans</span></button>
     <button data-tab="planning"><span class="mtb-num">03</span><span>Plan</span></button>
     <button data-tab="networth"><span class="mtb-num">04</span><span>Worth</span></button>
-    <button data-tab="bills"><span class="mtb-num">05</span><span>Bills</span></button>
+    <button data-tab="calendar"><span class="mtb-num">06</span><span>Cal</span></button>
     <button id="mtbMore"><span class="mtb-num">···</span><span>More</span></button>
   </nav>
 </div>
@@ -707,6 +795,13 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 const TYPES = ['Income','Expenses','Savings'];
 const NET_WORTH_GROUPS = ['Pocket Money','Emergency Fund','Investment','Retirement Savings','Family Saving Account','Co-saving Account','Insurance Account','Other'];
 const TODAY = new Date();
+/* A scheduled entry is money out, money in, or money moved to savings. Saving is
+   its own kind rather than an expense: it leaves the spendable balance, so the
+   cashflow projection has to subtract it, but it is not spending and must never
+   be counted as such. */
+const BILL_KINDS = [['expense','Money out'], ['income','Money in'], ['saving','To savings']];
+const BILL_KIND_LABEL = { expense:'Money out', income:'Money in', saving:'To savings' };
+const DEFAULT_TODO_LIST = 'todo-default';
 
 function defaultState(){
   return {
@@ -734,6 +829,7 @@ function defaultState(){
         staleDays: 30,       // a price older than this is called out
         scope: 'whole',      // 'whole' | 'core' | 'satellite'
         contribution: 0,     // the amount you're about to invest, used for the suggestion
+        lastRebalanceDate: '', // the calendar derives the next reminder as this + 6 months
         // Projection
         retireYear: 2060,
         returnCap: 12,       // ceiling on an assumed real return, in % — see below
@@ -770,7 +866,12 @@ function defaultState(){
     accounts: [],      // {id,name,group,currency,openingBalance,openingDate,target,subCategories,history}
     fxRates: { THB: null, USD: null, fetchedAt: null }, // auto-fetched, AUD as base
     portfolioTarget: { amount: null, currency: 'AUD' }, // one target for the WHOLE net worth, independent of per-account targets
-    bills: [],         // {id,name,amount,frequency,lastPaidDate,notes,paidMonths:[]}
+    bills: [],         // {id,name,amount,currency,kind,frequency,dueDate,lastPaidDate,notes,paidMonths:[]}
+    // To-do lists live beside the money, not inside it. Items are held flat with a
+    // listId rather than nested under their list, because the calendar needs every
+    // dated item across every list on each render — one filter instead of a walk.
+    todoLists: [{ id: DEFAULT_TODO_LIST, name: 'To do', locked: true }],
+    todos: [],         // {id,listId,text,done,dueDate,createdAt,doneAt}
     ui: { dashYear: TODAY.getFullYear(), dashMonth: TODAY.getMonth(), dashViewMode: 'month', planYear: TODAY.getFullYear(), activeTab:'dashboard',
       trendSeries: { Budget:true, Income:true, Expenses:true, Savings:true },
       lineSeries: { Income:true, Expenses:true, Savings:true } }
@@ -976,7 +1077,36 @@ function mergeWithDefaults(parsed){
   };
   merged.fxRates = merged.fxRates || { THB: null, USD: null, fetchedAt: null };
   merged.portfolioTarget = merged.portfolioTarget || { amount: null, currency: 'AUD' };
-  (merged.bills||[]).forEach(b=>{ if(!b.currency) b.currency = 'AUD'; });
+  // Bills gained a kind and an explicit next-due date so the calendar can project
+  // them forward. Everything saved before this was money out, and its due date is
+  // whatever the old lastPaidDate already implied — so nothing moves on screen.
+  merged.bills = Array.isArray(merged.bills) ? merged.bills : [];
+  merged.bills.forEach(b=>{
+    if(!b.currency) b.currency = 'AUD';
+    if(!BILL_KIND_LABEL[b.kind]) b.kind = 'expense';
+    if(b.frequency !== 'Annually') b.frequency = 'Monthly';
+    if(b.dueDate === undefined || b.dueDate === null){
+      const nd = dueFromLastPaid(b);
+      b.dueDate = nd ? isoDate(nd) : '';
+      // The day it was last paid is the better statement of intent than the day the
+      // clamp happened to land on — a bill paid on the 31st is a 31st bill.
+      if(b.lastPaidDate) b.dueDay = Number(b.lastPaidDate.slice(8,10));
+    }
+    if(b.dueDay === undefined) b.dueDay = b.dueDate ? Number(b.dueDate.slice(8,10)) : null;
+    if(!Array.isArray(b.paidMonths)) b.paidMonths = [];
+  });
+  // To-do lists. A profile always has at least one list that can't be deleted, so
+  // there is always a valid home for a new item and never a blank first screen.
+  merged.todoLists = Array.isArray(merged.todoLists) ? merged.todoLists : [];
+  merged.todos = Array.isArray(merged.todos) ? merged.todos : [];
+  if(!merged.todoLists.length) merged.todoLists = [{ id: DEFAULT_TODO_LIST, name:'To do', locked:true }];
+  if(!merged.todoLists.some(l=> l.locked)) merged.todoLists[0].locked = true;
+  const todoListIds = new Set(merged.todoLists.map(l=> l.id));
+  merged.todos.forEach(t=>{
+    if(!todoListIds.has(t.listId)) t.listId = merged.todoLists[0].id;
+    if(typeof t.dueDate !== 'string') t.dueDate = '';
+    t.done = !!t.done;
+  });
   // Transactions had no currency field before multi-currency support — every existing
   // entry was always meant as AUD, so that's exactly what gets set here, not a guess.
   (merged.transactions||[]).forEach(t=>{ if(!t.currency) t.currency = 'AUD'; });
@@ -1242,8 +1372,9 @@ function buildWorkbook(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(accRows), 'Net Worth');
 
   // Bills
-  const billRows = [['Name','Amount','Currency','Frequency','Last Paid','Notes']];
-  state.bills.forEach(b=> billRows.push([b.name, Number(b.amount)||0, b.currency||'AUD', b.frequency, b.lastPaidDate||'', b.notes||'']));
+  const billRows = [['Name','Type','Amount','Currency','Frequency','Next Due','Last Paid','Notes']];
+  state.bills.forEach(b=> billRows.push([b.name, BILL_KIND_LABEL[b.kind]||'Money out', Number(b.amount)||0,
+    b.currency||'AUD', b.frequency, b.dueDate||'', b.lastPaidDate||'', b.notes||'']));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(billRows), 'Bills');
 
   return wb;
@@ -1446,7 +1577,7 @@ function handleNavClick(e){
 document.getElementById('navTabs').addEventListener('click', handleNavClick);
 document.getElementById('mobileTabBar').addEventListener('click', handleNavClick);
 
-const MORE_TABS = ['investments','liquidity','settings','versions'];
+const MORE_TABS = ['bills','investments','liquidity','settings','versions'];
 
 function openMoreSheet(open){
   const sheet = document.getElementById('mtbSheet');
@@ -1477,7 +1608,7 @@ function setActiveNav(){
     moreBtn.classList.toggle('active', inMore);
     const label = moreBtn.querySelector('span:last-child');
     if(label) label.textContent = inMore
-      ? ({investments:'Invest', liquidity:'Liquid', settings:'Set', versions:'Ver'})[state.ui.activeTab]
+      ? ({bills:'Bills', investments:'Invest', liquidity:'Liquid', settings:'Set', versions:'Ver'})[state.ui.activeTab]
       : 'More';
   }
   const sheet = document.getElementById('mtbSheet');
@@ -1580,6 +1711,7 @@ function renderTab(c, tab){
   else if(tab==='planning') renderPlanning(c);
   else if(tab==='networth') renderNetWorth(c);
   else if(tab==='bills') renderBills(c);
+  else if(tab==='calendar') renderCalendar(c);
   else if(tab==='investments') renderInvestments(c);
   else if(tab==='liquidity') renderLiquidity(c);
   else if(tab==='settings') renderSettings(c);
@@ -4334,6 +4466,9 @@ function wireInvestingSection(c){
   bind('rebCoreTarget', function(){
     investSettings().coreTarget = Math.max(0, Math.min(100, Number(this.value)||0)); saveState(); render();
   }, 'onchange');
+  bind('rebLastDate', function(){
+    investSettings().lastRebalanceDate = this.value || ''; saveState(); render();
+  }, 'onchange');
   const projField = (id, apply)=>{
     const el = document.getElementById(id);
     if(el) el.onchange = ()=>{ apply(Number(el.value)||0); saveState(); render(); };
@@ -4451,6 +4586,9 @@ function investingSectionHTML(){
           <input type="number" id="rebCoreTarget" step="5" min="0" max="100" value="${IS.coreTarget}" style="width:64px;"> <span>%</span></div>` : ''}
         <div class="liq-basis"><span>About to invest</span>
           <input type="number" id="rebContribution" step="100" min="0" value="${IS.contribution||0}" style="width:96px;"></div>
+        <div class="liq-basis" title="The Calendar shows a reminder every six months from this date">
+          <span>Last rebalanced</span>
+          <input type="date" id="rebLastDate" value="${IS.lastRebalanceDate||''}" style="width:auto;"></div>
         <div class="spacer"></div>
         <button class="btn secondary" id="recordBuyBtn">Record purchase</button>
         <button class="btn secondary" id="recordDivBtn">Record dividend</button>
@@ -5014,24 +5152,88 @@ function openHistoryModal(accId, subId){
 ========================================================= */
 function currentMonthKey(){ return isoDate(TODAY).slice(0,7); }
 
-function nextDueDate(bill){
+/* Move a date n periods forward (or backward, for a negative n), clamping to the
+   target month's real last day. Date.setMonth() would overflow — the 31st of a
+   month stepped once lands in the month after next — and setFullYear() does the
+   same to Feb 29. Building the date from parts is the only way to avoid both. */
+function addPeriod(d, frequency, n){
+  const step  = frequency === 'Annually' ? 12 : 1;
+  const total = step * (n === undefined ? 1 : n);
+  const idx = d.getMonth() + total;
+  const ty  = d.getFullYear() + Math.floor(idx / 12);
+  const tm  = ((idx % 12) + 12) % 12;
+  const lastDay = new Date(ty, tm + 1, 0).getDate();
+  return new Date(ty, tm, Math.min(d.getDate(), lastDay));
+}
+
+/* How the due date was worked out before bills carried one of their own: a bill
+   was due one period after it was last paid, and a bill never paid had no date
+   at all. Kept for the one-time migration and as a fallback. */
+function dueFromLastPaid(bill){
   if(!bill.lastPaidDate) return null;
-  const d = new Date(bill.lastPaidDate+'T00:00:00');
-  if(bill.frequency==='Annually'){
-    d.setFullYear(d.getFullYear()+1);
-    return d;
+  return addPeriod(new Date(bill.lastPaidDate+'T00:00:00'), bill.frequency, 1);
+}
+
+function nextDueDate(bill){
+  if(bill.dueDate) return new Date(bill.dueDate+'T00:00:00');
+  return dueFromLastPaid(bill);
+}
+
+/* The day of the month the bill is really on. Clamping a bill due on the 31st into
+   February has to be presentational: if the clamped date became the new anchor, a
+   rent bill would walk 31st → 28th and stay there, and stepping back from Feb 28
+   would land on Jan 28 rather than the 31st it came from. Keeping the intended day
+   separately makes the clamp reversible and non-accumulating. */
+function billDueDay(bill){
+  const explicit = Number(bill.dueDay);
+  if(Number.isFinite(explicit) && explicit >= 1 && explicit <= 31) return explicit;
+  return bill.dueDate ? Number(bill.dueDate.slice(8,10)) : null;
+}
+
+/* The bill's due date n periods from where it sits now, clamped to a real day. */
+function shiftDue(bill, n){
+  const anchor = nextDueDate(bill);
+  if(!anchor) return null;
+  const stepped = addPeriod(anchor, bill.frequency, n);
+  const day = billDueDay(bill);
+  if(!day) return stepped;
+  const lastDay = new Date(stepped.getFullYear(), stepped.getMonth()+1, 0).getDate();
+  return new Date(stepped.getFullYear(), stepped.getMonth(), Math.min(day, lastDay));
+}
+
+/* Every date this bill falls on inside a window, oldest first. The stored due date
+   is an anchor rather than a boundary, so this steps back from it to the first
+   occurrence in range before walking forward — a bill anchored next year still
+   shows correctly when you page back through the calendar. */
+function billOccurrences(bill, fromISO, toISO){
+  const out = [];
+  if(!nextDueDate(bill)) return out;
+  const from = new Date(fromISO+'T00:00:00');
+  const to   = new Date(toISO+'T00:00:00');
+  let start = 0;
+  while(start > -1200 && shiftDue(bill, start - 1) >= from) start--;
+  for(let i = start; i < start + 1200; i++){
+    const d = shiftDue(bill, i);
+    if(d > to) break;
+    if(d >= from) out.push(isoDate(d));
   }
-  // Clamp to the target month's real last day (e.g. Jan 31 -> Feb 28/29, not overflowing into March).
-  const targetYear = d.getFullYear();
-  const targetMonth = d.getMonth()+1;
-  const lastDayOfTargetMonth = new Date(targetYear, targetMonth+1, 0).getDate();
-  const day = Math.min(d.getDate(), lastDayOfTargetMonth);
-  return new Date(targetYear, targetMonth, day);
+  return out;
+}
+
+/* Money in adds to the balance; money out and money moved to savings both take
+   from it. Savings is not spending, but it does leave the spendable balance. */
+function billSign(bill){ return bill.kind === 'income' ? 1 : -1; }
+function billSignedAUD(bill){
+  return billSign(bill) * toAUD(Number(bill.amount)||0, bill.currency||'AUD');
+}
+function billMonthlyAUD(bill){
+  const amt = toAUD(Number(bill.amount)||0, bill.currency||'AUD');
+  return bill.frequency === 'Annually' ? amt/12 : amt;
 }
 
 function dueBadge(bill){
   const nd = nextDueDate(bill);
-  if(!nd) return `<span class="muted">Not yet paid</span>`;
+  if(!nd) return `<span class="muted">No date set</span>`;
   const days = Math.round((nd - new Date(isoDate(TODAY)+'T00:00:00')) / 86400000);
   const dateStr = isoDate(nd);
   if(days < 0) return `<span class="neg">${dateStr} — overdue ${Math.abs(days)}d</span>`;
@@ -5042,21 +5244,25 @@ function dueBadge(bill){
 
 function renderBills(c){
   const mk = currentMonthKey();
-  const monthlyEquivalent = state.bills.reduce((s,b)=>{
-    const amtAUD = toAUD(Number(b.amount)||0, b.currency||'AUD');
-    return s + (b.frequency==='Annually' ? amtAUD/12 : amtAUD);
-  },0);
+  const sumKind = k=> state.bills.filter(b=> b.kind===k).reduce((s,b)=> s + billMonthlyAUD(b), 0);
+  const outM  = sumKind('expense');
+  const inM   = sumKind('income');
+  const saveM = sumKind('saving');
+  const netM  = inM - outM - saveM;
 
   c.innerHTML = `
-    <h1 class="page-title">Bills & Subscriptions</h1>
-    <div class="page-sub">Recurring costs, when they're next due, and whether they've been paid this month. Use ↑↓ to reorder.</div>
+    <h1 class="page-title">Bills &amp; Scheduled Money</h1>
+    <div class="page-sub">Everything that lands on a date — bills going out, income coming in, and transfers to savings. The Calendar tab projects these forward. Use ↑↓ to reorder.</div>
     <div class="row" style="margin-bottom:16px;">
-      <div class="card metric"><h3>Monthly equivalent</h3><div class="big neg">${moneyWhole(monthlyEquivalent)}</div><div class="cap">annual bills ÷ 12 + monthly bills, in AUD</div></div>
+      <div class="card metric"><h3>Money out</h3><div class="big neg">${moneyWhole(outM)}</div><div class="cap">per month, annual ÷ 12, in AUD</div></div>
+      <div class="card metric"><h3>Money in</h3><div class="big pos">${moneyWhole(inM)}</div><div class="cap">per month, annual ÷ 12, in AUD</div></div>
+      <div class="card metric"><h3>To savings</h3><div class="big" style="color:var(--blue-bright);">${moneyWhole(saveM)}</div><div class="cap">leaves spendable cash, not spending</div></div>
+      <div class="card metric"><h3>Left over</h3><div class="big ${netM>=0?'pos':'neg'}">${moneyWhole(netM)}</div><div class="cap">scheduled money in less out and saved</div></div>
     </div>
-    <div class="toolbar"><div class="spacer"></div><button class="btn" id="addBillBtn">+ Add bill</button></div>
-    ${state.bills.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No recurring bills yet.</div>` : `
+    <div class="toolbar"><div class="spacer"></div><button class="btn" id="addBillBtn">+ Add entry</button></div>
+    ${state.bills.length===0 ? `<div class="empty-state"><div class="glyph">·</div>Nothing scheduled yet. Add a bill, your salary, or a monthly transfer to savings.</div>` : `
     <table class="data">
-      <thead><tr><th></th><th>Name</th><th class="num">Amount</th><th>Frequency</th><th>Next due</th><th>Paid this month</th><th></th></tr></thead>
+      <thead><tr><th></th><th>Name</th><th>Type</th><th class="num">Amount</th><th>Frequency</th><th>Next due</th><th>Done this month</th><th></th></tr></thead>
       <tbody>
         ${state.bills.map((b,idx)=>{
           const paid = (b.paidMonths||[]).includes(mk);
@@ -5067,6 +5273,7 @@ function renderBills(c){
               <button class="icon-btn" data-billdown="${b.id}" title="Move down" ${idx===state.bills.length-1?'disabled':''}>↓</button>
             </td>
             <td>${b.name}${b.notes?`<div class="muted" style="font-size:11.5px;">${b.notes}</div>`:''}</td>
+            <td><span class="pill kind-${b.kind}">${BILL_KIND_LABEL[b.kind]}</span></td>
             <td class="num">${moneyCur(b.amount, b.currency||'AUD')}</td>
             <td class="muted">${b.frequency}</td>
             <td style="font-size:12.5px;">${dueBadge(b)}</td>
@@ -5085,11 +5292,19 @@ function renderBills(c){
   c.querySelectorAll('[data-paid]').forEach(cb=> cb.onchange = ()=>{
     const b = state.bills.find(x=>x.id===cb.dataset.paid);
     b.paidMonths = b.paidMonths||[];
+    // Ticking rolls the due date on by one period so the calendar stops showing it
+    // as owed; unticking rolls it straight back, so a mis-tap costs nothing.
     if(cb.checked){
       if(!b.paidMonths.includes(mk)) b.paidMonths.push(mk);
       b.lastPaidDate = isoDate(TODAY);
+      // Pin the intended day now, while the date is still unclamped. Read back from
+      // an already-clamped date it would be 28, and the bill would never return to
+      // the 31st.
+      if(b.dueDate && !b.dueDay) b.dueDay = Number(b.dueDate.slice(8,10));
+      if(b.dueDate) b.dueDate = isoDate(shiftDue(b, 1));
     } else {
       b.paidMonths = b.paidMonths.filter(x=>x!==mk);
+      if(b.dueDate) b.dueDate = isoDate(shiftDue(b, -1));
     }
     saveState(); render();
   });
@@ -5120,14 +5335,21 @@ function openBillModal(editId){
   root.innerHTML = `
     <div class="modal-backdrop" id="mb">
       <div class="modal">
-        <h2>${existing ? 'Edit bill' : 'Add bill'}</h2>
+        <h2>${existing ? 'Edit scheduled entry' : 'Add scheduled entry'}</h2>
         <div class="form-grid">
-          <label class="field">Name <input type="text" id="bName" placeholder="e.g. Netflix" value="${existing ? existing.name : ''}"></label>
+          <label class="field">Name <input type="text" id="bName" placeholder="e.g. Netflix, or Salary" value="${existing ? existing.name : ''}"></label>
+          <label class="field">Type
+            <select id="bKind">${BILL_KINDS.map(([k,lab])=>`<option value="${k}" ${(existing?existing.kind:'expense')===k?'selected':''}>${lab}</option>`).join('')}</select>
+          </label>
           <label class="field">Amount <input type="number" id="bAmt" min="0" step="0.01" inputmode="decimal" value="${existing ? existing.amount : ''}"></label>
           <label class="field">Currency
             <select id="bCurrency">${NET_WORTH_CURRENCIES.map(cur=>`<option ${existing ? (cur===(existing.currency||'AUD')?'selected':'') : (cur==='AUD'?'selected':'')}>${cur}</option>`).join('')}</select>
           </label>
           <label class="field">Frequency <select id="bFreq"><option ${existing&&existing.frequency==='Monthly'?'selected':''}>Monthly</option><option ${existing&&existing.frequency==='Annually'?'selected':''}>Annually</option></select></label>
+          <label class="field">Next due
+            <input type="date" id="bDue" value="${existing ? (existing.dueDate||'') : ''}">
+            <span class="muted" style="font-size:11px;">Leave blank and it stays off the calendar. Ticking it off later moves this on one period.</span>
+          </label>
           <label class="field">Notes <input type="text" id="bNotes" placeholder="optional" value="${existing ? (existing.notes||'') : ''}"></label>
         </div>
         <div class="form-actions">
@@ -5146,18 +5368,476 @@ function openBillModal(editId){
     if(!bAmtVal || bAmtVal<=0){ toast('Enter an amount greater than 0.'); return; }
     const frequency = document.getElementById('bFreq').value;
     const currency = document.getElementById('bCurrency').value;
+    const kind = document.getElementById('bKind').value;
+    const dueDate = document.getElementById('bDue').value || '';
+    // The day you typed is the day you mean, kept apart from the date so a month
+    // that has no 31st can't quietly become the new rule.
+    const dueDay = dueDate ? Number(dueDate.slice(8,10)) : null;
     const notes = document.getElementById('bNotes').value.trim();
     if(existing){
-      Object.assign(existing, { name, amount:bAmtVal, currency, frequency, notes });
-      toast('Bill updated.');
+      Object.assign(existing, { name, amount:bAmtVal, currency, kind, frequency, dueDate, dueDay, notes });
+      toast('Entry updated.');
     } else {
       state.bills.push({
-        id:uid(), name, amount:bAmtVal, currency, frequency, notes,
+        id:uid(), name, amount:bAmtVal, currency, kind, frequency, dueDate, dueDay, notes,
         lastPaidDate:'', paidMonths:[]
       });
-      toast('Bill added.');
+      toast('Entry added.');
     }
     saveState(); root.innerHTML=''; render();
+  };
+}
+
+/* =========================================================
+   CALENDAR & TO DO
+
+   The calendar draws two layers. Derived events — bills, income, transfers to
+   savings, the rebalance reminder — are computed on every render and never
+   stored, so changing an amount on the Bills tab changes the calendar at once
+   and there is only ever one copy of a due date. Manual events are dated to-do
+   items; there is deliberately no separate event store, because two places to
+   put "book flight" is one place too many.
+========================================================= */
+
+/* Deliberately module-level rather than in state.ui: which month you were looking
+   at and which list was open are this device's business, not something worth a
+   Firestore write or worth carrying to the iPad. */
+let calMonth = null;        // 'YYYY-MM' being viewed; null means the current month
+let calPane  = 'calendar';  // phone only — which of the two panes is showing
+let todoActiveList = null;
+
+function escHTML(s){
+  return String(s == null ? '' : s).replace(/[&<>"]/g, ch=>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[ch]);
+}
+
+/* Whole days between two dates, immune to daylight saving shifting an hour and
+   turning a 24-hour gap into 23. */
+function dayDiff(a, b){
+  return Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())
+                   - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000);
+}
+function addDays(d, n){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()+n); }
+function todayDate(){ return new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate()); }
+
+function calMonthKey(){ return calMonth || currentMonthKey(); }
+function monthBounds(key){
+  const y = Number(key.slice(0,4)), m = Number(key.slice(5,7)) - 1;
+  const first = new Date(y, m, 1), last = new Date(y, m+1, 0);
+  return { y, m, first, last, firstISO: isoDate(first), lastISO: isoDate(last) };
+}
+function shiftMonthKey(key, n){
+  const { y, m } = monthBounds(key);
+  const idx = m + n;
+  const ny = y + Math.floor(idx/12), nm = ((idx % 12) + 12) % 12;
+  return `${ny}-${String(nm+1).padStart(2,'0')}`;
+}
+function calMonthLabel(key){
+  const FULL = ['January','February','March','April','May','June','July',
+                'August','September','October','November','December'];
+  return `${FULL[Number(key.slice(5,7))-1]} ${key.slice(0,4)}`;
+}
+
+/* Every six months from the date you last rebalanced. Derived rather than stored
+   as a reminder you have to keep re-setting — set the date once on Investments
+   and the next one appears by itself. */
+function rebalanceDates(fromISO, toISO){
+  const anchor = (investSettings().lastRebalanceDate || '').trim();
+  if(!anchor) return [];
+  const base = new Date(anchor+'T00:00:00');
+  const out = [];
+  for(let i=1; i<=240; i++){
+    const iso = isoDate(addPeriod(base, 'Monthly', i*6));
+    if(iso > toISO) break;
+    if(iso >= fromISO) out.push(iso);
+  }
+  return out;
+}
+
+/* Everything that falls inside a window, keyed by date. */
+function calendarEvents(fromISO, toISO){
+  const map = {};
+  const add = (iso, ev)=>{ (map[iso] = map[iso] || []).push(ev); };
+  (state.bills||[]).forEach(b=>{
+    const signed = billSignedAUD(b);
+    billOccurrences(b, fromISO, toISO).forEach(iso=>
+      add(iso, { type:'money', kind:b.kind, name:b.name, signed, id:b.id }));
+  });
+  rebalanceDates(fromISO, toISO).forEach(iso=>
+    add(iso, { type:'rebalance', name:'Rebalance due', signed:0 }));
+  (state.todos||[]).forEach(t=>{
+    if(!t.dueDate || t.dueDate < fromISO || t.dueDate > toISO) return;
+    add(t.dueDate, { type:'todo', name:t.text, done:!!t.done, signed:0, id:t.id });
+  });
+  return map;
+}
+
+/* Walk forward from the cash you can actually reach today, applying each dated
+   amount on the day it lands. Nothing from Planning is spread across the days:
+   dividing a monthly budget by 30 would put the same figure on every date and
+   bury the lumpiness this view exists to show. */
+function cashflowProjection(){
+  const start   = todayDate();
+  const horizon = addDays(start, 60);
+  const viewEnd = monthBounds(calMonthKey()).last;
+  const end     = viewEnd > horizon ? viewEnd : horizon;
+  const startISO = isoDate(start), endISO = isoDate(end), horizonISO = isoDate(horizon);
+
+  const opening = liquidityLadder().cum.today;
+  const events  = calendarEvents(startISO, endISO);
+  const balances = {};
+  let bal = opening;
+  let min = { date: startISO, balance: opening };
+
+  for(let i=0; i<=dayDiff(start, end); i++){
+    const iso = isoDate(addDays(start, i));
+    (events[iso]||[]).forEach(e=>{ bal += e.signed; });
+    balances[iso] = bal;
+    if(iso <= horizonISO && bal < min.balance) min = { date: iso, balance: bal };
+  }
+  return { opening, balances, min, startISO, endISO, horizonISO };
+}
+
+function calEventHTML(ev, compact){
+  const cls = ev.type === 'money'
+    ? ({ expense:'out', income:'in', saving:'save' })[ev.kind]
+    : (ev.type === 'rebalance' ? 'reb' : 'todo' + (ev.done ? ' done' : ''));
+  const amt = ev.type === 'money'
+    ? `<span class="amt">${ev.signed >= 0 ? '+' : '−'}${moneyWhole(Math.abs(ev.signed))}</span>`
+    : '';
+  const attr = ev.type === 'todo' ? `data-caltodo="${ev.id}"`
+             : ev.type === 'money' ? `data-calbill="${ev.id}"` : 'data-calreb="1"';
+  const label = escHTML(ev.name);
+  return `<button class="cev ${cls}" ${attr} title="${label}">${
+    compact ? `${label}${amt ? ' ' + amt : ''}` : `${label}${amt ? ' · ' + amt : ''}`}</button>`;
+}
+
+function renderCalendar(c){
+  const key    = calMonthKey();
+  const mb     = monthBounds(key);
+  const todayISO = isoDate(TODAY);
+  const proj   = cashflowProjection();
+  const events = calendarEvents(mb.firstISO, mb.lastISO);
+  const buffer = (liqSettings().limits||{}).bufferToday || 0;
+
+  // Net of everything scheduled inside the month being viewed.
+  let monthNet = 0;
+  Object.values(events).forEach(list=> list.forEach(e=> { monthNet += e.signed; }));
+
+  const minDays = dayDiff(todayDate(), new Date(proj.min.date+'T00:00:00'));
+  const noSchedule = !(state.bills||[]).some(b=> b.dueDate);
+
+  const cells = [];
+  const gridStart = mondayOf(mb.first);
+  const total = Math.ceil((dayDiff(gridStart, mb.last) + 1) / 7) * 7;
+  for(let i=0; i<total; i++){
+    const d   = addDays(gridStart, i);
+    const iso = isoDate(d);
+    const evs = events[iso] || [];
+    const outside = d.getMonth() !== mb.m;
+    const bal = proj.balances[iso];
+    const showBal = bal !== undefined && evs.some(e=> e.type === 'money');
+    cells.push(`
+      <div class="cal-day${outside?' out':''}${iso===todayISO?' today':''}">
+        <div class="cd-top">
+          <span class="cd-num">${d.getDate()}</span>
+          ${showBal ? `<span class="cd-bal${bal < buffer ? ' low':''}">${moneyWhole(bal)}</span>` : ''}
+        </div>
+        ${evs.map(e=> calEventHTML(e, true)).join('')}
+      </div>`);
+  }
+
+  const agendaDays = Object.keys(events).filter(iso=> iso >= mb.firstISO && iso <= mb.lastISO).sort();
+  const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const agenda = agendaDays.map(iso=>{
+    const d = new Date(iso+'T00:00:00');
+    const bal = proj.balances[iso];
+    const showBal = bal !== undefined && (events[iso]||[]).some(e=> e.type === 'money');
+    return `
+      <div class="cal-ag-day${iso===todayISO?' today':''}">
+        <div class="cal-ag-date">
+          <div class="d">${d.getDate()}</div>
+          <div class="w">${DOW[(d.getDay()+6)%7]}</div>
+        </div>
+        <div class="cal-ag-evs">
+          ${events[iso].map(e=> calEventHTML(e, false)).join('')}
+          ${showBal ? `<div class="cal-ag-bal${bal < buffer ? ' low':''}">balance ${moneyWhole(bal)}</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  c.innerHTML = `
+    <h1 class="page-title">Calendar</h1>
+    <div class="page-sub">When money actually lands, not just how much. Bills, income and transfers come from the Bills tab; dated to-dos come from your lists.</div>
+
+    <div class="row" style="margin-bottom:16px;">
+      <div class="card metric">
+        <h3>Cash you can reach today</h3>
+        <div class="big">${moneyWhole(proj.opening)}</div>
+        <div class="cap">the "today" tier from Liquidity</div>
+      </div>
+      <div class="card metric">
+        <h3>Lowest point in 60 days</h3>
+        <div class="big ${proj.min.balance < buffer ? 'neg' : ''}">${moneyWhole(proj.min.balance)}</div>
+        <div class="cap">${minDays === 0 ? 'today — nothing scheduled brings it lower'
+          : `${formatDateShort(proj.min.date)}, in ${minDays} day${minDays===1?'':'s'}`}</div>
+      </div>
+      <div class="card metric">
+        <h3>Scheduled in ${calMonthLabel(key).split(' ')[0]}</h3>
+        <div class="big ${monthNet>=0?'pos':'neg'}">${monthNet>=0?'+':'−'}${moneyWhole(Math.abs(monthNet))}</div>
+        <div class="cap">money in less money out and saved</div>
+      </div>
+    </div>
+
+    ${noSchedule ? `<div class="liq-banner">Nothing on the calendar yet. Add your salary, your bills and your monthly transfer to savings on the Bills tab, each with a next-due date, and the projection above becomes real.</div>` : ''}
+
+    <div class="cal-pane-tabs">
+      <button class="tchip${calPane==='calendar'?' active':''}" data-calpane="calendar">Calendar</button>
+      <button class="tchip${calPane==='todo'?' active':''}" data-calpane="todo">To do</button>
+    </div>
+
+    <div class="cal-wrap pane-${calPane}">
+      <div class="cal-pane-cal">
+        <div class="cal-head">
+          <button class="cal-nav" id="calPrev" title="Previous month">‹</button>
+          <span class="cal-title">${calMonthLabel(key)}</span>
+          <button class="cal-nav" id="calNext" title="Next month">›</button>
+          ${key === currentMonthKey() ? '' : `<button class="cal-nav" id="calToday">Today</button>`}
+        </div>
+        <div class="cal-grid">
+          ${DOW.map(d=>`<div class="cal-dow">${d}</div>`).join('')}
+          ${cells.join('')}
+        </div>
+        <div class="cal-agenda">
+          ${agenda || `<div class="empty-state"><div class="glyph">·</div>Nothing scheduled in ${calMonthLabel(key)}.</div>`}
+        </div>
+        <div class="cal-legend">
+          <span><i style="background:var(--green);"></i>Money in</span>
+          <span><i style="background:var(--pink);"></i>Money out</span>
+          <span><i style="background:var(--blue-bright);"></i>To savings</span>
+          <span><i style="background:var(--gold);"></i>Rebalance</span>
+          <span><i style="background:var(--text-faint);"></i>To do</span>
+        </div>
+      </div>
+      <div class="cal-pane-todo">${todoPaneHTML()}</div>
+    </div>
+  `;
+
+  const bind = (id, fn)=>{ const el = document.getElementById(id); if(el) el.onclick = fn; };
+  bind('calPrev',  ()=>{ calMonth = shiftMonthKey(key, -1); render(); });
+  bind('calNext',  ()=>{ calMonth = shiftMonthKey(key,  1); render(); });
+  bind('calToday', ()=>{ calMonth = null; render(); });
+  c.querySelectorAll('[data-calpane]').forEach(b=>
+    b.onclick = ()=>{ calPane = b.dataset.calpane; render(); });
+  // A derived event is a view of something owned elsewhere, so tapping it goes to
+  // where it is actually edited rather than opening a second editor for it here.
+  c.querySelectorAll('[data-calbill]').forEach(b=> b.onclick = ()=> goToTab('bills'));
+  c.querySelectorAll('[data-calreb]').forEach(b=> b.onclick = ()=> goToTab('investments'));
+  c.querySelectorAll('[data-caltodo]').forEach(b=> b.onclick = ()=> openTodoModal(b.dataset.caltodo));
+  wireTodoPane(c);
+}
+
+/* ---------- To do ---------- */
+
+function todoLists(){ return state.todoLists || (state.todoLists = []); }
+function todoItems(){ return state.todos || (state.todos = []); }
+function activeListId(){
+  const lists = todoLists();
+  if(todoActiveList && lists.some(l=> l.id === todoActiveList)) return todoActiveList;
+  return lists.length ? lists[0].id : null;
+}
+
+function todoDueBadge(t){
+  if(!t.dueDate) return '';
+  const days = dayDiff(todayDate(), new Date(t.dueDate+'T00:00:00'));
+  let cls = '', text = formatDateShort(t.dueDate);
+  if(!t.done){
+    if(days < 0){ cls = 'over'; text = `${text} — overdue ${Math.abs(days)}d`; }
+    else if(days === 0){ cls = 'soon'; text = `${text} — today`; }
+    else if(days <= 3){ cls = 'soon'; text = `${text} — in ${days}d`; }
+  }
+  return `<div class="tdue ${cls}">${text}</div>`;
+}
+
+function todoPaneHTML(){
+  const lists = todoLists();
+  const listId = activeListId();
+  const list = lists.find(l=> l.id === listId);
+  const items = todoItems().filter(t=> t.listId === listId);
+
+  // Undone first, soonest due at the top, undated after them. Completed items are
+  // kept rather than swept away — they just sink.
+  const rank = t=> t.dueDate || '9999-99-99';
+  const open = items.filter(t=> !t.done)
+    .sort((a,b)=> rank(a).localeCompare(rank(b)) || (a.createdAt||'').localeCompare(b.createdAt||''));
+  const done = items.filter(t=> t.done)
+    .sort((a,b)=> (b.doneAt||'').localeCompare(a.doneAt||''));
+
+  const row = t=> `
+    <div class="todo-item${t.done?' done':''}">
+      <input type="checkbox" data-todocheck="${t.id}" ${t.done?'checked':''}>
+      <div class="tt">${escHTML(t.text)}${todoDueBadge(t)}</div>
+      <button class="icon-btn" style="color:var(--gold);" data-todoedit="${t.id}" title="Edit">✎</button>
+    </div>`;
+
+  return `
+    <div class="card">
+      <div class="todo-chips">
+        ${lists.map(l=>{
+          const n = todoItems().filter(t=> t.listId === l.id && !t.done).length;
+          return `<button class="tchip${l.id===listId?' active':''}" data-todolist="${l.id}">${escHTML(l.name)}${n?`<span class="c">${n}</span>`:''}</button>`;
+        }).join('')}
+        <button class="tchip add" id="todoAddList" title="New list">＋</button>
+      </div>
+      ${!list ? `<div class="muted" style="font-size:12.5px;">No lists yet.</div>` : `
+      <div class="todo-add">
+        <input type="text" id="todoNew" placeholder="Add to ${escHTML(list.name)}" autocomplete="off">
+        <button class="btn" id="todoAddBtn">Add</button>
+      </div>
+      ${(open.length || done.length)
+        ? open.map(row).join('') + done.map(row).join('')
+        : `<div class="muted" style="font-size:12.5px; padding:8px 0;">Nothing here yet. Type above to add the first item.</div>`}
+      <div class="todo-foot">
+        <span>${open.length} open${done.length?`, ${done.length} done`:''}</span>
+        <div class="spacer" style="flex:1;"></div>
+        ${done.length ? `<button id="todoClearDone">Clear completed</button>` : ''}
+        <button id="todoRenameList">Rename</button>
+        ${list.locked ? '' : `<button class="del" id="todoDelList">Delete list</button>`}
+      </div>`}
+    </div>`;
+}
+
+function wireTodoPane(c){
+  const bind = (id, fn)=>{ const el = document.getElementById(id); if(el) el.onclick = fn; };
+  c.querySelectorAll('[data-todolist]').forEach(b=>
+    b.onclick = ()=>{ todoActiveList = b.dataset.todolist; render(); });
+  c.querySelectorAll('[data-todocheck]').forEach(cb=> cb.onchange = ()=>{
+    const t = todoItems().find(x=> x.id === cb.dataset.todocheck);
+    if(!t) return;
+    t.done = cb.checked;
+    t.doneAt = cb.checked ? new Date().toISOString() : '';
+    saveState(); render();
+  });
+  c.querySelectorAll('[data-todoedit]').forEach(b=>
+    b.onclick = ()=> openTodoModal(b.dataset.todoedit));
+
+  const input = document.getElementById('todoNew');
+  const addItem = ()=>{
+    const text = (input.value||'').trim();
+    if(!text) return;
+    todoItems().push({ id:uid(), listId:activeListId(), text, done:false, dueDate:'',
+                       createdAt:new Date().toISOString(), doneAt:'' });
+    input.value = '';
+    saveState(); render();
+    const again = document.getElementById('todoNew');
+    if(again) again.focus();
+  };
+  if(input) input.onkeydown = e=>{ if(e.key === 'Enter'){ e.preventDefault(); addItem(); } };
+  bind('todoAddBtn', addItem);
+  bind('todoAddList', ()=> openTodoListModal());
+  bind('todoRenameList', ()=> openTodoListModal(activeListId()));
+  bind('todoClearDone', ()=>{
+    const listId = activeListId();
+    state.todos = todoItems().filter(t=> !(t.listId === listId && t.done));
+    saveState(); render(); toast('Completed items cleared.');
+  });
+  bind('todoDelList', ()=>{
+    const listId = activeListId();
+    const list = todoLists().find(l=> l.id === listId);
+    if(!list || list.locked) return;
+    const n = todoItems().filter(t=> t.listId === listId).length;
+    confirmDestructive({
+      title: 'Delete list',
+      what: `Delete "${escHTML(list.name)}"${n ? ` and its ${n} item${n===1?'':'s'}` : ''}?`,
+      lines: n ? [`${n} item${n===1?'':'s'} will be deleted with the list.`] : ['The list is empty.'],
+      confirmLabel: 'Delete list',
+      onConfirm: ()=>{
+        state.todoLists = todoLists().filter(l=> l.id !== listId);
+        state.todos = todoItems().filter(t=> t.listId !== listId);
+        todoActiveList = null;
+        saveState(); render(); toast('List deleted.');
+      }
+    });
+  });
+}
+
+function openTodoListModal(editId){
+  const root = document.getElementById('modalRoot');
+  const existing = editId ? todoLists().find(l=> l.id === editId) : null;
+  root.innerHTML = `
+    <div class="modal-backdrop" id="tlb">
+      <div class="modal" style="max-width:400px;">
+        <h2>${existing ? 'Rename list' : 'New list'}</h2>
+        <div class="form-grid">
+          <label class="field">Name <input type="text" id="tlName" placeholder="e.g. Shopping"
+            value="${existing ? escHTML(existing.name) : ''}"></label>
+        </div>
+        <div class="form-actions">
+          <button class="btn secondary" id="tlCancel">Cancel</button>
+          <button class="btn" id="tlSave">${existing ? 'Save' : 'Create list'}</button>
+        </div>
+      </div>
+    </div>`;
+  const close = ()=> root.innerHTML = '';
+  document.getElementById('tlCancel').onclick = close;
+  document.getElementById('tlb').addEventListener('click', e=>{ if(e.target.id==='tlb') close(); });
+  const nameEl = document.getElementById('tlName');
+  nameEl.focus();
+  const save = ()=>{
+    const name = nameEl.value.trim();
+    if(!name){ toast('Give the list a name.'); return; }
+    if(existing){ existing.name = name; }
+    else {
+      const id = uid();
+      todoLists().push({ id, name });
+      todoActiveList = id;
+    }
+    saveState(); close(); render();
+  };
+  document.getElementById('tlSave').onclick = save;
+  nameEl.onkeydown = e=>{ if(e.key === 'Enter'){ e.preventDefault(); save(); } };
+}
+
+function openTodoModal(id){
+  const t = todoItems().find(x=> x.id === id);
+  if(!t) return;
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="modal-backdrop" id="tib">
+      <div class="modal" style="max-width:440px;">
+        <h2>Edit item</h2>
+        <div class="form-grid">
+          <label class="field">Item <input type="text" id="tiText" value="${escHTML(t.text)}"></label>
+          <label class="field">List
+            <select id="tiList">${todoLists().map(l=>
+              `<option value="${l.id}" ${l.id===t.listId?'selected':''}>${escHTML(l.name)}</option>`).join('')}</select>
+          </label>
+          <label class="field">Due date
+            <input type="date" id="tiDue" value="${t.dueDate||''}">
+            <span class="muted" style="font-size:11px;">Optional. With a date it also shows on the calendar.</span>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="btn danger" id="tiDel" style="margin-right:auto;">Delete</button>
+          <button class="btn secondary" id="tiCancel">Cancel</button>
+          <button class="btn" id="tiSave">Save</button>
+        </div>
+      </div>
+    </div>`;
+  const close = ()=> root.innerHTML = '';
+  document.getElementById('tiCancel').onclick = close;
+  document.getElementById('tib').addEventListener('click', e=>{ if(e.target.id==='tib') close(); });
+  document.getElementById('tiDel').onclick = ()=>{
+    state.todos = todoItems().filter(x=> x.id !== id);
+    saveState(); close(); render(); toast('Item deleted.');
+  };
+  document.getElementById('tiSave').onclick = ()=>{
+    const text = document.getElementById('tiText').value.trim();
+    if(!text){ toast('The item needs some text.'); return; }
+    t.text = text;
+    t.listId = document.getElementById('tiList').value;
+    t.dueDate = document.getElementById('tiDue').value || '';
+    saveState(); close(); render();
   };
 }
 
@@ -6287,7 +6967,25 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V3.9', name: 'Stacked dialogs no longer freeze the screen underneath', date: 'Sep 2026', current: true,
+    no: 'V4.0', name: 'Calendar, scheduled money, and to-do lists', date: 'Sep 2026', current: true,
+    items: [
+      'New Calendar tab showing when money actually lands rather than only how much. Bills, income and transfers to savings are drawn from the Bills tab on every render and never stored, so changing an amount there changes the calendar immediately and there is only ever one copy of a due date.',
+      'Tapping a bill or a rebalance reminder on the calendar jumps to the tab that owns it instead of opening a second editor for the same record.',
+      'A running balance walks forward from the cash you can reach today, applying each dated amount on the day it falls, and reports the lowest point over the next 60 days. Nothing from Planning is spread across the days — dividing a monthly budget by 30 would put the same figure on every date and bury the lumpiness the view exists to show.',
+      'Bills entries now carry a type: money out, money in, or to savings. Savings is its own type because it leaves the spendable balance without being spending, so the projection subtracts it while no budget or spending figure counts it. The summary at the top of the tab splits into four cards accordingly, since a single total would have silently added your salary to your bills.',
+      'Bills also carry an explicit next-due date. Previously a bill only had one once it had been paid at least once, so a newly added salary would never have appeared. Ticking an entry off rolls its due date on one period; unticking rolls it straight back.',
+      'Date arithmetic rebuilt from parts rather than setMonth and setFullYear, both of which overflow — the 31st stepped one month lands in the month after next, and Feb 29 stepped one year lands on Mar 1. Month ends and leap days now clamp.',
+      'The day of the month an entry falls on is held separately from its current due date, so clamping is only ever presentational. Rent due on the 31st shows as the 28th in February and returns to the 31st in March, rather than walking down to the 28th and staying there; ticking it off and back on returns the exact date it started from.',
+      'To-do lists on the same tab: several named lists, one of which cannot be deleted so there is always a valid home for a new item. Items are optional-dated, and a dated item also appears on the calendar, styled without an amount so a task is never mistaken for money leaving the account.',
+      'Overdue items stay flagged in the list rather than piling into today\'s cell, where they would compete with the balance figure. Completed items are kept, struck through at the bottom, with a per-list Clear completed rather than being swept away automatically.',
+      'Deleting a list asks first and names the item count it will take with it.',
+      'On a phone the month grid is replaced by an agenda of the days that have something on them, and a toggle switches between the calendar and the lists. On an iPad both show side by side.',
+      'Calendar takes the fifth slot in the phone tab bar and Bills moves into More, since the calendar surfaces the same due dates and links through to them.',
+      'Importing a backup now runs through the same migration a saved profile gets. It previously spread the file over the defaults, so a backup taken before a field existed came back missing it.'
+    ]
+  },
+  {
+    no: 'V3.9', name: 'Stacked dialogs no longer freeze the screen underneath', date: 'Sep 2026',
     items: [
       'Fixed the Update prices screen going dead after opening Add API key. The key dialog stashed the price screen\'s HTML and put it back on close, which rebuilt every element as a new node and left all their event handlers behind — the screen reappeared looking normal but no button, input or checkbox responded.',
       'Dialogs opened on top of another dialog are now stacked as a separate layer and simply removed on close, so the screen underneath keeps its handlers and stays live.',
@@ -6616,7 +7314,10 @@ document.getElementById('importFile').addEventListener('change', e=>{
       const parsed = JSON.parse(reader.result);
       if(!parsed.categories || !parsed.transactions){ throw new Error('Not a recognized backup file.'); }
       if(confirm('Import will replace all data in the current profile. Continue?')){
-        state = {...defaultState(), ...parsed};
+        // Through the same migration a saved profile gets, not a shallow spread over
+        // the defaults — otherwise a backup taken before a field existed comes back
+        // missing it, and the tabs that rely on it break on data that looks fine.
+        state = mergeWithDefaults(parsed);
         saveState(); render(); toast('Backup imported.');
       }
     }catch(err){
