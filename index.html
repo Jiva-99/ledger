@@ -26,6 +26,9 @@
     --red: #d9695f;
     --amber: #d98b3d;
     --violet: #a855f7;
+    --ec-neutral:#e8e6e1; --ec-violet:#a855f7; --ec-blue:#60a5fa; --ec-teal:#2dd4bf;
+    --ec-green:#4ade80;   --ec-olive:#b5c94a;  --ec-amber:#fbbf24; --ec-orange:#fb923c;
+    --ec-red:#f87171;     --ec-pink:#f472b6;
     --sans: 'Ledger Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     --serif: var(--sans);
     --mono: var(--sans);
@@ -66,6 +69,9 @@
     --red:#c1453c;
     --amber:#a6631b;
     --violet:#7c3aed;
+    --ec-neutral:#1d2026; --ec-violet:#7c3aed; --ec-blue:#2563eb; --ec-teal:#0d9488;
+    --ec-green:#15803d;   --ec-olive:#5f6f0c;  --ec-amber:#a16207; --ec-orange:#c2410c;
+    --ec-red:#dc2626;     --ec-pink:#db2777;
   }
   body[data-theme="light"] .modal-backdrop{ background:rgba(20,18,10,0.35); }
   ::selection{ background:var(--gold); color:#12141a; }
@@ -353,10 +359,28 @@
   .cev.reb{ background:rgba(201,162,39,0.14); color:var(--gold-bright); border-left-color:var(--gold); }
   .cev.todo{ background:var(--surface-raised); color:var(--text-dim); border-left-color:var(--text-faint); }
   .cev.todo.done{ text-decoration:line-through; opacity:0.5; }
-  .cev.event{ background:rgba(168,85,247,0.14); color:var(--violet); border-left-color:var(--violet); }
+  /* Money chips keep the coloured left bar; events get a dot instead. Shape carries
+     the meaning, which frees colour up entirely — a green event can no longer be
+     mistaken for income. */
+  .cev.event{ background:var(--surface-raised); color:var(--ev-col, var(--ec-neutral));
+    border-left-color:transparent; padding-left:6px; }
+  .cev.event .dot{ display:inline-block; width:7px; height:7px; border-radius:50%;
+    background:var(--ev-col, var(--ec-neutral)); margin-right:5px; vertical-align:middle; }
   .cev.event .tm{ font-family:var(--mono); opacity:0.8; }
-  /* A span reads as one bar: only the first day keeps its left marker. */
-  .cev.event.span-mid, .cev.event.span-end{ border-left-color:transparent; }
+  /* Continuation days of a span fade the dot so the run reads as one thing. */
+  .cev.event.span-mid .dot, .cev.event.span-end .dot{ opacity:0.35; }
+
+  .ev-cat-row{ display:flex; gap:8px; align-items:center; }
+  .ev-cat-row select{ flex:1; min-width:0; }
+  .ec-swatches{ display:flex; gap:6px; flex-wrap:wrap; }
+  .ec-sw{ all:unset; cursor:pointer; width:20px; height:20px; border-radius:50%;
+    background:var(--sw); outline:2px solid transparent; outline-offset:2px; }
+  .ec-sw:hover{ outline-color:var(--border); }
+  .ec-sw.on{ outline-color:var(--text); }
+  .ec-row{ display:flex; align-items:center; gap:10px; padding:10px 0;
+    border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .ec-row:last-of-type{ border-bottom:none; }
+  .ec-row input[type=text]{ flex:1; min-width:110px; }
   .cev:hover{ filter:brightness(1.25); }
 
   .cal-day[data-calday]{ cursor:pointer; }
@@ -822,6 +846,11 @@ const TODAY = new Date();
 const BILL_KINDS = [['expense','Money out'], ['income','Money in'], ['saving','To savings']];
 const BILL_KIND_LABEL = { expense:'Money out', income:'Money in', saving:'To savings' };
 const DEFAULT_TODO_LIST = 'todo-default';
+/* Ten fixed swatches rather than a free colour picker: a picker lets you choose
+   something invisible on one theme and unreadable on the other, and you would have
+   to re-check every choice against both. These are defined per theme in CSS, so
+   "neutral" is near-white on the dark theme and near-black on the light one. */
+const EVENT_COLOURS = ['neutral','violet','blue','teal','green','olive','amber','orange','red','pink'];
 /* The repeat patterns offered, and the unit each one counts in when you ask for
    "every N". Monthly-on-the-second-Tuesday is deliberately absent: it needs its
    own arithmetic and is rare outside work meetings. */
@@ -909,7 +938,8 @@ function defaultState(){
     // Personal events. One record per series rather than one per occurrence: the
     // dates are worked out when the month is drawn, so editing the series changes
     // every occurrence and there is only ever one copy of the details.
-    events: [],        // {id,title,note,startDate,startTime,endDate,repeat:{...}}
+    events: [],        // {id,title,note,startDate,startTime,endDate,categoryId,repeat:{...}}
+    eventCategories: [], // {id,name,colour} — the colour is set once here, not per event
     ui: { dashYear: TODAY.getFullYear(), dashMonth: TODAY.getMonth(), dashViewMode: 'month', planYear: TODAY.getFullYear(), activeTab:'dashboard',
       trendSeries: { Budget:true, Income:true, Expenses:true, Savings:true },
       lineSeries: { Income:true, Expenses:true, Savings:true } }
@@ -1153,6 +1183,19 @@ function mergeWithDefaults(parsed){
     };
   });
   merged.events = merged.events.filter(ev=> !!ev.startDate);
+  // Event categories carry the colour, so an event only stores which category it is
+  // in. A colour is stored as a name rather than a hex value so it can resolve
+  // differently on the dark and light themes.
+  merged.eventCategories = Array.isArray(merged.eventCategories) ? merged.eventCategories : [];
+  merged.eventCategories.forEach(c=>{
+    if(typeof c.name !== 'string' || !c.name.trim()) c.name = 'Untitled';
+    if(!EVENT_COLOURS.includes(c.colour)) c.colour = 'neutral';
+  });
+  merged.eventCategories = merged.eventCategories.filter(c=> !!c.id);
+  const catIds = new Set(merged.eventCategories.map(c=> c.id));
+  // An event pointing at a category that no longer exists falls back to the default
+  // colour rather than disappearing.
+  merged.events.forEach(ev=>{ if(!catIds.has(ev.categoryId)) ev.categoryId = ''; });
   // To-do lists. A profile always has at least one list that can't be deleted, so
   // there is always a valid home for a new item and never a blank first screen.
   merged.todoLists = Array.isArray(merged.todoLists) ? merged.todoLists : [];
@@ -1435,9 +1478,12 @@ function buildWorkbook(){
     b.currency||'AUD', b.frequency, b.dueDate||'', b.lastPaidDate||'', b.notes||'']));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(billRows), 'Bills');
 
-  const eventRows = [['Title','Starts','Time','Ends','Repeats','Note']];
-  (state.events||[]).forEach(e=> eventRows.push([e.title, e.startDate, e.startTime||'',
-    e.endDate||'', repeatSummary(e) || 'Does not repeat', e.note||'']));
+  const eventRows = [['Title','Category','Starts','Time','Ends','Repeats','Note']];
+  (state.events||[]).forEach(e=>{
+    const cat = eventCategory(e);
+    eventRows.push([e.title, cat ? cat.name : '', e.startDate, e.startTime||'',
+      e.endDate||'', repeatSummary(e) || 'Does not repeat', e.note||'']);
+  });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(eventRows), 'Events');
 
   const todoRows = [['List','Item','Done','Due']];
@@ -5550,6 +5596,14 @@ function eventOccurrences(ev, fromISO, toISO){
   }).filter(o=> o.endISO >= fromISO && o.startISO <= toISO);
 }
 
+function eventCategory(ev){
+  return (state.eventCategories||[]).find(c=> c.id === ev.categoryId) || null;
+}
+function eventColourKey(ev){
+  const c = eventCategory(ev);
+  return (c && EVENT_COLOURS.includes(c.colour)) ? c.colour : 'neutral';
+}
+
 function eventTimeLabel(ev){
   if(!ev.startTime) return '';
   const [h, m] = ev.startTime.split(':');
@@ -5646,7 +5700,7 @@ function calendarEvents(fromISO, toISO, opts){
         for(let i=0; i<=o.span; i++){
           const iso = isoDate(addDays(new Date(o.startISO+'T00:00:00'), i));
           if(iso < fromISO || iso > toISO) continue;
-          add(iso, { type:'event', name:ev.title, signed:0, id:ev.id,
+          add(iso, { type:'event', name:ev.title, signed:0, id:ev.id, colour:eventColourKey(ev),
                      time: i === 0 ? eventTimeLabel(ev) : '',
                      part: o.span ? (i === 0 ? 'start' : (i === o.span ? 'end' : 'mid')) : '' });
         }
@@ -5705,7 +5759,12 @@ function calEventHTML(ev, compact){
              : 'data-calreb="1"';
   const label = escHTML(ev.name);
   const time  = ev.type === 'event' && ev.time ? `<span class="tm">${ev.time}</span> ` : '';
-  return `<button class="cev ${cls}" ${attr} title="${label}">${time}${
+  const dot   = ev.type === 'event' ? `<span class="dot"></span>` : '';
+  // The colour key is validated on load and again here, so it can only ever name
+  // one of the ten swatches — never arbitrary text reaching a style attribute.
+  const key   = EVENT_COLOURS.includes(ev.colour) ? ev.colour : 'neutral';
+  const style = ev.type === 'event' ? ` style="--ev-col:var(--ec-${key})"` : '';
+  return `<button class="cev ${cls}"${style} ${attr} title="${label}">${dot}${time}${
     compact ? `${label}${amt ? ' ' + amt : ''}` : `${label}${amt ? ' · ' + amt : ''}`}</button>`;
 }
 
@@ -5804,6 +5863,7 @@ function renderCalendar(c){
           <button class="cal-nav" id="calNext" title="Next month">›</button>
           ${key === currentMonthKey() ? '' : `<button class="cal-nav" id="calToday">Today</button>`}
           <div class="spacer" style="flex:1;"></div>
+          <button class="btn secondary" id="calCats">Categories</button>
           <button class="btn" id="calAddEvent">+ Event</button>
         </div>
         <div class="todo-chips" style="margin-bottom:10px;">
@@ -5823,7 +5883,7 @@ function renderCalendar(c){
           <span><i style="background:var(--pink);"></i>Money out</span>
           <span><i style="background:var(--blue-bright);"></i>To savings</span>
           <span><i style="background:var(--gold);"></i>Rebalance</span>
-          <span><i style="background:var(--violet);"></i>Event</span>
+          <span><i style="background:var(--ec-neutral);"></i>Event</span>
           <span><i style="background:var(--text-faint);"></i>To do</span>
         </div>
       </div>
@@ -5840,6 +5900,7 @@ function renderCalendar(c){
   c.querySelectorAll('[data-callayer]').forEach(b=>
     b.onclick = ()=>{ const k = b.dataset.callayer; calLayers[k] = !calLayers[k]; render(); });
   bind('calAddEvent', ()=> openEventModal(null, isoDate(TODAY)));
+  bind('calCats', ()=> openCategoryManager());
   // Clicking the empty part of a day adds an event there. Chips sit on top and
   // stop the click, so tapping one still opens the thing it points at.
   c.querySelectorAll('[data-calday]').forEach(cell=>
@@ -6108,6 +6169,12 @@ function openEventModal(id, prefillDate){
             <label class="field" id="evCountRow" style="margin-top:10px;">Number of times
               <input type="number" id="evCount" min="1" max="999" step="1" value="${r.count||10}"></label>
           </div>
+          <label class="field">Category
+            <div class="ev-cat-row">
+              <select id="evCat"></select>
+              <button type="button" class="btn secondary" id="evCatManage">Manage</button>
+            </div>
+          </label>
           <label class="field">Note <input type="text" id="evNote" placeholder="optional"
             value="${ev ? escHTML(ev.note||'') : ''}"></label>
         </div>
@@ -6123,6 +6190,19 @@ function openEventModal(id, prefillDate){
   const close = ()=> root.innerHTML = '';
   const q = sel=> root.querySelector(sel);
   const picked = new Set(r.weekdays || []);
+
+  /* Rebuilt rather than re-rendered, so adding a category from inside the editor
+     doesn't discard the title and dates already typed in. */
+  const fillCats = (keep)=>{
+    const sel = q('#evCat');
+    const want = keep !== undefined ? keep : (ev ? (ev.categoryId||'') : '');
+    sel.innerHTML = `<option value="">No category</option>` +
+      (state.eventCategories||[]).map(c=>
+        `<option value="${c.id}">${escHTML(c.name)}</option>`).join('');
+    sel.value = (state.eventCategories||[]).some(c=> c.id === want) ? want : '';
+  };
+  fillCats();
+  q('#evCatManage').onclick = ()=> openCategoryManager(()=> fillCats(q('#evCat').value));
 
   const syncForm = ()=>{
     const freq = q('#evFreq').value;
@@ -6184,13 +6264,89 @@ function openEventModal(id, prefillDate){
       count: Math.max(1, Math.min(999, Number(q('#evCount').value)||10))
     };
     const payload = { title, note:q('#evNote').value.trim(), startDate:start,
-                      startTime:q('#evTime').value || '', endDate:end, repeat };
+                      startTime:q('#evTime').value || '', endDate:end,
+                      categoryId:q('#evCat').value || '', repeat };
     if(ev){ Object.assign(ev, payload); toast('Event updated.'); }
     else { (state.events || (state.events = [])).push({ id:uid(), ...payload }); toast('Event added.'); }
     saveState(); close(); render();
   };
   syncForm();
   q('#evTitle').focus();
+}
+
+/* Categories carry the colour so it is set once per category rather than picked
+   on every event. Opened as its own layer on top of whatever is already showing,
+   so it can be reached from inside the event editor without losing that form. */
+function openCategoryManager(onClose){
+  const root = document.getElementById('modalRoot');
+  const layer = document.createElement('div');
+  const draw = ()=>{
+    const cats = state.eventCategories || (state.eventCategories = []);
+    layer.innerHTML = `
+      <div class="modal-backdrop" id="ecb" style="z-index:60;">
+        <div class="modal" style="max-width:470px;">
+          <h2>Event categories</h2>
+          <div class="muted" style="font-size:12px; margin-bottom:6px;">Each category has a colour, and every event in it takes that colour. Events keep their own shape, so a colour here can never be mistaken for money.</div>
+          ${cats.length ? cats.map(c=>`
+            <div class="ec-row">
+              <input type="text" data-ecname="${c.id}" value="${escHTML(c.name)}">
+              <button class="icon-btn" data-ecdel="${c.id}" title="Delete">✕</button>
+              <div class="ec-swatches">${EVENT_COLOURS.map(k=>
+                `<button type="button" class="ec-sw${c.colour===k?' on':''}" style="--sw:var(--ec-${k})" data-eccol="${c.id}" data-k="${k}" title="${k}"></button>`).join('')}</div>
+            </div>`).join('')
+            : `<div class="muted" style="font-size:12.5px; padding:8px 0;">No categories yet. Add one below — events without a category use the default colour.</div>`}
+          <div class="todo-add" style="margin-top:14px;">
+            <input type="text" id="ecNew" placeholder="New category name" autocomplete="off">
+            <button class="btn" id="ecAdd">Add</button>
+          </div>
+          <div class="form-actions"><button class="btn" id="ecDone">Done</button></div>
+        </div>
+      </div>`;
+    const q = sel=> layer.querySelector(sel);
+    const add = ()=>{
+      const name = q('#ecNew').value.trim();
+      if(!name){ toast('Give the category a name.'); return; }
+      state.eventCategories.push({ id:uid(), name, colour:'neutral' });
+      saveState(); draw();
+    };
+    q('#ecAdd').onclick = add;
+    q('#ecNew').onkeydown = e=>{ if(e.key === 'Enter'){ e.preventDefault(); add(); } };
+    q('#ecDone').onclick = ()=>{ layer.remove(); if(onClose) onClose(); render(); };
+    q('#ecb').addEventListener('click', e=>{
+      if(e.target.id === 'ecb'){ layer.remove(); if(onClose) onClose(); render(); } });
+    layer.querySelectorAll('[data-ecname]').forEach(inp=> inp.onchange = ()=>{
+      const c = state.eventCategories.find(x=> x.id === inp.dataset.ecname);
+      if(c && inp.value.trim()){ c.name = inp.value.trim(); saveState(); }
+    });
+    layer.querySelectorAll('[data-eccol]').forEach(b=> b.onclick = ()=>{
+      const c = state.eventCategories.find(x=> x.id === b.dataset.eccol);
+      if(c){ c.colour = b.dataset.k; saveState(); draw(); }
+    });
+    layer.querySelectorAll('[data-ecdel]').forEach(b=> b.onclick = ()=>{
+      const id = b.dataset.ecdel;
+      const c = state.eventCategories.find(x=> x.id === id);
+      const used = (state.events||[]).filter(e=> e.categoryId === id).length;
+      // Deleting a category must never delete events — they fall back to the
+      // default colour, which is recoverable; a deleted appointment is not.
+      confirmDestructive({
+        title:'Delete category',
+        what:`Delete "${escHTML(c.name)}"?`,
+        lines: used
+          ? [`${used} event${used===1?'':'s'} will keep their dates and move to the default colour.`]
+          : ['No events are using it.'],
+        confirmLabel:'Delete category',
+        onConfirm: ()=>{
+          state.eventCategories = state.eventCategories.filter(x=> x.id !== id);
+          (state.events||[]).forEach(e=>{ if(e.categoryId === id) e.categoryId = ''; });
+          saveState();
+          // confirmDestructive clears the layers beneath it, so put this one back.
+          openCategoryManager(onClose);
+        }
+      });
+    });
+  };
+  draw();
+  root.appendChild(layer);
 }
 
 /* =========================================================
@@ -7319,7 +7475,18 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.1', name: 'Personal events on the calendar', date: 'Sep 2026', current: true,
+    no: 'V4.2', name: 'Event categories and colours', date: 'Sep 2026', current: true,
+    items: [
+      'Events are now grouped into named categories — Health, Travel, Family, whatever suits — and the colour is set on the category, so it is chosen once rather than on every event.',
+      'Money chips keep their coloured left bar; event chips now carry a dot instead. Shape carries the meaning rather than hue, which frees colour up completely — a green event can no longer be mistaken for income, and no colour has to be held back.',
+      'Ten fixed swatches rather than a free colour picker. A picker lets you choose something invisible on one theme and unreadable on the other, and every choice would need re-checking against both. The default swatch resolves to near-white on the dark theme and near-black on the light one.',
+      'Deleting a category never deletes events. They keep their dates and fall back to the default colour, because a wrong colour is recoverable and a lost appointment is not.',
+      'Categories are managed from the Categories button on the calendar, or from inside the event editor without losing what you have already typed.',
+      'A colour is stored as a name rather than a fixed value, so it resolves per theme and cannot put arbitrary text into a style attribute.'
+    ]
+  },
+  {
+    no: 'V4.1', name: 'Personal events on the calendar', date: 'Sep 2026',
     items: [
       'The calendar now holds your own events alongside the money — appointments, trips, birthdays. They live in Ledger and sync through Firestore like everything else, so they work offline and travel between the phone and the iPad.',
       'An event has a title, a start date, an optional time, an optional end date for something spanning several days, and a note. A span is drawn on every day it covers, so paging into the middle of a trip still shows it.',
