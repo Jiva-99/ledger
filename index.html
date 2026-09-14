@@ -892,6 +892,7 @@ function defaultState(){
         staleDays: 30,       // a price older than this is called out
         scope: 'whole',      // 'whole' | 'core' | 'satellite'
         contribution: 0,     // the amount you're about to invest, used for the suggestion
+        contributionMode: 'gaps', // 'gaps' closes drift first; 'weight' splits by target
         lastRebalanceDate: '', // the calendar derives the next reminder as this + 6 months
         // Projection
         retireYear: 2060,
@@ -1183,6 +1184,19 @@ function mergeWithDefaults(parsed){
     };
   });
   merged.events = merged.events.filter(ev=> !!ev.startDate);
+  // Purchases and dividends are the record of record for cost and return, so they
+  // are normalised here: every row needs an id to be editable, and the commission
+  // and VAT fields are gone — cost is units x price.
+  (merged.accounts||[]).forEach(acc=>{
+    [acc, ...(acc.subCategories||[])].forEach(u=>{
+      if(Array.isArray(u.lots)) u.lots.forEach(l=>{
+        if(!l.id) l.id = uid();
+        delete l.commission; delete l.vat;
+        l.total = (Number(l.units)||0) * (Number(l.price)||0);
+      });
+      if(Array.isArray(u.divs)) u.divs.forEach(d=>{ if(!d.id) d.id = uid(); });
+    });
+  });
   // Event categories carry the colour, so an event only stores which category it is
   // in. A colour is stored as a name rather than a hex value so it can resolve
   // differently on the dark and light themes.
@@ -4105,28 +4119,23 @@ function investMoney(amountAUD, decimals){
    what the stock is WORTH differ by the fee: buy $74.21 of IAU for $74.33 and the
    12c gap is a permanent drag that should show in the return, not vanish.
 
-   unit.lots = [{date, units, price, commission, vat, total}]   purchases
+   unit.lots = [{date, units, price, total}]                    purchases
    unit.divs = [{date, amount, units}]                          dividends
    unit.openingCost                                             pre-order basis  */
 function unitLots(unit){ return Array.isArray(unit.lots) ? unit.lots : []; }
 function unitDivs(unit){ return Array.isArray(unit.divs) ? unit.divs : []; }
 
-function lotTotal(lot){
-  const gross = (Number(lot.units)||0) * (Number(lot.price)||0);
-  return gross + (Number(lot.commission)||0) + (Number(lot.vat)||0);
-}
-function lotFees(lot){ return (Number(lot.commission)||0) + (Number(lot.vat)||0); }
+function lotTotal(lot){ return (Number(lot.units)||0) * (Number(lot.price)||0); }
 
 /* Everything up to a date, in the holding's own currency. */
 function costBasisAsOf(unit, uptoISO){
   let cost = Number(unit.openingCost) || 0;
   let units = Number(unit.openingUnits) || 0;
-  let fees = 0, divCash = 0, divUnits = 0, divTotal = 0;
+  let divCash = 0, divUnits = 0, divTotal = 0;
   unitLots(unit).forEach(l=>{
     if(uptoISO && l.date > uptoISO) return;
     cost += lotTotal(l);
     units += Number(l.units) || 0;
-    fees += lotFees(l);
   });
   unitDivs(unit).forEach(d=>{
     if(uptoISO && d.date > uptoISO) return;
@@ -4136,7 +4145,7 @@ function costBasisAsOf(unit, uptoISO){
     if(Number(d.units) > 0) units += Number(d.units); else divCash += amt;
     if(Number(d.units) > 0) divUnits += Number(d.units);
   });
-  return { cost, units, fees, dividends: divTotal, dividendCash: divCash, dividendUnits: divUnits };
+  return { cost, units, dividends: divTotal, dividendCash: divCash, dividendUnits: divUnits };
 }
 
 /* Wipes the investment record for every holding in a Core or Satellite account so
@@ -4213,12 +4222,11 @@ function investmentRows(){
     const value = u.valueAUD;
     const realised = toAUD(useLots ? cb.dividends : t.dividends, u.currency);
     const unrealised = useLots ? (value - cost) : toAUD(t.revaluation, u.currency);
-    const fees = toAUD(useLots ? cb.fees : 0, u.currency);
     return {
       key: u.subId ? `${u.acc.id}|||${u.subId}` : u.acc.id,
       name: u.subId ? u.unit.name : u.acc.name,
       sleeve: u.sleeve, colour: INVEST_COLOURS[i % INVEST_COLOURS.length],
-      cost, value, unrealised, realised, fees, useLots,
+      cost, value, unrealised, realised, useLots,
       totalReturn: unrealised + realised,
       pnlPct: cost > 0 ? (unrealised + realised)/cost*100 : null
     };
@@ -4232,7 +4240,6 @@ function investmentRows(){
   return { rows, totalCost, totalValue,
            totalUnrealised: rows.reduce((t,r)=>t+r.unrealised,0),
            totalRealised: rows.reduce((t,r)=>t+r.realised,0),
-           totalFees: rows.reduce((t,r)=>t+r.fees,0),
            anyLots: rows.some(r=>r.useLots) };
 }
 
@@ -4383,7 +4390,7 @@ function investLegend(series){
 }
 
 function renderInvestments(c){
-  const { rows, totalCost, totalValue, totalUnrealised, totalRealised, totalFees, anyLots } = investmentRows();
+  const { rows, totalCost, totalValue, totalUnrealised, totalRealised, anyLots } = investmentRows();
   const cur = investDisplayCurrency();
   const tie = investmentTieOut();
 
@@ -4411,7 +4418,9 @@ function renderInvestments(c){
       </tr></thead>
       <tbody>
         ${rows.map(r=>`<tr>
-          <td><span class="swatch" style="background:${r.colour}"></span>${r.name}<div class="sub">${sleeveLabel(r.sleeve)}</div></td>
+          <td><span class="swatch" style="background:${r.colour}"></span>${r.name}
+            <button class="icon-btn" data-ledger="${r.key}" title="View and edit purchases and dividends" style="font-size:11px;">🕐</button>
+            <div class="sub">${sleeveLabel(r.sleeve)}</div></td>
           <td class="r">${investMoney(r.cost)}</td>
           <td class="r">${investMoney(r.value)}</td>
           <td class="r" style="color:${r.unrealised>=0?'var(--green)':'var(--red)'}">${sign(r.unrealised)}</td>
@@ -4518,6 +4527,7 @@ function renderInvestments(c){
   if(sel) sel.onchange = ()=>{ state.ui.investCur = sel.value; saveState(); render(); };
   // The same three actions as the Net Worth tab — this is where you'd look for them.
   const bind = (id, fn)=>{ const b = document.getElementById(id); if(b) b.onclick = fn; };
+  c.querySelectorAll('[data-ledger]').forEach(b=> b.onclick = ()=> openOrderLedger(b.dataset.ledger));
   bind('invBuyBtn',   ()=> openPurchaseModal());
   bind('invDivBtn',   ()=> openDividendModal());
   bind('invPriceBtn', ()=> openPriceModal());
@@ -4576,6 +4586,9 @@ function wireInvestingSection(c){
   bind('recordBuyBtn',    ()=> openPurchaseModal());
   bind('recordDivBtn',    ()=> openDividendModal());
   bind('rebScope', function(){ investSettings().scope = this.value; saveState(); render(); }, 'onchange');
+  bind('rebByWeight', function(){
+    investSettings().contributionMode = this.checked ? 'weight' : 'gaps'; saveState(); render();
+  }, 'onchange');
   bind('rebContribution', function(){
     investSettings().contribution = Math.max(0, Number(this.value)||0); saveState(); render();
   }, 'onchange');
@@ -4608,7 +4621,7 @@ function investingSectionHTML(){
 
   const IS    = investSettings();
   const scope = ['whole','core','satellite'].includes(IS.scope) ? IS.scope : 'whole';
-  const plan  = rebalancePlan(scope, IS.contribution);
+  const plan  = rebalancePlan(scope, IS.contribution, IS.contributionMode);
   const band  = Number(IS.driftBand) || 5;
   const split = contributionSplit(inv);
   const stale = stalePricedUnits();
@@ -4702,6 +4715,9 @@ function investingSectionHTML(){
           <input type="number" id="rebCoreTarget" step="5" min="0" max="100" value="${IS.coreTarget}" style="width:64px;"> <span>%</span></div>` : ''}
         <div class="liq-basis"><span>About to invest</span>
           <input type="number" id="rebContribution" step="100" min="0" value="${IS.contribution||0}" style="width:96px;"></div>
+        <label class="liq-basis" style="cursor:pointer;" title="Split the contribution by target weight instead of sending it to whatever is furthest below target">
+          <input type="checkbox" id="rebByWeight" ${IS.contributionMode==='weight'?'checked':''} style="width:auto;">
+          <span>Split by target weight</span></label>
         <div class="liq-basis" title="The Calendar shows a reminder every six months from this date">
           <span>Last rebalanced</span>
           <input type="date" id="rebLastDate" value="${IS.lastRebalanceDate||''}" style="width:auto;"></div>
@@ -4812,10 +4828,9 @@ function confirmDestructive(opts){
   };
 }
 
-/* Record one monthly buy across every holding. Laid out to match the Dime order
-   screen field for field — shares, executed price, commission, VAT — so the
-   numbers can be copied across without any mental arithmetic. The computed total
-   is shown back so a typo is caught against the figure on the phone. */
+/* Record one monthly buy across every holding. Shares and executed price only:
+   what a holding cost is units x price, and the total is shown back so a typo is
+   caught against the figure on the phone. */
 function openPurchaseModal(){
   const rows = allUnits().filter(u=> accountSleeve(u.acc));
   const root = document.getElementById('modalRoot');
@@ -4885,7 +4900,7 @@ function openPurchaseModal(){
     rows.forEach((u,i)=>{
       const units = num('bu'+i), price = num('bp'+i);
       if(!(units > 0 && price > 0)) return;
-      const lot = { id: uid(), date, units, price, commission: 0, vat: 0 };
+      const lot = { id: uid(), date, units, price };
       lot.total = lotTotal(lot);
       u.unit.lots = unitLots(u.unit).concat([lot]);
       // Opening position: whatever was already there becomes the starting basis,
@@ -5164,6 +5179,173 @@ function openAdjustModal(accId, subId){
 
 /* Full history for an account or sub-category: opening balance as the first row,
    then every adjustment in date order, with a running balance and edit/delete per entry. */
+/* The balance impact of a dividend record. Reinvested dividends bought units and
+   so grew the holding; cash dividends left the account entirely and never touched
+   it. Either way the amount still counts as return, which comes from the record
+   itself rather than from the balance. */
+function divBalanceValue(d){ return (Number(d.units) > 0) ? (Number(d.amount)||0) : 0; }
+
+/* Applies a correction as a delta rather than an absolute. Setting the unit count
+   outright would silently wipe any units entered through a price update that never
+   had an order behind it; adding the difference leaves those alone.
+   The balance entry is dated at the record's own date, not today, so the Net Worth
+   chart is right from the day the thing actually happened. */
+function reconcileOrderChange(unit, dateISO, unitsDelta, valueDelta, kind, note){
+  if(Math.abs(unitsDelta) > 1e-9) unit.units = (Number(unit.units)||0) + unitsDelta;
+  if(Math.abs(valueDelta) > 0.005){
+    unit.history = unit.history || [];
+    unit.history.push({ id: uid(), date: dateISO, delta: valueDelta, kind, note });
+  }
+}
+
+/* Every purchase and dividend for one holding, in date order, editable. These two
+   lists drive the cost basis and therefore every return figure on this tab, so
+   without a way to see them a typo was permanent — the only remedy was wiping the
+   whole account's record and re-entering it from the broker. */
+function openOrderLedger(key){
+  const [accId, subId] = String(key).split('|||');
+  const acc = (state.accounts||[]).find(a=> a.id === accId);
+  if(!acc) return;
+  const unit = subId ? (acc.subCategories||[]).find(s=> s.id === subId) : acc;
+  if(!unit) return;
+  const label = subId ? `${acc.name} — ${unit.name}` : acc.name;
+  const cur = subId ? (unit.currency||acc.currency) : acc.currency;
+  const root = document.getElementById('modalRoot');
+
+  const paint = ()=>{
+    const cb = costBasisAsOf(unit, null);
+    const entries = [
+      ...unitLots(unit).map(l=> ({ kind:'buy', rec:l })),
+      ...unitDivs(unit).map(d=> ({ kind:'div', rec:d }))
+    ].sort((a,b)=> (a.rec.date||'').localeCompare(b.rec.date||'')
+                || (a.kind === b.kind ? 0 : a.kind === 'buy' ? -1 : 1));
+
+    const rows = entries.map(e=>{
+      const r = e.rec;
+      if(e.kind === 'buy') return `
+        <tr>
+          <td><input type="date" data-oldate="${r.id}" value="${r.date||''}" style="width:135px;"></td>
+          <td><span class="pill kind-saving">Purchase</span></td>
+          <td class="num"><input type="number" step="any" min="0" data-olunits="${r.id}" value="${Number(r.units)||0}" style="width:88px;"></td>
+          <td class="num"><input type="number" step="any" min="0" data-olprice="${r.id}" value="${Number(r.price)||0}" style="width:96px;"></td>
+          <td class="num">${moneyCur(lotTotal(r), cur, 2)}</td>
+          <td><button class="icon-btn" data-oldel="${r.id}" title="Delete">✕</button></td>
+        </tr>`;
+      return `
+        <tr>
+          <td><input type="date" data-oldate="${r.id}" value="${r.date||''}" style="width:135px;"></td>
+          <td><span class="pill kind-income">Dividend</span><div class="muted" style="font-size:11px;">${Number(r.units)>0?'reinvested':'cash'}</div></td>
+          <td class="num"><input type="number" step="any" min="0" data-olunits="${r.id}" value="${Number(r.units)||0}" style="width:88px;"></td>
+          <td class="num muted">—</td>
+          <td class="num"><input type="number" step="any" min="0" data-olamt="${r.id}" value="${Number(r.amount)||0}" style="width:96px;"></td>
+          <td><button class="icon-btn" data-oldel="${r.id}" title="Delete">✕</button></td>
+        </tr>`;
+    }).join('');
+
+    const liveUnits = Number(unit.units) || 0;
+    const drift = Math.abs(liveUnits - cb.units) > 0.0005;
+
+    root.innerHTML = `
+      <div class="modal-backdrop" id="olb">
+        <div class="modal" style="width:680px; max-width:96vw;">
+          <h2>Order record — ${label}</h2>
+          <div class="page-sub">Every purchase and dividend behind this holding's cost and return. Edit a figure and the return recalculates; the balance correction is dated to the record, not to today.</div>
+          <div class="row" style="margin-bottom:12px;">
+            <div class="card metric"><h3>Cost basis</h3><div class="big">${moneyCur(cb.cost, cur)}</div><div class="cap">what you paid, ${cur}</div></div>
+            <div class="card metric"><h3>Units from records</h3><div class="big">${cb.units.toLocaleString('en-AU',{maximumFractionDigits:4})}</div><div class="cap">${drift ? `holding shows ${liveUnits.toLocaleString('en-AU',{maximumFractionDigits:4})}` : 'matches the holding'}</div></div>
+            <div class="card metric"><h3>Dividends</h3><div class="big" style="color:var(--green);">${moneyCur(cb.dividends, cur)}</div><div class="cap">${moneyCur(cb.dividendCash, cur)} cash</div></div>
+          </div>
+          ${entries.length ? `
+          <div style="max-height:320px; overflow-y:auto;">
+            <table class="data">
+              <thead><tr><th>Date</th><th>Type</th><th class="num">Units</th><th class="num">Price</th><th class="num">Amount</th><th></th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>` : `<div class="empty-state"><div class="glyph">·</div>No purchases or dividends recorded for this holding yet. Use Record purchase or Record dividend.</div>`}
+          ${Number(unit.openingCost) ? `<div class="muted" style="font-size:11.5px; margin-top:10px;">Opening position before the first recorded order: ${moneyCur(unit.openingCost, cur)} across ${(Number(unit.openingUnits)||0).toLocaleString('en-AU',{maximumFractionDigits:4})} units. It is part of the cost basis and is not listed above.</div>` : ''}
+          <div class="form-actions"><button class="btn" id="olClose">Close</button></div>
+        </div>
+      </div>`;
+
+    const done = ()=>{ saveState(); paint(); render(); };
+    document.getElementById('olClose').onclick = ()=> root.innerHTML = '';
+    document.getElementById('olb').addEventListener('click', e=>{ if(e.target.id==='olb') root.innerHTML=''; });
+
+    const findLot = id=> unitLots(unit).find(x=> x.id === id);
+    const findDiv = id=> unitDivs(unit).find(x=> x.id === id);
+
+    root.querySelectorAll('[data-oldate]').forEach(inp=> inp.onchange = ()=>{
+      const id = inp.dataset.oldate;
+      const rec = findLot(id) || findDiv(id);
+      if(!rec || !inp.value) return;
+      rec.date = inp.value;
+      done();
+    });
+    root.querySelectorAll('[data-olprice]').forEach(inp=> inp.onchange = ()=>{
+      const l = findLot(inp.dataset.olprice); if(!l) return;
+      const before = lotTotal(l);
+      l.price = Math.max(0, Number(inp.value)||0);
+      l.total = lotTotal(l);
+      reconcileOrderChange(unit, l.date, 0, lotTotal(l) - before, 'contribution', 'Purchase corrected');
+      done();
+    });
+    root.querySelectorAll('[data-olunits]').forEach(inp=> inp.onchange = ()=>{
+      const id = inp.dataset.olunits;
+      const l = findLot(id);
+      if(l){
+        const beforeU = Number(l.units)||0, beforeV = lotTotal(l);
+        l.units = Math.max(0, Number(inp.value)||0);
+        l.total = lotTotal(l);
+        reconcileOrderChange(unit, l.date, l.units - beforeU, lotTotal(l) - beforeV,
+                             'contribution', 'Purchase corrected');
+        return done();
+      }
+      const d = findDiv(id); if(!d) return;
+      const beforeU = Number(d.units)||0, beforeV = divBalanceValue(d);
+      d.units = Math.max(0, Number(inp.value)||0);
+      reconcileOrderChange(unit, d.date, d.units - beforeU, divBalanceValue(d) - beforeV,
+                           'dividend', 'Dividend corrected');
+      done();
+    });
+    root.querySelectorAll('[data-olamt]').forEach(inp=> inp.onchange = ()=>{
+      const d = findDiv(inp.dataset.olamt); if(!d) return;
+      const beforeV = divBalanceValue(d);
+      d.amount = Math.max(0, Number(inp.value)||0);
+      reconcileOrderChange(unit, d.date, 0, divBalanceValue(d) - beforeV,
+                           'dividend', 'Dividend corrected');
+      done();
+    });
+    root.querySelectorAll('[data-oldel]').forEach(b=> b.onclick = ()=>{
+      const id = b.dataset.oldel;
+      const l = findLot(id), d = l ? null : findDiv(id);
+      const rec = l || d; if(!rec) return;
+      const after = l
+        ? costBasisAsOf({ ...unit, lots: unitLots(unit).filter(x=> x.id !== id) }, null)
+        : costBasisAsOf({ ...unit, divs: unitDivs(unit).filter(x=> x.id !== id) }, null);
+      confirmDestructive({
+        title: l ? 'Delete purchase' : 'Delete dividend',
+        what: `${rec.date} — ${l ? `${Number(l.units)} units at ${moneyCur(l.price, cur, 2)}`
+                                 : moneyCur(d.amount, cur, 2)}`,
+        lines: [`Cost basis becomes ${moneyCur(after.cost, cur)} across ${after.units.toLocaleString('en-AU',{maximumFractionDigits:4})} units.`],
+        confirmLabel: 'Delete',
+        onConfirm: ()=>{
+          if(l){
+            unit.lots = unitLots(unit).filter(x=> x.id !== id);
+            reconcileOrderChange(unit, l.date, -(Number(l.units)||0), -lotTotal(l),
+                                 'contribution', 'Purchase removed');
+          } else {
+            unit.divs = unitDivs(unit).filter(x=> x.id !== id);
+            reconcileOrderChange(unit, d.date, -(Number(d.units)||0), -divBalanceValue(d),
+                                 'dividend', 'Dividend removed');
+          }
+          saveState(); render(); openOrderLedger(key);
+        }
+      });
+    });
+  };
+  paint();
+}
+
 function openHistoryModal(accId, subId){
   const acc = state.accounts.find(a=>a.id===accId);
   if(!acc) return;
@@ -5208,6 +5390,7 @@ function openHistoryModal(accId, subId){
         <div class="modal" style="width:540px;">
           <h2>History — ${label}</h2>
           <div class="page-sub">Newest first. "Balance" is the running total after each entry.</div>
+          ${hasOrderData(unit) ? `<div class="liq-note" style="margin-bottom:10px;">This holding's cost and return come from its purchase and dividend records, not from this list. Editing here changes the balance only — to correct what you paid, open the order record on the Investments tab.</div>` : ''}
           <div style="max-height:360px; overflow-y:auto;">
             <table class="data">
               <thead><tr><th>Date</th><th class="num">Amount</th><th>Note</th><th class="num">Balance</th><th></th></tr></thead>
@@ -6932,7 +7115,7 @@ function rebalanceBuckets(scope){
 }
 
 /* Drift, plus the trades that would close it. A positive action means buy. */
-function rebalancePlan(scope, contribution){
+function rebalancePlan(scope, contribution, mode){
   const { buckets, total } = rebalanceBuckets(scope);
   const C = Math.max(0, Number(contribution) || 0);
   if(!buckets.length || total + C <= 0) return { rows:[], total, contribution:C, allocated:0 };
@@ -6953,8 +7136,15 @@ function rebalancePlan(scope, contribution){
   // contribution more than covers every shortfall, the remainder goes out by target
   // weight — which keeps you on target rather than overshooting into a new drift.
   const needSum = rows.reduce((s,r)=> s+r.need, 0);
+  const byWeight = mode === 'weight';
   if(C > 0){
-    if(needSum <= 0){
+    // Between rebalances you may not want to act on drift at all — a top-up split
+    // by target weight is the same every month and leaves the drift to the
+    // scheduled rebalance. The after-contribution drift is still shown either way,
+    // so choosing this never hides what it leaves behind.
+    if(byWeight){
+      rows.forEach(r=> r.allocate = C * r.target/100);
+    } else if(needSum <= 0){
       rows.forEach(r=> r.allocate = C * r.target/100);
     } else if(needSum <= C){
       const left = C - needSum;
@@ -6975,7 +7165,7 @@ function rebalancePlan(scope, contribution){
   });
 
   const worstAfter = rows.reduce((m,r)=> Math.max(m, Math.abs(r.afterDriftPp)), 0);
-  return { rows, total, contribution:C, newTotal,
+  return { rows, total, contribution:C, newTotal, mode: byWeight ? 'weight' : 'gaps',
            allocated: rows.reduce((s,r)=> s+r.allocate, 0),
            worstDrift: rows.reduce((m,r)=> Math.max(m, Math.abs(r.driftPp)), 0),
            worstAfter };
@@ -7475,7 +7665,20 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.2', name: 'Event categories and colours', date: 'Sep 2026', current: true,
+    no: 'V4.3', name: 'Order records you can read and correct', date: 'Sep 2026', current: true,
+    items: [
+      'Every holding now has an order record — its purchases and dividends in date order, on the Investments tab. These two lists drive the cost basis and therefore every return figure on the tab, and until now nothing in the app would show them to you again after you entered them. A typo was permanent: the only remedy was wiping the whole account\'s record and re-entering it from the broker.',
+      'Rows are editable in place and deletable. Deleting says what the cost basis will become before you confirm it.',
+      'A correction is applied as a difference rather than as a new absolute, so units entered through a price update that never had an order behind them are left alone rather than silently overwritten.',
+      'The balance correction is dated to the record\'s own date, not to the day you made the fix, so the Net Worth chart is right from the day the thing actually happened rather than taking a step correction today.',
+      'The order record shows the units its own records imply next to the units the holding actually holds, so a gap between them is visible rather than silent.',
+      'Commission and VAT are gone. Cost is units times price. Neither field was ever enterable, so every stored purchase already carried zero for both and no figure moves as a result.',
+      'The Net Worth history list now says when a holding\'s cost and return come from its order record instead. Editing there was quietly doing nothing to the returns, with no indication.',
+      'Rebalance gains a Split by target weight tick. Normally a contribution goes to whatever is furthest below target, which fixes drift for free but changes the split every month. Ticked, it goes out in target proportions and leaves drift to the scheduled rebalance — useful mid-period when you are topping up rather than rebalancing. The after-contribution drift stays on screen either way, so the choice never hides what it leaves behind.'
+    ]
+  },
+  {
+    no: 'V4.2', name: 'Event categories and colours', date: 'Sep 2026',
     items: [
       'Events are now grouped into named categories — Health, Travel, Family, whatever suits — and the colour is set on the category, so it is chosen once rather than on every event.',
       'Money chips keep their coloured left bar; event chips now carry a dot instead. Shape carries the meaning rather than hue, which frees colour up completely — a green event can no longer be mistaken for income, and no colour has to be held back.',
