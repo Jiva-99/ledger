@@ -784,6 +784,35 @@
   .nwt-foot .spacer{ flex:1; }
   @media (max-width: 1100px){ .nw-grid{ grid-template-columns:1fr; } }
   @media (max-width: 820px){ .nw-kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+
+  /* V4.7.1 Net Worth: one line per account */
+  .nw-grid{ grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); }
+  table.data.nwt-table td{ vertical-align:middle; padding:5px 8px; }
+  table.data.nwt-table td.nwt-tcell{ width:1%; white-space:nowrap; }
+  .nwt-name{ display:flex; align-items:center; flex-wrap:wrap; column-gap:8px; row-gap:2px; font-weight:400; }
+  .nwt-acc .nwt-label{ font-weight:600; }
+  .nwt-subrow .nwt-ncell{ padding-left:30px !important; }
+  .nwt-cur{ margin-left:0; }
+  .nwt-name .nw-inv{ margin-top:0; display:inline-flex; }
+  .nwt-setup{ display:inline-flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .nwt-setup .nw-inv{ margin-top:0; }
+  .nwt-inline{ display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--text-faint); }
+  .nwt-target{ position:relative; display:inline-flex; align-items:center; gap:8px; margin-top:0; flex-wrap:nowrap; }
+  .nwt-target.sub{ margin-left:0; }
+  .nwt-bar{ width:70px; }
+  .nwt-bar > span{ background:var(--gold); }
+  .nwt-target.sub .nwt-bar > span{ opacity:0.75; }
+  .nwt-target.reached .nwt-bar > span{ background:var(--green); opacity:1; }
+  .nwt-dash{ color:var(--border); }
+  .nwt-tip{ display:none; position:absolute; left:24px; bottom:calc(100% + 4px); z-index:5; background:var(--surface-raised);
+    border:1px solid var(--border); color:var(--text); font-size:11px; padding:3px 8px; border-radius:5px; white-space:nowrap;
+    box-shadow:0 4px 14px rgba(0,0,0,0.35); pointer-events:none; }
+  .nwt-target:hover .nwt-tip, .nwt-target:focus .nwt-tip{ display:block; }
+  @media (max-width: 600px){
+    table.data.nwt-table td.nwt-tcell{ white-space:normal; }
+    .nwt-target{ flex-wrap:wrap; row-gap:2px; }
+    .nwt-subrow .nwt-ncell{ padding-left:18px !important; }
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -3714,18 +3743,20 @@ const NET_WORTH_PALETTE = ['#c9a227','#3b82f6','#22c55e','#ec4899','#a855f7','#f
 function targetRowHTML(editKey, balance, target, currency, isSub){
   const editing = nwEditing();
   if(!target || target<=0){
-    // No target: a quiet link to set one, in and out of Edit setup.
-    return `<div class="nwt-target none"><button type="button" class="dash-link" data-edittarget="${editKey}">Set target</button></div>`;
+    // No target: a dash normally; the Set target link only in Edit setup.
+    return editing
+      ? `<div class="nwt-target none"><button type="button" class="dash-link" data-edittarget="${editKey}">Set target</button></div>`
+      : `<div class="nwt-target none"><span class="nwt-dash">—</span></div>`;
   }
   const pct = (balance/target)*100;
   const displayPct = Math.max(0, Math.min(100, pct));
   const reached = pct>=100;
-  const left = Math.max(0, target-balance);
+  const leftText = reached ? 'Target reached' : moneyCur(Math.max(0, target-balance), currency)+' to go';
   return `
-    <div class="nwt-target ${isSub?'sub':''}">
-      <span class="nwt-bar"><span style="width:${displayPct}%; background:${reached?'var(--green)':'var(--gold)'};"></span></span>
-      <span class="nwt-pct">${pct.toFixed(0)}% of ${moneyCur(target,currency)}</span>
-      <span class="nwt-left ${reached?'pos':''}">${reached?'✓ reached':moneyCur(left,currency)+' to go'}</span>
+    <div class="nwt-target ${isSub?'sub':''} ${reached?'reached':''}" tabindex="0" aria-label="${pct.toFixed(0)}% of ${moneyCur(target,currency)}, ${leftText}">
+      <span class="nwt-bar"><span style="width:${displayPct}%;"></span></span>
+      <span class="nwt-pct">${pct.toFixed(0)}% of ${moneyCur(target,currency)}</span>${reached?'<span class="pos">✓</span>':''}
+      <span class="nwt-tip" role="tooltip">${leftText}</span>
       ${editing ? `<button class="icon-btn" data-edittarget="${editKey}" style="font-size:10px; padding:1px 3px; flex-shrink:0;" title="Edit target">✎</button>` : ''}
     </div>
   `;
@@ -4098,76 +4129,81 @@ function renderNetWorth(c){
     `
     : `Rates not loaded yet`;
 
-  // V4.7 — one Accounts card, grouped, with each account's target progress under its name.
+  // V4.7.1 — one line per account and per split. Splits are their own rows so their
+  // balances and buttons line up in the Native / AUD / action columns.
   const showTargets = !state.ui.nwHideTargets;
+  const withTargets = showTargets || nwEditing();
+  const cols = withTargets ? 5 : 4;
+  const targetCell = (key, bal, target, cur, isSub)=> withTargets ? `<td class="nwt-tcell">${targetRowHTML(key, bal, target, cur, isSub)}</td>` : '';
+  const targetUnits = []; // every account or split carrying a target, for the footer
   const accRowHTML = (a)=>{
     const hasSubs = a.subCategories && a.subCategories.length>0;
     const balAUD = accountBalanceAUD(a);
     const bal = hasSubs ? null : computeAccountBalance(a);
     const targetCur = hasSubs ? (a.targetCurrency||'AUD') : a.currency;
     const targetBal = hasSubs ? fromAUD(balAUD, targetCur) : bal;
+    if(a.target>0) targetUnits.push(Math.max(0, Math.min(100, (targetBal/a.target)*100)));
     const native = hasSubs ? '<span class="muted" style="font-size:10.5px;">mixed</span>'
-      : (a.currency!=='AUD' ? moneyCur(bal, a.currency) : '');
-    return `
+      : (a.currency!=='AUD' ? moneyCur(bal, a.currency) : moneyCur(bal, 'AUD'));
+    const setup = nwEditing() ? `
+          <span class="nwt-setup">
+            <label class="nwt-inline">Cash speed
+              <select class="nw-speed" data-speed="${a.id}" title="How quickly this money could actually be spent">
+                <option value="" ${!accountSpeed(a)?'selected':''}>Not set</option>
+                ${SPEED_ORDER.map(sp=>`<option value="${sp}" ${accountSpeed(a)===sp?'selected':''}>${SPEED_LABELS[sp]}</option>`).join('')}
+              </select>
+            </label>
+            ${sleeveSelectHTML(a)}
+          </span>` : nwTagsHTML(a);
+    const parent = `
       <tr class="nwt-acc">
-        <td>
-          <div class="nwt-name">${a.name} <span class="nwt-cur">${hasSubs?'AUD total':a.currency}</span>${nwEditing()?` <button class="icon-btn" data-renameacc="${a.id}" style="font-size:10px; padding:0 2px; color:var(--text-faint);" title="Rename">✎</button>`:''}</div>
-          ${showTargets || nwEditing() ? targetRowHTML(a.id, targetBal, a.target, targetCur) : ''}
-          ${nwEditing() ? `
-          <div class="muted" style="font-size:11px; margin-top:3px; display:flex; align-items:center; gap:5px;">
-            <span>Cash speed</span>
-            <select class="nw-speed" data-speed="${a.id}" title="How quickly this money could actually be spent">
-              <option value="" ${!accountSpeed(a)?'selected':''}>Not set</option>
-              ${SPEED_ORDER.map(sp=>`<option value="${sp}" ${accountSpeed(a)===sp?'selected':''}>${SPEED_LABELS[sp]}</option>`).join('')}
-            </select>
-          </div>
-          ${sleeveSelectHTML(a)}` : nwTagsHTML(a)}
+        <td class="nwt-ncell"><div class="nwt-name">
+          <span class="nwt-label">${a.name}</span><span class="nwt-cur">${hasSubs?'AUD total':a.currency}</span>${nwEditing()?`<button class="icon-btn" data-renameacc="${a.id}" style="font-size:10px; padding:0 2px; color:var(--text-faint);" title="Rename">✎</button>`:''}
+          ${setup}
           ${!hasSubs ? pricedInfoHTML(a, a.currency) : ''}
-          ${hasSubs ? `<div class="nwt-subs">${a.subCategories.map(sub=>{
-            const subCur = sub.currency || a.currency;
-            const subBal = unitBalanceAsOf(sub, isoDate(TODAY));
-            return `
-            <div class="nwt-sub">
-              <div class="nwt-sub-line">
-                <span class="nwt-sub-name">↳ ${sub.name}${nwEditing()?` <button class="icon-btn" data-renamesub="${a.id}|||${sub.id}" style="font-size:9.5px; padding:0 2px; color:var(--text-faint);" title="Rename">✎</button>`:''}</span>
-                <span class="nwt-sub-bal">${moneyCur(subBal, subCur)}${subCur!=='AUD' ? ` <span class="muted" style="font-size:10.5px;">≈${moneyWhole(toAUD(subBal, subCur))}</span>` : ''}</span>
-                <span class="nw-actions">
-                  <button class="icon-btn" style="color:var(--gold);" data-adjsub="${a.id}|||${sub.id}" title="Manual adjustment">±</button>
-                  <button class="icon-btn" data-histsub="${a.id}|||${sub.id}" title="View history" style="font-size:11px;">🕐</button>
-                  ${nwEditing() ? `<button class="icon-btn" data-delsub="${a.id}|||${sub.id}" title="Remove split">✕</button>` : ''}
-                </span>
-              </div>
-              ${showTargets || nwEditing() ? targetRowHTML(`${a.id}|||${sub.id}`, subBal, sub.target, subCur, true) : ''}
-              ${pricedInfoHTML(sub, subCur)}
-            </div>`;}).join('')}</div>` : ''}
-        </td>
-        <td class="num muted nwt-top">${native}</td>
-        <td class="num nwt-top">${moneyWhole(balAUD)}</td>
-        <td class="nwt-top"><div class="nw-actions">
+        </div></td>
+        ${targetCell(a.id, targetBal, a.target, targetCur, false)}
+        <td class="num muted">${native}</td>
+        <td class="num">${moneyWhole(balAUD)}</td>
+        <td><div class="nw-actions">
           ${!hasSubs ? `<button class="icon-btn" style="color:var(--gold);" data-adj="${a.id}" title="Manual adjustment">±</button>` : ''}
           ${!hasSubs ? `<button class="icon-btn" data-hist="${a.id}" title="View history" style="font-size:11px;">🕐</button>` : ''}
           ${nwEditing() ? `<button class="icon-btn" data-addsub="${a.id}" title="Add sub-category" style="font-size:11px;">+Split</button>` : ''}
           ${nwEditing() ? `<button class="icon-btn" data-delacc="${a.id}" title="Delete account">✕</button>` : ''}
         </div></td>
       </tr>`;
+    const subs = !hasSubs ? '' : a.subCategories.map(sub=>{
+      const subCur = sub.currency || a.currency;
+      const subBal = unitBalanceAsOf(sub, isoDate(TODAY));
+      if(sub.target>0) targetUnits.push(Math.max(0, Math.min(100, (subBal/sub.target)*100)));
+      return `
+      <tr class="nwt-subrow">
+        <td class="nwt-ncell"><div class="nwt-name">
+          <span class="nwt-label"><span class="muted">↳</span> ${sub.name}</span>${nwEditing()?`<button class="icon-btn" data-renamesub="${a.id}|||${sub.id}" style="font-size:9.5px; padding:0 2px; color:var(--text-faint);" title="Rename">✎</button>`:''}
+          ${pricedInfoHTML(sub, subCur)}
+        </div></td>
+        ${targetCell(`${a.id}|||${sub.id}`, subBal, sub.target, subCur, true)}
+        <td class="num muted">${moneyCur(subBal, subCur)}</td>
+        <td class="num">${moneyWhole(toAUD(subBal, subCur))}</td>
+        <td><div class="nw-actions">
+          <button class="icon-btn" style="color:var(--gold);" data-adjsub="${a.id}|||${sub.id}" title="Manual adjustment">±</button>
+          <button class="icon-btn" data-histsub="${a.id}|||${sub.id}" title="View history" style="font-size:11px;">🕐</button>
+          ${nwEditing() ? `<button class="icon-btn" data-delsub="${a.id}|||${sub.id}" title="Remove split">✕</button>` : ''}
+        </div></td>
+      </tr>`;}).join('');
+    return parent + subs;
   };
   const accountsBody = Object.entries(groups).map(([g,accs])=>{
     const gt = accs.reduce((s,a)=> s + accountBalanceAUD(a), 0);
     return `
-      <tr class="nwt-group"><td colspan="4"><div class="nwt-group-line">
+      <tr class="nwt-group"><td colspan="${cols}"><div class="nwt-group-line">
         <span class="nwt-group-name">${g}</span><span class="spacer"></span>
         <span class="num-font">${moneyWhole(gt)}</span>
         <span class="muted nwt-group-pct">${total>0 ? Math.round((gt/total)*100)+'%' : '—'}</span>
       </div></td></tr>
       ${accs.map(accRowHTML).join('')}`;
   }).join('');
-  const withTarget = state.accounts.filter(a=> a.target && a.target>0);
-  const avgTargetPct = withTarget.length ? withTarget.reduce((s,a)=>{
-    const hasSubs = a.subCategories && a.subCategories.length>0;
-    const cur = hasSubs ? (a.targetCurrency||'AUD') : a.currency;
-    const b = hasSubs ? fromAUD(accountBalanceAUD(a), cur) : computeAccountBalance(a);
-    return s + Math.min(100, (b/a.target)*100);
-  }, 0) / withTarget.length : null;
+  const avgTargetPct = targetUnits.length ? targetUnits.reduce((s,x)=> s+x, 0) / targetUnits.length : null;
 
   const pt = state.portfolioTarget || { amount: null, currency: 'AUD' };
   const totalInTargetCur = fromAUD(total, pt.currency);
@@ -4221,13 +4257,13 @@ function renderNetWorth(c){
           ${state.accounts.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No accounts yet — press Edit setup, then + Add account for your emergency fund, super, or investment buckets.</div>` : `
           <div class="plan-table-wrap">
             <table class="data nwt-table">
-              <thead><tr><th>Account${showTargets?' and target':''}</th><th class="num">Native</th><th class="num">AUD</th><th></th></tr></thead>
+              <thead><tr><th>Account</th>${withTargets?'<th>Target</th>':''}<th class="num">Native</th><th class="num">AUD</th><th></th></tr></thead>
               <tbody>${accountsBody}</tbody>
             </table>
           </div>
-          ${showTargets ? `<div class="nwt-foot muted">
-            <span>Targets are long-term, in each account’s own currency.${nwEditing()?'':' ✎ in Edit setup to change one.'}</span><span class="spacer"></span>
-            <span>${withTarget.length} of ${state.accounts.length} account${state.accounts.length===1?' has':'s have'} a target${avgTargetPct===null?'':` · avg ${Math.round(avgTargetPct)}%`}</span>
+          ${withTargets ? `<div class="nwt-foot muted">
+            <span>${nwEditing() ? 'Set target or ✎ to set or change one.' : 'Hover or tap a bar for what is left to go. Targets are in each account’s own currency; change them in Edit setup.'}</span><span class="spacer"></span>
+            <span>${targetUnits.length} target${targetUnits.length===1?'':'s'} set${avgTargetPct===null?'':` · avg ${Math.round(avgTargetPct)}%`}</span>
           </div>` : ''}`}
         </div>
         <div class="card dash-card">
@@ -8532,7 +8568,18 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.7', name: 'A denser Net Worth tab', date: 'Sep 2026', current: true,
+    no: 'V4.7.1', name: 'One line per account', date: 'Sep 2026', current: true,
+    items: [
+      'Every account and every split now takes one line. Splits are rows of their own, so their native balance, AUD value and ± / 🕐 buttons line up in the same columns as everything else instead of floating inside the name.',
+      'Targets have their own column: a short bar and % of target, green with ✓ once reached. What is left to go shows when you hover or tap the bar.',
+      'An account or split without a target shows a dash. Set target is back in Edit setup only, where it was before V4.7 — four underlined links down a list of holdings was the loudest thing on the card.',
+      'Cash speed, sleeve and the units-and-price line sit on the name line in small text. In Edit setup their dropdowns sit there too, and wrap if space runs out.',
+      'The footer counts every target, splits included, with their average progress. It used to count top-level accounts only.',
+      'What changed and Accumulation over time no longer run off the right edge: the columns can shrink below the width of their widest content.'
+    ]
+  },
+  {
+    no: 'V4.7', name: 'A denser Net Worth tab', date: 'Sep 2026', current: false,
     items: [
       'Net worth, change this month, portfolio target and exchange rates sit in one strip across the top, like the dashboard. Refresh, Enter manually and rate History are links in the rates cell.',
       'Accounts are one card instead of a column per group: each group has its subtotal and share of net worth, and each account shows its native balance and its AUD value side by side.',
