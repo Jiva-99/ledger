@@ -3390,6 +3390,44 @@ function fxMonthsNeeded(){
   return need;
 }
 
+const FRANKFURTER_HOSTS = ['https://api.frankfurter.dev/v1', 'https://api.frankfurter.app'];
+/* Second source for past rates: one file per date, served from two mirrors. */
+const FAWAZ_URLS = [
+  d=> `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${d}/v1/currencies/aud.min.json`,
+  d=> `https://${d}.currency-api.pages.dev/v1/currencies/aud.min.json`
+];
+
+/* Frankfurter's time series in one request: { 'YYYY-MM-DD': {THB, USD}, … } */
+async function fetchFrankfurterSeries(fromISO, toISO){
+  let lastErr = null;
+  for(const host of FRANKFURTER_HOSTS){
+    try{
+      const res = await fetch(`${host}/${fromISO}..${toISO}?base=AUD&symbols=THB,USD`);
+      if(!res.ok) throw new Error(host.replace('https://','')+' HTTP '+res.status);
+      const data = await res.json();
+      if(!data || !data.rates || !Object.keys(data.rates).length) throw new Error(host.replace('https://','')+': no rates');
+      return { rates: data.rates, provider: 'frankfurter' };
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr;
+}
+
+/* One month-end rate from the fallback source. */
+async function fetchFawazRate(dateISO){
+  let lastErr = null;
+  for(const url of FAWAZ_URLS){
+    try{
+      const res = await fetch(url(dateISO));
+      if(!res.ok) throw new Error('currency-api HTTP '+res.status);
+      const data = await res.json();
+      const r = data && data.aud;
+      if(!r || !r.thb || !r.usd) throw new Error('currency-api: unexpected response');
+      return { THB: r.thb, USD: r.usd, rateDate: data.date || dateISO };
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr;
+}
+
 let _fxBackfillBusy = false;
 async function backfillFxHistory(){
   if(_fxBackfillBusy) return 0;
@@ -3397,25 +3435,33 @@ async function backfillFxHistory(){
   if(!need.length) return 0;
   _fxBackfillBusy = true;
   try{
-    const from = isoDate(new Date(mYear(need[0]), mMonth(need[0]), 1));
-    const to = monthEndISO(need[need.length-1]);
-    const res = await fetch(`https://api.frankfurter.app/${from}..${to}?from=AUD&to=THB,USD`);
-    if(!res.ok) throw new Error('frankfurter.app HTTP '+res.status);
-    const data = await res.json();
-    const rates = data && data.rates ? data.rates : {};
-    const days = Object.keys(rates).sort();
-    let n = 0;
     state.fxHistory = state.fxHistory || {};
-    need.forEach(k=>{
-      const key = monthKeyOf(k);
-      const inMonth = days.filter(d=> d.slice(0,7)===key);
-      const last = inMonth[inMonth.length-1];
-      const r = last && rates[last];
-      if(!r || !r.THB || !r.USD) return;
-      state.fxHistory[key] = { THB: r.THB, USD: r.USD, asOf: monthEndISO(k), rateDate: last, source: 'backfilled' };
+    let n = 0, errors = [];
+    const put = (k, r, rateDate, provider)=>{
+      state.fxHistory[monthKeyOf(k)] = { THB: r.THB, USD: r.USD, asOf: monthEndISO(k), rateDate, source: 'backfilled', provider };
       n++;
-    });
+    };
+    let left = need;
+    try{
+      const from = isoDate(new Date(mYear(need[0]), mMonth(need[0]), 1));
+      const { rates } = await fetchFrankfurterSeries(from, monthEndISO(need[need.length-1]));
+      const days = Object.keys(rates).sort();
+      left = need.filter(k=>{
+        const key = monthKeyOf(k);
+        const inMonth = days.filter(d=> d.slice(0,7)===key);
+        const last = inMonth[inMonth.length-1];
+        const r = last && rates[last];
+        if(!r || !r.THB || !r.USD) return true;
+        put(k, r, last, 'frankfurter');
+        return false;
+      });
+    }catch(e){ errors.push(e && e.message ? e.message : String(e)); }
+    for(const k of left){
+      try{ const r = await fetchFawazRate(monthEndISO(k)); put(k, r, r.rateDate, 'currency-api'); }
+      catch(e){ errors.push(e && e.message ? e.message : String(e)); break; }
+    }
     if(n){ saveState(); if(state.ui.activeTab==='networth') render(); }
+    if(!n && errors.length) throw new Error(errors.join('; '));
     return n;
   } finally { _fxBackfillBusy = false; }
 }
@@ -3427,7 +3473,7 @@ function openFxHistoryModal(){
   const missing = fxMonthsNeeded().length;
   const curKey = isoDate(TODAY).slice(0,7);
   const srcText = (key, s)=>{
-    if(s.source==='backfilled') return `month end${s.rateDate && s.rateDate!==s.asOf ? ` (last rate ${shortIsoDate(s.rateDate)})` : ''}`;
+    if(s.source==='backfilled') return `month end${s.rateDate && s.rateDate!==s.asOf ? ` (last rate ${shortIsoDate(s.rateDate)})` : ''}${s.provider==='currency-api' ? ' · currency-api' : ''}`;
     const when = s.asOf ? shortIsoDate(s.asOf) : '';
     const how = s.source==='manual' ? 'entered' : 'fetched';
     return key===curKey ? `${how} ${when} · month so far` : `${how} ${when} · not final yet`;
@@ -3437,7 +3483,7 @@ function openFxHistoryModal(){
     <div class="modal-backdrop" id="mb">
       <div class="modal" role="dialog" aria-label="Month-end exchange rates">
         <h2>Month-end exchange rates</h2>
-        <div class="page-sub">Kept automatically so past net worth is valued at the rates of the time. Finished months use the published month-end rate from frankfurter.app.</div>
+        <div class="page-sub">Kept automatically so past net worth is valued at the rates of the time. Finished months use the published month-end rate, from frankfurter.dev (European Central Bank) or, if that's unavailable, currency-api.</div>
         ${keys.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No rates recorded yet.</div>` : `
         <div class="plan-table-wrap" style="max-height:340px; overflow:auto;">
         <table class="data" id="fxHistTable">
@@ -3471,15 +3517,17 @@ async function refreshFxRates(force){
   const stale = !state.fxRates || !state.fxRates.fetchedAt || (Date.now() - new Date(state.fxRates.fetchedAt).getTime()) > 24*60*60*1000;
   if(!force && !stale) return;
 
-  // Try frankfurter.app first, then a second free API if that fails for any reason.
+  // Frankfurter moved to api.frankfurter.dev; the old frankfurter.app host now
+  // answers with a redirect to another domain, which browsers refuse ("Failed to
+  // fetch"). New host first, old host in case, then a second free API.
   const attempts = [
-    async ()=>{
-      const res = await fetch('https://api.frankfurter.app/latest?from=AUD&to=THB,USD');
-      if(!res.ok) throw new Error('frankfurter.app HTTP '+res.status);
+    ...FRANKFURTER_HOSTS.map(host=> async ()=>{
+      const res = await fetch(`${host}/latest?base=AUD&symbols=THB,USD`);
+      if(!res.ok) throw new Error(host.replace('https://','')+' HTTP '+res.status);
       const data = await res.json();
-      if(!data.rates || !data.rates.THB || !data.rates.USD) throw new Error('frankfurter.app: unexpected response');
+      if(!data.rates || !data.rates.THB || !data.rates.USD) throw new Error(host.replace('https://','')+': unexpected response');
       return { THB: data.rates.THB, USD: data.rates.USD };
-    },
+    }),
     async ()=>{
       const res = await fetch('https://open.er-api.com/v6/latest/AUD');
       if(!res.ok) throw new Error('open.er-api.com HTTP '+res.status);
@@ -8432,12 +8480,20 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.6', name: 'What changed in your net worth', date: 'Sep 2026', current: true,
+    no: 'V4.6.1', name: 'Exchange rates load again', date: 'Sep 2026', current: true,
+    items: [
+      'Frankfurter moved from frankfurter.app to frankfurter.dev, and the old address now fails in the browser with "Failed to fetch". Rates and month-end history now come from the new address first.',
+      'If Frankfurter is unavailable, missing month-end rates are filled from a second free source, currency-api, one month at a time. The rate history marks those months.',
+      'Fill missing months now says which sources failed, instead of only the first error.'
+    ]
+  },
+  {
+    no: 'V4.6', name: 'What changed in your net worth', date: 'Sep 2026', current: false,
     items: [
       'A What changed chart on the Net Worth tab splits the change in net worth into Added, Withdrawn, Market & dividends, FX and New accounts, from the opening figure to the closing one. Pick This month, Last month, Year to date or Last 12 months.',
       'The FX bar is the same balances valued at the new rates instead of the old ones, so a weaker baht shows up as FX rather than looking like you saved less. Beside it: the net change, and the change excluding FX and new accounts.',
       'An account opened during the period gets its own New accounts bar, because starting to track money you already had isn\'t a gain.',
-      'Ledger now keeps a month-end exchange rate for every month. Past months are filled in from frankfurter.app\'s published rates, back to the month before you started tracking, so the chart works straight away. Exchange rates → View lists them.',
+      'Ledger now keeps a month-end exchange rate for every month. Past months are filled in from published month-end rates, back to the month before you started tracking, so the chart works straight away. Exchange rates → View lists them.',
       'The dashboard heatmap treats a category spent on in fewer than 3 of the previous 6 months as irregular: it shows the amount in a neutral tint instead of a %, and a dot for its $0 months. "new" now only appears for a category with no spending ever before.',
       'The breakdown card headers leave ☆ Special budgets out of the budget total, matching the tracked total and the pace chart.',
       'The small trend lines in the breakdown rows are gone; the tables were too crowded with them.'
