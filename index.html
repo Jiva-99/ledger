@@ -813,6 +813,73 @@
     .nwt-target{ flex-wrap:wrap; row-gap:2px; }
     .nwt-subrow .nwt-ncell{ padding-left:18px !important; }
   }
+
+  /* V4.8 Settings */
+  .sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  .set-layout{ display:grid; grid-template-columns:170px minmax(0,1fr); gap:16px; align-items:start; }
+  .set-nav{ position:sticky; top:12px; display:flex; flex-direction:column; gap:2px; }
+  .set-nav button{ background:none; border:none; text-align:left; font-family:inherit; font-size:13px; color:var(--text-dim);
+    padding:6px 10px; border-radius:var(--radius); cursor:pointer; }
+  .set-nav button:hover{ background:var(--surface-raised); color:var(--text); }
+  .set-nav button.danger{ color:var(--red); }
+  .set-nav-rule{ height:1px; background:var(--border); margin:6px 0; }
+  .set-main{ display:flex; flex-direction:column; gap:12px; min-width:0; }
+  .set-main section{ scroll-margin-top:12px; }
+  .set-two{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; align-items:start; }
+  .set-grid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; align-items:start; }
+  .set-check{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text); margin-top:4px; }
+  .set-note{ font-size:11.5px; margin:0 0 10px 0; }
+  .set-sm{ padding:3px 10px; font-size:12px; }
+  .set-explain{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px; font-size:11.5px; color:var(--text-faint); margin-bottom:8px; }
+  .set-explain b{ color:var(--text); font-weight:600; }
+  table.data.set-cats th, table.data.set-cats td{ padding:4px 8px; }
+  table.data.set-cats th.c, table.data.set-cats td.c{ text-align:center; width:86px; }
+  table.data.set-cats td.r, table.data td.r{ text-align:right; }
+  .set-cat-group td{ padding-top:12px !important; }
+  .set-type{ font-size:11px; text-transform:uppercase; letter-spacing:0.8px; font-weight:700; }
+  .set-type.Income{ color:var(--green); } .set-type.Expenses{ color:var(--pink); } .set-type.Savings{ color:var(--blue-bright); }
+  .set-cat-name{ padding-left:14px !important; font-size:12.5px; }
+  .set-cat-actions{ display:inline-flex; gap:2px; align-items:center; justify-content:flex-end; }
+  .set-cat-add td{ border-bottom:none; padding-left:14px !important; }
+  .set-cat-add .add-cat-row{ margin:2px 0 4px 0; max-width:360px; }
+  .set-na{ color:var(--border); }
+  .set-switch{ width:30px; height:17px; border-radius:9px; border:none; padding:0; background:var(--surface-raised);
+    position:relative; cursor:pointer; vertical-align:middle; box-shadow:inset 0 0 0 1px var(--border); }
+  .set-switch > span{ position:absolute; top:2.5px; left:3px; width:12px; height:12px; border-radius:50%; background:var(--text-faint); transition:left 0.12s; }
+  .set-switch.on{ background:var(--gold); box-shadow:none; }
+  .set-switch.on > span{ left:15px; background:var(--bg); }
+  .set-switch:disabled{ opacity:0.3; cursor:default; }
+  .set-switch:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+  .set-danger{ border-color:rgba(217,105,95,0.45); }
+  .set-danger-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:12.5px; }
+  .set-danger-row .muted{ flex:1; min-width:200px; }
+  @media (max-width: 1100px){ .set-grid, .set-explain{ grid-template-columns:repeat(2, minmax(0,1fr)); } .set-two{ grid-template-columns:1fr; } }
+  @media (max-width: 820px){ .set-layout{ grid-template-columns:1fr; } .set-nav{ display:none; } }
+  @media (max-width: 600px){ .set-grid, .set-explain{ grid-template-columns:1fr; } table.data.set-cats th.c, table.data.set-cats td.c{ width:auto; } }
+
+  /* V4.8 Versions */
+  .ver-search input{ width:220px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px 10px; font-size:12.5px; font-family:inherit; }
+  .ver-wrap{ max-width:900px; }
+  .ver-card{ padding:2px 12px 8px 12px; }
+  .ver-item{ border-bottom:1px solid var(--border); }
+  .ver-item summary{ display:flex; align-items:center; gap:10px; padding:8px 2px; cursor:pointer; list-style:none; }
+  .ver-item summary::-webkit-details-marker{ display:none; }
+  .ver-caret{ width:10px; flex-shrink:0; color:var(--text-faint); }
+  .ver-caret::before{ content:'▸'; }
+  .ver-item[open] .ver-caret::before{ content:'▾'; }
+  .ver-item .vno{ width:62px; flex-shrink:0; color:var(--gold-bright); font-family:var(--mono); font-size:12.5px; }
+  .ver-item .vname{ flex:1; min-width:0; font-size:13px; }
+  .ver-item .vcount{ font-size:11px; white-space:nowrap; }
+  .ver-item .vdate{ width:70px; text-align:right; font-size:12px; white-space:nowrap; }
+  .ver-item ul{ margin:0 0 10px 82px; padding-left:16px; font-size:12.5px; color:var(--text-dim); }
+  .ver-item li{ margin-bottom:4px; }
+  .ver-foot{ display:flex; gap:10px; align-items:center; font-size:11.5px; padding:10px 2px 2px 2px; }
+  .ver-note{ font-size:11.5px; margin-top:10px; }
+  @media (max-width: 600px){
+    .ver-search input{ width:100%; }
+    .ver-item .vcount{ display:none; }
+    .ver-item ul{ margin-left:20px; }
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -4266,11 +4333,6 @@ function renderNetWorth(c){
             <span>${targetUnits.length} target${targetUnits.length===1?'':'s'} set${avgTargetPct===null?'':` · avg ${Math.round(avgTargetPct)}%`}</span>
           </div>` : ''}`}
         </div>
-        <div class="card dash-card">
-          <div class="dash-card-head"><span class="dash-card-title">Allocation</span><span class="muted">by group</span></div>
-          ${netWorthDonutHTML()}
-        </div>
-        ${invDonut}
       </div>
       <div class="dash-col">
         ${nwWaterfallHTML()}
@@ -4280,6 +4342,11 @@ function renderNetWorth(c){
           </div>
           ${state.accounts.length===0 ? `<div class="empty-state"><div class="glyph">·</div>Add an account to see accumulation over time.</div>` : stackedSvg}
         </div>
+        <div class="card dash-card">
+          <div class="dash-card-head"><span class="dash-card-title">Allocation</span><span class="muted">by group</span></div>
+          ${netWorthDonutHTML()}
+        </div>
+        ${invDonut}
       </div>
     </div>
   `;
@@ -7496,162 +7563,191 @@ function renameCategory(type, oldName, newName){
 function renderSettings(c){
   const L = liqSettings();
   const s = state.settings;
+  // V4.8 — sections as cards with a side menu; categories as one table with labelled switches.
+  const SET_SECTIONS = [
+    ['general','General'], ['categories','Categories'], ['profiles','Profiles'], ['data','Data'],
+    ['liquidity','Liquidity limits'], ['autosave','Auto-save to Excel'], ['restore','Restore points']
+  ];
+  const sw = (on, label, attr, disabled, title)=> `<button type="button" class="set-switch ${on?'on':''}" role="switch" aria-checked="${on}" aria-label="${label}" ${attr} ${disabled?'disabled':''} ${title?`title="${title}"`:''}><span></span></button>`;
+  const na = '<span class="set-na" aria-hidden="true">—</span>';
+  const catRows = TYPES.map(t=>{
+    const list = state.categories[t];
+    return `
+      <tr class="set-cat-group"><td colspan="6"><span class="set-type ${t}">${t}</span> <span class="muted">${list.length}</span></td></tr>
+      ${list.map((cat,idx)=>{
+        const key = t+'|||'+cat;
+        const isSpecial = (state.settings.excludedFromSummary||[]).includes(key);
+        const isEss = t==='Expenses' && isEssentialCategory(cat);
+        const offBal = (state.settings.excludedFromBalance||[]).includes(key);
+        const isInv = t==='Savings' && isInvestingCategory(cat);
+        return `
+        <tr class="set-cat-row">
+          <td class="set-cat-name">${cat}</td>
+          <td class="c">${t==='Expenses' ? sw(isEss, `Essential: ${cat}`, `data-toggleessential="${cat}"`) : na}</td>
+          <td class="c">${t==='Savings' ? sw(isInv, `Investing: ${cat}`, `data-toggleinvesting="${cat}"`) : na}</td>
+          <td class="c">${sw(isSpecial, `Special: ${cat}`, `data-togglespecial="${key}"`)}</td>
+          <td class="c">${isSpecial ? sw(offBal, `Off balance: ${cat}`, `data-togglebalance="${key}"`) : sw(false, `Off balance: ${cat}`, '', true, 'Only for Special categories')}</td>
+          <td class="r"><div class="set-cat-actions">
+            <button class="icon-btn" data-moveup="${key}" title="Move up" ${idx===0?'disabled':''}>↑</button>
+            <button class="icon-btn" data-movedown="${key}" title="Move down" ${idx===list.length-1?'disabled':''}>↓</button>
+            <button class="icon-btn" style="color:var(--gold);" data-editcat="${key}" title="Rename">✎</button>
+            <button class="icon-btn" data-rmcat="${key}" title="Remove">✕</button>
+          </div></td>
+        </tr>`;}).join('')}
+      <tr class="set-cat-add"><td colspan="6"><div class="add-cat-row">
+        <input type="text" id="newCat-${t}" placeholder="New ${t==='Expenses'?'expense':t.toLowerCase()} category…" aria-label="New ${t} category">
+        <button class="btn secondary" data-addcat="${t}">Add</button>
+      </div></td></tr>`;
+  }).join('');
+  const autoSaveNote = AUTO_SAVE_SUPPORTED
+    ? (autoSaveHandle
+        ? `Linked to a file you chose — it updates automatically a couple of seconds after any change.`
+        : `Not linked yet. Turning this on (or Choose save location) opens a save dialog starting in your Downloads folder — create or open a "Ledger save" folder there (or anywhere you prefer) and save once; every change after that updates the same file.`)
+    : `Your browser doesn't support linking directly to a file, so this downloads a new .xlsx to your Downloads folder after each change (they accumulate as separate copies). Chrome or Edge can update a single file instead.`;
+
   c.innerHTML = `
-    <h1 class="page-title">Settings</h1>
-    <div class="page-sub">App-wide preferences, categories, and data management.</div>
-
-    <div class="section-title">General</div>
-    <div class="card">
-      <div class="form-grid">
-        <label class="field">Starting year (reference only)
-          <input type="number" id="sYear" value="${s.startingYear}">
-        </label>
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px;">
-          <input type="checkbox" id="sShift" ${s.shiftLateIncome?'checked':''}>
-          Treat income received on/after a certain day as next month's income
-        </label>
-        <label class="field">Shift starting on day
-          <input type="number" id="sShiftDay" min="1" max="31" value="${s.shiftDay}">
-        </label>
-        <label class="field">Savings rate calculation
-          <select id="sRateType">
-            <option value="active" ${s.savingsRateType==='active'?'selected':''}>Active — Savings ÷ Income</option>
-            <option value="passive" ${s.savingsRateType==='passive'?'selected':''}>Passive — (Income − Expenses) ÷ Income</option>
-          </select>
-        </label>
-      </div>
+    <div class="dash-head">
+      <h1 class="page-title">Settings</h1>
+      <span class="muted dash-head-sub">app-wide preferences, categories and data</span>
     </div>
+    <div class="set-layout">
+      <nav class="set-nav" aria-label="Settings sections">
+        ${SET_SECTIONS.map(([id,label])=>`<button type="button" data-setjump="${id}">${label}</button>`).join('')}
+        <div class="set-nav-rule"></div>
+        <button type="button" class="danger" data-setjump="danger">Danger zone</button>
+      </nav>
+      <div class="set-main">
 
-    <div class="section-title">Profiles</div>
-    <div class="card">
-      <div class="page-sub" style="margin-bottom:14px;">Each profile is a fully separate, unlinked book — its own categories, transactions, planning, accounts, and bills. Nothing is shared or converted between them.</div>
-      <table class="data">
-        <thead><tr><th>Name</th><th></th><th></th></tr></thead>
-        <tbody>
-          ${profiles.list.map(p=>`
-            <tr>
-              <td>${p.name}${p.id===profiles.activeId ? ' <span class="pill Savings" style="margin-left:6px;">Active</span>' : ''}</td>
-              <td>${p.id===profiles.activeId ? '' : `<button class="btn secondary" data-switchprofile="${p.id}" style="padding:5px 12px; font-size:12px;">Switch to</button>`}</td>
-              <td>
-                <button class="icon-btn" style="color:var(--gold);" data-renameprofile="${p.id}" title="Rename">✎</button>
-                <button class="icon-btn" data-delprofile="${p.id}" title="Delete">✕</button>
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-      <div class="toolbar" style="margin-top:14px;"><button class="btn secondary" id="addProfileBtn2">+ New profile</button></div>
-    </div>
-
-    <div class="section-title">Categories</div>
-    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">Use ↑↓ to reorder. On expenses, ◆ marks a category as <b>Essential</b> — one you'd keep paying if your income stopped. That's what the Liquidity tab uses for the essentials-only runway; it changes nothing else. The ☆ marks a category as <b>Special</b> — left out of graphs, donuts and breakdown totals, but still counted in the running balance, which is what you want for an opening balance. On a Special category a second toggle appears: ⊘ <b>Off balance</b> keeps it out of the running balance as well, for entries that shouldn't count towards anything. Those rows still appear in the list, with a dash instead of a balance.</div>
-    <div class="card">
-      <div class="grid-cat">
-        ${TYPES.map(t=>`
-          <div class="cat-col">
-            <h4>${t}</h4>
-            <div class="cat-list" id="catList-${t}">
-              ${state.categories[t].map((cat,idx)=>{
-                const key = t+'|||'+cat;
-                const isSpecial = (state.settings.excludedFromSummary||[]).includes(key);
-                const isEss = t==='Expenses' && isEssentialCategory(cat);
-                const offBal = (state.settings.excludedFromBalance||[]).includes(key);
-                const isInv = t==='Savings' && isInvestingCategory(cat);
-                return `
-                <div class="cat-item ${t}">
-                  <div style="display:flex; align-items:center; gap:2px; min-width:0; overflow:hidden;">
-                    <button class="icon-btn" data-moveup="${key}" title="Move up" ${idx===0?'disabled':''}>↑</button>
-                    <button class="icon-btn" data-movedown="${key}" title="Move down" ${idx===state.categories[t].length-1?'disabled':''}>↓</button>
-                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-left:2px;">${cat}</span>
-                    ${isSpecial?'<span class="pill Savings" style="margin-left:6px; flex-shrink:0;">Special</span>':''}
-                    ${isEss?'<span class="pill Income" style="margin-left:6px; flex-shrink:0;">Essential</span>':''}
-                    ${offBal?'<span class="pill Expenses" style="margin-left:6px; flex-shrink:0;">Off balance</span>':''}
-                    ${isInv?'<span class="pill Savings" style="margin-left:6px; flex-shrink:0;">Investing</span>':''}
-                  </div>
-                  <div class="cat-actions">
-                    ${t==='Savings' ? `<button class="icon-btn" data-toggleinvesting="${cat}" title="${isInv?'Not a portfolio contribution':'Counts as a contribution to your investment sleeves'}" style="${isInv?'color:var(--blue-bright);':''}">${isInv?'◈':'◇'}</button>` : ''}
-                    ${t==='Expenses' ? `<button class="icon-btn" data-toggleessential="${cat}" title="${isEss?'Not essential — would be cut if income stopped':'Essential — would keep paying if income stopped'}" style="${isEss?'color:var(--green);':''}">${isEss?'◆':'◇'}</button>` : ''}
-                    <button class="icon-btn" data-togglespecial="${key}" title="${isSpecial?'Include in graphs/summary':'Exclude from graphs/summary'}">${isSpecial?'★':'☆'}</button>
-                    ${isSpecial ? `<button class="icon-btn" data-togglebalance="${key}" title="${offBal?'Let this category move the running balance again':'Also keep this category out of the running balance'}" style="${offBal?'color:var(--pink);':''}">${offBal?'⊘':'○'}</button>` : ''}
-                    <button class="icon-btn" style="color:var(--gold);" data-editcat="${key}" title="Rename">✎</button>
-                    <button class="icon-btn" data-rmcat="${key}" title="Remove">✕</button>
-                  </div>
-                </div>
-              `;}).join('')}
+        <section class="card dash-card" id="set-general">
+          <div class="dash-card-head"><span class="dash-card-title">General</span></div>
+          <div class="set-grid">
+            <label class="field">Starting year (reference only)
+              <input type="number" id="sYear" value="${s.startingYear}">
+            </label>
+            <div class="field">Late income
+              <label class="set-check"><input type="checkbox" id="sShift" ${s.shiftLateIncome?'checked':''}> Count income on or after the day below as next month's</label>
             </div>
-            <div class="add-cat-row">
-              <input type="text" id="newCat-${t}" placeholder="New category…">
-              <button class="btn secondary" data-addcat="${t}">Add</button>
-            </div>
+            <label class="field">Shift starting on day
+              <input type="number" id="sShiftDay" min="1" max="31" value="${s.shiftDay}" ${s.shiftLateIncome?'':'disabled'}>
+            </label>
+            <label class="field">Savings rate calculation
+              <select id="sRateType">
+                <option value="active" ${s.savingsRateType==='active'?'selected':''}>Active — Savings ÷ Income</option>
+                <option value="passive" ${s.savingsRateType==='passive'?'selected':''}>Passive — (Income − Expenses) ÷ Income</option>
+              </select>
+            </label>
           </div>
-        `).join('')}
+        </section>
+
+        <section class="card dash-card" id="set-categories">
+          <div class="dash-card-head"><span class="dash-card-title">Categories</span><span class="muted">↑↓ to reorder</span></div>
+          <div class="set-explain">
+            <div><b>Essential</b> — an expense you'd keep paying if income stopped. Only the Liquidity tab's essentials-only runway uses it.</div>
+            <div><b>Investing</b> — a savings category that counts as a contribution to your investment sleeves.</div>
+            <div><b>Special ☆</b> — left out of graphs, donuts and breakdown totals, but still in the running balance (an opening balance, say).</div>
+            <div><b>Off balance</b> — on a Special category, also keeps it out of the running balance. Its rows show a dash instead of a balance.</div>
+          </div>
+          <div class="plan-table-wrap">
+            <table class="data set-cats">
+              <thead><tr><th>Category</th><th class="c">Essential</th><th class="c">Investing</th><th class="c">Special</th><th class="c">Off balance</th><th></th></tr></thead>
+              <tbody>${catRows}</tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="set-two">
+          <section class="card dash-card" id="set-profiles">
+            <div class="dash-card-head"><span class="dash-card-title">Profiles</span></div>
+            <div class="muted set-note">Each profile is a fully separate book — its own categories, transactions, planning, accounts and bills. Nothing is shared or converted between them.</div>
+            <table class="data">
+              <tbody>
+                ${profiles.list.map(p=>`
+                  <tr>
+                    <td>${p.name}${p.id===profiles.activeId ? ' <span class="pill Savings" style="margin-left:6px;">Active</span>' : ''}</td>
+                    <td class="r"><div class="set-cat-actions">
+                      ${p.id===profiles.activeId ? '' : `<button class="btn secondary set-sm" data-switchprofile="${p.id}">Switch to</button>`}
+                      <button class="icon-btn" style="color:var(--gold);" data-renameprofile="${p.id}" title="Rename">✎</button>
+                      <button class="icon-btn" data-delprofile="${p.id}" title="Delete">✕</button>
+                    </div></td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+            <div class="toolbar" style="margin-top:10px;"><button class="btn secondary" id="addProfileBtn2">+ New profile</button></div>
+          </section>
+
+          <section class="card dash-card" id="set-data">
+            <div class="dash-card-head"><span class="dash-card-title">Data</span></div>
+            <div class="toolbar" style="flex-wrap:wrap;">
+              <button class="btn secondary" id="exportBtn2">Export this profile (.json)</button>
+              <button class="btn secondary" id="importBtn2">Import into this profile</button>
+            </div>
+            <div class="muted set-note" style="margin-top:8px;">Data is stored in this browser (localStorage), per profile, and synced to the cloud when you're signed in. Export a backup regularly, especially before clearing browser data.</div>
+          </section>
+        </div>
+
+        <div class="set-two">
+          <section class="card dash-card" id="set-liquidity">
+            <div class="dash-card-head"><span class="dash-card-title">Liquidity limits</span></div>
+            <div class="muted set-note">Set these once. They drive the limit checks on the Liquidity tab, and nothing else reads them.</div>
+            <div class="liq-set-grid">
+              <label for="liqRunway">Runway on essentials, at least (months)</label>
+              <input type="number" id="liqRunway" step="1" min="0" value="${L.limits.runwayMonths}">
+              <label for="liqTier">…counting cash reachable</label>
+              <select id="liqTier">
+                ${RUNWAY_TIERS.map(t=>`<option value="${t.key}" ${ (L.runwayTier||'week')===t.key ?'selected':''}>${t.label}</option>`).join('')}
+              </select>
+              <label for="liqFixed">Essential costs, at most (% of income)</label>
+              <input type="number" id="liqFixed" step="5" min="0" max="100" value="${L.limits.fixedPct}">
+              <label for="liqConc">Largest single account, at most (% of reachable cash)</label>
+              <input type="number" id="liqConc" step="5" min="0" max="100" value="${L.limits.concPct}">
+              <label for="liqBuffer">Cash reachable today, at least (AUD)</label>
+              <input type="number" id="liqBuffer" step="1000" min="0" value="${L.limits.bufferToday}">
+              <label for="liqThb">Share of retirement spending in baht (%)</label>
+              <input type="number" id="liqThb" step="5" min="0" max="100" value="${L.thbSpendShare}">
+              <label for="liqWindow">Average actual spending over (complete months)</label>
+              <select id="liqWindow">
+                ${[3,6,12].map(n=>`<option value="${n}" ${Number(L.spendWindow||6)===n?'selected':''}>${n} months</option>`).join('')}
+              </select>
+            </div>
+          </section>
+
+          <section class="card dash-card" id="set-autosave">
+            <div class="dash-card-head"><span class="dash-card-title">Auto-save to Excel</span></div>
+            <label class="set-check" style="margin-bottom:8px;">
+              <input type="checkbox" id="sAutoSave" ${state.settings.autoSaveEnabled?'checked':''}>
+              Keep an Excel (.xlsx) copy of this profile up to date
+            </label>
+            <div class="muted set-note">${autoSaveNote}</div>
+            <div class="toolbar" style="flex-wrap:wrap;">
+              <button class="btn secondary" id="chooseAutoSaveBtn">${autoSaveHandle ? 'Change save location' : 'Choose save location'}</button>
+              <button class="btn secondary" id="exportXlsxBtn">Download Excel now</button>
+            </div>
+          </section>
+        </div>
+
+        <section class="card dash-card" id="set-restore">
+          <div class="dash-card-head"><span class="dash-card-title">Restore points</span><span class="muted">this device only</span></div>
+          <div class="muted set-note">Cloud sync keeps no history — the most recent write wins everywhere. These are local copies of this profile, so a bad sync can't take them with it. One is saved when the app opens, at most one an hour while you use it, and always just before cloud data replaces what's here.</div>
+          <div id="restoreCard"></div>
+        </section>
+
+        <section class="card dash-card set-danger" id="set-danger">
+          <div class="dash-card-head"><span class="dash-card-title">Danger zone</span></div>
+          <div class="set-danger-row">
+            <span class="muted">Erase this profile's data. Other profiles are untouched. You'll be asked twice.</span>
+            <button class="btn danger" id="resetBtn">Reset this profile's data</button>
+          </div>
+        </section>
       </div>
-    </div>
-
-    <div class="section-title">Restore points</div>
-    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">Cloud sync keeps no history — the most recent write wins everywhere. These are local copies of this profile, kept on this device only, so a bad sync can't take them with it. One is saved when the app opens, at most one an hour while you use it, and always just before cloud data replaces what's here.</div>
-    <div class="card" id="restoreCard"></div>
-
-    <div class="section-title">Liquidity</div>
-    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">Set these once. They drive the limit checks on the Liquidity tab, and nothing else in the app reads them.</div>
-    <div class="card">
-      <div class="liq-set-grid">
-        <label for="liqRunway">Runway on essentials, at least (months)</label>
-        <input type="number" id="liqRunway" step="1" min="0" value="${L.limits.runwayMonths}">
-
-        <label for="liqTier">…counting cash reachable</label>
-        <select id="liqTier">
-          ${RUNWAY_TIERS.map(t=>`<option value="${t.key}" ${ (L.runwayTier||'week')===t.key ?'selected':''}>${t.label}</option>`).join('')}
-        </select>
-
-        <label for="liqFixed">Essential costs, at most (% of income)</label>
-        <input type="number" id="liqFixed" step="5" min="0" max="100" value="${L.limits.fixedPct}">
-
-        <label for="liqConc">Largest single account, at most (% of reachable cash)</label>
-        <input type="number" id="liqConc" step="5" min="0" max="100" value="${L.limits.concPct}">
-
-        <label for="liqBuffer">Cash reachable today, at least (AUD)</label>
-        <input type="number" id="liqBuffer" step="1000" min="0" value="${L.limits.bufferToday}">
-
-        <label for="liqThb">Share of retirement spending in baht (%)</label>
-        <input type="number" id="liqThb" step="5" min="0" max="100" value="${L.thbSpendShare}">
-
-        <label for="liqWindow">Average actual spending over (complete months)</label>
-        <select id="liqWindow">
-          ${[3,6,12].map(n=>`<option value="${n}" ${Number(L.spendWindow||6)===n?'selected':''}>${n} months</option>`).join('')}
-        </select>
-      </div>
-    </div>
-
-    <div class="section-title">Auto-save to Excel</div>
-    <div class="card">
-      <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:10px;">
-        <input type="checkbox" id="sAutoSave" ${state.settings.autoSaveEnabled?'checked':''}>
-        Automatically keep an Excel (.xlsx) copy of this profile up to date
-      </label>
-      <div class="muted" style="font-size:12px; margin-bottom:10px;">
-        ${AUTO_SAVE_SUPPORTED
-          ? (autoSaveHandle
-              ? `Linked to a file you chose — it updates automatically a couple of seconds after any change.`
-              : `Not linked yet. Turning this on (or clicking below) opens a save dialog starting in your Downloads folder — create or open a "Ledger save" folder there (or pick anywhere else you prefer) and save once; every change updates that same file automatically after that.`)
-          : `Your browser doesn't support linking directly to a file, so this will download a new .xlsx to your Downloads folder after each change (files will accumulate as separate copies). Chrome or Edge support updating a single file in place.`}
-      </div>
-      <div class="toolbar">
-        <button class="btn secondary" id="chooseAutoSaveBtn">${autoSaveHandle ? 'Change save location' : 'Choose save location'}</button>
-        <button class="btn secondary" id="exportXlsxBtn">Download Excel now</button>
-      </div>
-    </div>
-
-    <div class="section-title">Data</div>
-    <div class="card">
-      <div class="toolbar">
-        <button class="btn secondary" id="exportBtn2">Export this profile (.json)</button>
-        <button class="btn secondary" id="importBtn2">Import into this profile</button>
-        <button class="btn danger" id="resetBtn">Reset this profile's data</button>
-      </div>
-      <div class="muted" style="font-size:12px; margin-top:8px;">Data is stored only in this browser (localStorage), per profile. Export a backup regularly, especially before clearing browser data.</div>
     </div>
   `;
+
+  c.querySelectorAll('[data-setjump]').forEach(b=>{
+    b.onclick = ()=>{
+      const el = document.getElementById('set-' + b.dataset.setjump);
+      if(el && el.scrollIntoView) el.scrollIntoView({ behavior:'smooth', block:'start' });
+    };
+  });
 
   document.getElementById('sAutoSave').onchange = e=>{
     if(e.target.checked && AUTO_SAVE_SUPPORTED && !autoSaveHandle){
@@ -8568,7 +8664,20 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.7.1', name: 'One line per account', date: 'Sep 2026', current: true,
+    no: 'V4.8', name: 'Settings and Versions, tidied', date: 'Sep 2026', current: true,
+    items: [
+      'Settings has a side menu that jumps to each section. The sections are cards, with Profiles beside Data and Liquidity limits beside Auto-save to Excel.',
+      'Categories are one table instead of three columns of icons. Essential, Investing, Special and Off balance are labelled switches with a line under the heading saying what each one does. A switch that does not apply to a type shows a dash; Off balance stays greyed out until the category is Special, as before.',
+      'Reset this profile\'s data moved to its own Danger zone card at the bottom, away from Export and Import. It still asks twice.',
+      'Shift starting on day is greyed out while late-income shifting is off.',
+      'Versions shows the current release open and every older one as a single line — number, name, how many changes and the date. Click one to open it.',
+      'Search on the Versions tab looks through every release and opens the matches. Expand all / Collapse all, and Show all for releases beyond the latest eight.',
+      'Net Worth: the Allocation and Investment breakdown donuts moved to the right column, under What changed and Accumulation over time, so the Accounts card has the left side to itself.',
+      'Nothing about saved data changes.'
+    ]
+  },
+  {
+    no: 'V4.7.1', name: 'One line per account', date: 'Sep 2026', current: false,
     items: [
       'Every account and every split now takes one line. Splits are rows of their own, so their native balance, AUD value and ± / 🕐 buttons line up in the same columns as everything else instead of floating inside the name.',
       'Targets have their own column: a short bar and % of target, green with ✓ once reached. What is left to go shows when you hover or tap the bar.',
@@ -8965,28 +9074,82 @@ const VERSION_LOG = [
   }
 ];
 
+/* V4.8 — newest first; the current release is open, older ones are one line each.
+   Search filters in place (no re-render, so the box keeps focus) and opens matches. */
+let verShowAll = false;
 function renderVersions(c){
+  const LIMIT = 8;
+  const list = VERSION_LOG.map((v,i)=>({ v, i, hidden: !verShowAll && i>=LIMIT }));
   c.innerHTML = `
-    <div class="section-title">Version history</div>
-    <div class="muted" style="font-size:12px; margin:-4px 0 12px 0;">
-      What has changed and when, newest first. Entries before ${VERSION_LOG[0].no} were reconstructed
-      from the build sessions, so the dates are approximate — edit the <code>VERSION_LOG</code> array
-      near the bottom of this file to correct them or to add the next release.
+    <div class="dash-head">
+      <h1 class="page-title">Versions</h1>
+      <span class="muted dash-head-sub">what has changed and when, newest first</span>
+      <div class="spacer"></div>
+      <label class="ver-search"><span class="sr-only">Search changes</span>
+        <input type="search" id="verSearch" placeholder="Search changes" autocomplete="off">
+      </label>
+      <button type="button" class="btn secondary" id="verToggleAll">Expand all</button>
     </div>
-    <div class="card">
-      ${VERSION_LOG.map(v=>`
-        <div class="ver ${v.current?'current':''}">
-          <div class="vh">
-            <span class="vno">${v.no}</span>
-            <span class="vname">${v.name}</span>
-            ${v.current?'<span class="pill Savings">Current</span>':''}
-            <span class="vdate">${v.date||''}</span>
-          </div>
-          <ul>${v.items.map(i=>`<li>${i}</li>`).join('')}</ul>
+    <div class="ver-wrap">
+      <div class="card dash-card ver-card">
+        ${list.map(({v,i,hidden})=>`
+          <details class="ver-item ${v.current?'current':''}" data-ver="${i}" ${v.current?'open':''} ${hidden?'hidden':''}>
+            <summary>
+              <span class="ver-caret" aria-hidden="true"></span>
+              <span class="vno">${v.no}</span>
+              <span class="vname">${v.name}</span>
+              ${v.current?'<span class="pill Savings">Current</span>':''}
+              <span class="vcount muted">${v.items.length} change${v.items.length===1?'':'s'}</span>
+              <span class="vdate muted">${v.date||''}</span>
+            </summary>
+            <ul>${v.items.map(it=>`<li>${it}</li>`).join('')}</ul>
+          </details>`).join('')}
+        <div class="ver-foot muted" id="verFoot">
+          <span id="verCount"></span>
+          ${VERSION_LOG.length>LIMIT ? `<button type="button" class="dash-link" id="verMore">${verShowAll?'Show the latest '+LIMIT:'Show all '+VERSION_LOG.length}</button>` : ''}
         </div>
-      `).join('')}
+      </div>
+      <div class="muted ver-note">Entries before ${VERSION_LOG[0].no} were reconstructed from the build sessions, so their dates are approximate. To correct one or add the next release, edit the <code>VERSION_LOG</code> array near the bottom of this file.</div>
     </div>
   `;
+
+  const items = [...c.querySelectorAll('.ver-item')];
+  const search = c.querySelector('#verSearch');
+  const toggleAll = c.querySelector('#verToggleAll');
+  const count = c.querySelector('#verCount');
+  const updateCount = ()=>{
+    const shown = items.filter(d=> !d.hidden).length;
+    count.textContent = `Showing ${shown} of ${VERSION_LOG.length}`;
+    toggleAll.textContent = items.filter(d=>!d.hidden).every(d=> d.open) ? 'Collapse all' : 'Expand all';
+  };
+  const applySearch = ()=>{
+    const q = search.value.trim().toLowerCase();
+    items.forEach(d=>{
+      const i = Number(d.dataset.ver);
+      if(!q){
+        d.hidden = !verShowAll && i>=LIMIT;
+        d.open = VERSION_LOG[i].current === true;
+        return;
+      }
+      const hit = d.textContent.toLowerCase().includes(q);
+      d.hidden = !hit;       // a search looks through every release, not just the latest few
+      d.open = hit;
+    });
+    const more = c.querySelector('#verMore');
+    if(more) more.hidden = !!q;
+    updateCount();
+  };
+  search.oninput = applySearch;
+  toggleAll.onclick = ()=>{
+    const visible = items.filter(d=> !d.hidden);
+    const open = !visible.every(d=> d.open);
+    visible.forEach(d=> d.open = open);
+    updateCount();
+  };
+  items.forEach(d=> d.addEventListener('toggle', updateCount));
+  const more = c.querySelector('#verMore');
+  if(more) more.onclick = ()=>{ verShowAll = !verShowAll; renderVersions(c); };
+  updateCount();
 }
 
 /* =========================================================
