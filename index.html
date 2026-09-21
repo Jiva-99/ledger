@@ -920,6 +920,109 @@
   .inv-proj{ margin-top:10px; }
   @media (max-width: 1100px){ .inv-two{ grid-template-columns:1fr; } .inv-kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
   @media (max-width: 600px){ .inv-mini{ grid-template-columns:1fr; } .inv-sleeve-pct{ display:none; } }
+
+  /* V4.10 shared: rows whose buttons appear on hover (always on touch screens) */
+  .tx-actions, .bl-actions{ white-space:nowrap; text-align:right; }
+  @media (hover:hover){
+    tr.tx-row .tx-actions > *, tr.bl-row .bl-actions > *{ opacity:0; transition:opacity 0.1s; }
+    tr.tx-row:hover .tx-actions > *, tr.tx-row:focus-within .tx-actions > *,
+    tr.bl-row:hover .bl-actions > *, tr.bl-row:focus-within .bl-actions > *{ opacity:1; }
+    tr.tx-row:hover, tr.bl-row:hover{ background:var(--surface-raised); }
+  }
+
+  /* V4.10 Transactions */
+  .tx-search input{ width:220px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px 10px; font-size:12.5px; font-family:inherit; }
+  .tx-month-pick select{ width:auto; font-size:12.5px; padding:6px 8px; }
+  .tx-kpis{ grid-template-columns:repeat(4, minmax(0,1fr)); }
+  .tx-card{ padding:4px 10px 8px 10px; }
+  table.data.tx-table th{ padding:5px 8px; font-size:10px; }
+  table.data.tx-table td{ padding:5px 8px; font-size:12.5px; }
+  .tx-month td{ padding:12px 8px 4px 8px !important; }
+  .tx-month-line{ display:flex; align-items:baseline; gap:12px; font-size:12px; }
+  .tx-month-line .spacer{ flex:1; }
+  .tx-month-name{ font-size:13px; color:var(--gold-bright); }
+  .tx-date{ white-space:nowrap; width:84px; }
+  .tx-date .muted{ font-size:11px; }
+  .tx-type{ white-space:nowrap; color:var(--text-dim); width:96px; }
+  .tx-sw{ margin-right:6px; }
+  .tx-sw.Income{ background:var(--green); } .tx-sw.Expenses{ background:var(--pink); } .tx-sw.Savings{ background:var(--blue-bright); }
+  .tx-sav{ color:var(--blue-bright); }
+  .tx-aud{ font-size:10.5px; }
+  .tx-table td.num{ white-space:nowrap; font-family:var(--mono); }
+  @media (max-width: 1100px){ .tx-kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); } .tx-search input{ width:160px; } }
+  @media (max-width: 600px){ .tx-search{ flex-basis:100%; } .tx-search input{ width:100%; } .tx-details{ display:none; } .tx-table th:nth-child(4){ display:none; } }
+
+  /* V4.10 Bills */
+  .bl-kpis{ grid-template-columns:repeat(5, minmax(0,1fr)); }
+  .bl-grid{ display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:12px; align-items:start; }
+  .bl-card{ padding:4px 10px 8px 10px; }
+  table.data.bl-table th{ padding:5px 8px; font-size:10px; }
+  table.data.bl-table td{ padding:5px 8px; font-size:12.5px; }
+  .bl-group td{ padding:12px 8px 4px 8px !important; }
+  .bl-group-line{ display:flex; align-items:baseline; gap:10px; font-size:12px; }
+  .bl-group-line .spacer{ flex:1; }
+  .bl-group-name{ display:inline-flex; align-items:center; gap:7px; font-size:11px; text-transform:uppercase; letter-spacing:0.8px; font-weight:700; }
+  .bl-group-name.kind-expense{ color:var(--pink); } .bl-group-name.kind-income{ color:var(--green); } .bl-group-name.kind-saving{ color:var(--blue-bright); }
+  .bl-sw.kind-expense{ background:var(--pink); } .bl-sw.kind-income{ background:var(--green); } .bl-sw.kind-saving{ background:var(--blue-bright); }
+  .bl-name{ padding-left:22px !important; }
+  .bl-notes{ font-size:11px; margin-left:6px; }
+  .bl-amt{ font-family:var(--mono); white-space:nowrap; }
+  .bl-amt.kind-expense{ color:var(--pink); } .bl-amt.kind-income{ color:var(--green); } .bl-amt.kind-saving{ color:var(--blue-bright); }
+  .bl-due{ font-size:12px; white-space:nowrap; }
+  .bl-paid{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; }
+  .bl-soon-row{ display:flex; align-items:center; gap:8px; font-size:12.5px; padding:4px 0; border-bottom:1px solid var(--border); }
+  .bl-soon-date{ width:48px; flex-shrink:0; font-size:12px; }
+  .bl-soon-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bl-soon-foot{ font-size:11px; margin-top:8px; }
+  @media (max-width: 1100px){ .bl-grid{ grid-template-columns:1fr; } .bl-kpis{ grid-template-columns:repeat(3, minmax(0,1fr)); } }
+  @media (max-width: 600px){ .bl-kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+
+  /* V4.10 Planning */
+  .pl-kpis{ grid-template-columns:repeat(5, minmax(0,1fr)); }
+  .pl-card{ padding:9px 10px; }
+  .pl-legend{ display:flex; gap:12px; flex-wrap:wrap; font-size:11px; align-items:center; }
+  .pl-key{ display:inline-block; width:10px; height:9px; border-radius:2px; margin-right:4px; vertical-align:middle; }
+  .pl-key.over{ background:rgba(217,105,95,0.45); } .pl-key.met{ background:rgba(34,197,94,0.45); } .pl-key.near{ background:rgba(201,162,39,0.4); }
+  .pl-key.cur{ background:transparent; outline:1px solid var(--gold); }
+  table.data.pl-grid th, table.data.pl-grid td{ padding:3px 4px; }
+  table.data.pl-grid td.catname{ min-width:170px; padding-left:8px; }
+  table.data.pl-grid input[type=number]{ width:62px; padding:3px 5px; }
+  table.data.pl-grid th.pl-cur{ color:var(--gold-bright); }
+  table.data.pl-grid td.pl-cur, table.data.pl-grid th.pl-cur{ background:rgba(201,162,39,0.07); }
+  .pl-alloc td{ background:var(--surface-raised); }
+  .pl-alloc td.pl-cur{ background:rgba(201,162,39,0.12); }
+  .pl-left{ color:var(--amber); }
+  .pl-type td{ padding-top:12px !important; font-size:11.5px; }
+  .pl-type-name{ font-size:11px !important; text-transform:uppercase; letter-spacing:0.8px; font-weight:700; }
+  .pl-type-name.Income{ color:var(--green); } .pl-type-name.Expenses{ color:var(--pink); } .pl-type-name.Savings{ color:var(--blue-bright); }
+  .pl-cat{ padding-left:20px !important; }
+  .pl-foot{ font-size:11px; margin-top:8px; }
+  @media (max-width: 1100px){ .pl-kpis{ grid-template-columns:repeat(3, minmax(0,1fr)); } }
+  @media (max-width: 600px){ .pl-kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+
+  /* V4.10 Liquidity */
+  .liq-status{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:9px 14px; margin-bottom:12px; font-size:12px; }
+  .liq-status .spacer{ flex:1; }
+  .liq-status-main{ font-size:15px; }
+  .liq-status.pass .liq-status-main{ color:var(--green); }
+  .liq-status.breach{ border-color:rgba(217,105,95,0.45); }
+  .liq-status-rule{ color:var(--text-dim); }
+  .liq-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; align-items:start; }
+  .liq-card{ padding:11px 13px; min-width:0; }
+  .liq-card.wide{ grid-column:1 / -1; }
+  .liq-card-head{ display:flex; align-items:baseline; gap:10px; }
+  .liq-card-head .spacer{ flex:1; }
+  .liq-n{ display:inline-flex; width:20px; height:20px; align-items:center; justify-content:center; border-radius:50%; background:var(--surface-raised);
+    color:var(--gold-bright); font-size:11px; flex-shrink:0; font-family:var(--mono); }
+  .liq-t{ font-size:14px; }
+  .liq-card-sub{ font-size:11.5px; color:var(--text-faint); margin:2px 0 10px 30px; line-height:1.5; }
+  .liq-answer{ font-family:var(--mono); font-size:19px; white-space:nowrap; text-align:right; }
+  .liq-answer.amber{ color:var(--amber); }
+  .liq-answer-note{ display:block; font-family:var(--sans); font-size:10.5px; color:var(--text-faint); }
+  .liq-fx{ grid-template-columns:repeat(3, minmax(0,1fr)); margin-bottom:0; }
+  @media (max-width: 1100px){ .liq-grid{ grid-template-columns:1fr; } }
+  @media (max-width: 600px){ .liq-fx{ grid-template-columns:1fr; } .liq-card-sub{ margin-left:0; } }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -3145,78 +3248,110 @@ function renderTransactions(c){
     return t.type==='Income' ? s+amtAUD : s-amtAUD;
   }, 0);
   const daysAgo = lastRecord ? Math.round((new Date(todayISO+'T00:00:00') - new Date(lastRecord.date+'T00:00:00'))/86400000) : null;
+  const thisMonthKey = todayISO.slice(0,7);
+  const monthSums = list=> ({
+    n: list.length,
+    inc: list.filter(t=>t.type==='Income').reduce((s,t)=> s+txAmountAUD(t), 0),
+    exp: list.filter(t=>t.type==='Expenses').reduce((s,t)=> s+txAmountAUD(t), 0),
+    sav: list.filter(t=>t.type==='Savings').reduce((s,t)=> s+txAmountAUD(t), 0)
+  });
+  const thisMonth = monthSums(state.transactions.filter(t=> t.date.slice(0,7)===thisMonthKey));
+
+  // V4.10 — rows grouped by month, each with its own in / out / saved (of what's shown)
+  const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const monthTitle = key=> `${MONTHS_LONG[Number(key.slice(5,7))-1]} ${key.slice(0,4)}`;
+  const groups = [];
+  rows.forEach(r=>{
+    const k = r.date.slice(0,7);
+    if(!groups.length || groups[groups.length-1].key!==k) groups.push({ key:k, rows:[] });
+    groups[groups.length-1].rows.push(r);
+  });
+  const rowHTML = r=>{
+    const cur = r.currency || 'AUD';
+    const showAUD = cur!=='AUD';
+    const wd = WD[new Date(r.date+'T00:00:00').getDay()];
+    return `
+      <tr class="tx-row">
+        <td class="tx-date"><span>${shortIsoDate(r.date)}</span> <span class="muted">${wd}</span></td>
+        <td class="tx-type"><span class="dash-sw tx-sw ${r.type}"></span>${r.type}</td>
+        <td>${r.category}</td>
+        <td class="muted tx-details">${r.details||''}</td>
+        <td class="num ${r.type==='Income'?'pos':(r.type==='Savings'?'tx-sav':'neg')}">
+          ${r.type==='Income'?'+':'−'}${moneyCur(r.amount, cur, 2)}${showAUD ? ` <span class="muted tx-aud">≈${moneyWhole(txAmountAUD(r))}</span>` : ''}
+        </td>
+        <td class="num muted">${r.offBalance ? '<span class="muted" title="This category is set to stay out of the running balance">—</span>' : money(r.balance)}</td>
+        <td class="tx-actions">
+          <button class="icon-btn" style="color:var(--gold);" data-edit="${r.id}" title="Edit">✎</button>
+          <button class="icon-btn" data-del="${r.id}" title="Delete">✕</button>
+        </td>
+      </tr>`;
+  };
+  const tableBody = groups.map(g=>{
+    const s = monthSums(g.rows);
+    return `
+      <tr class="tx-month"><td colspan="7"><div class="tx-month-line">
+        <span class="tx-month-name">${monthTitle(g.key)}</span>
+        <span class="muted">${s.n} record${s.n===1?'':'s'}</span>
+        <span class="spacer"></span>
+        ${s.inc ? `<span class="pos">in ${moneyWhole(s.inc)}</span>` : ''}
+        ${s.exp ? `<span class="neg">out ${moneyWhole(s.exp)}</span>` : ''}
+        ${s.sav ? `<span class="tx-sav">saved ${moneyWhole(s.sav)}</span>` : ''}
+      </div></td></tr>
+      ${g.rows.map(rowHTML).join('')}`;
+  }).join('');
 
   c.innerHTML = `
-    <h1 class="page-title">Transactions</h1>
-    <div class="page-sub">Every income, expense, and savings entry — the source of truth for the dashboard.</div>
-
-    <div class="row" style="margin-bottom:14px;">
-      <div class="card metric">
-        <h3>Date of Today</h3>
-        <div class="big" style="font-size:17px;">${formatDateShort(todayISO)}</div>
-      </div>
-      <div class="card metric">
-        <h3>Date of Last Record</h3>
-        <div class="big" style="font-size:17px;">${lastRecord ? formatDateShort(lastRecord.date) : '—'}</div>
-        <div class="cap">${lastRecord ? `${daysAgo} days ago` : 'No records yet'}</div>
-      </div>
-      <div class="card metric">
-        <h3>No of Tracked Record</h3>
-        <div class="big" style="font-size:17px;">${totalRecords}</div>
-        <div class="cap">${thisYearRecords} this year</div>
-      </div>
-      <div class="card metric">
-        <h3>Lifetime Tracking Balance</h3>
-        <div class="big ${allTimeBalance<0?'neg':'pos'}" style="font-size:17px;">${moneyWhole(Math.abs(allTimeBalance))}</div>
-        <div class="cap">${allTimeBalance>=0 ? 'of tracked income left to be allocated' : 'allocated more than tracked income'}</div>
-      </div>
-    </div>
-
-    <div class="toolbar">
-      <select id="txType">
-        <option ${filterType==='All'?'selected':''}>All</option>
-        ${TYPES.map(t=>`<option ${filterType===t?'selected':''}>${t}</option>`).join('')}
-      </select>
-      <select id="txMonth">
-        <option value="All" ${filterMonth==='All'?'selected':''}>All months</option>
-        ${monthsPresent.map(mo=>`<option value="${mo}" ${filterMonth===mo?'selected':''}>${mo}</option>`).join('')}
-      </select>
-      <input type="text" id="txSearch" placeholder="Search details or category…" value="${search}">
+    <div class="dash-head">
+      <h1 class="page-title">Transactions</h1>
+      <span class="muted dash-head-sub">the source of truth for the dashboard</span>
       <div class="spacer"></div>
+      <label class="tx-search"><span class="sr-only">Search</span>
+        <input type="search" id="txSearch" placeholder="Search details or category…" value="${escHTML(search)}" autocomplete="off">
+      </label>
+      <div class="dash-seg" role="group" aria-label="Type">
+        ${['All', ...TYPES].map(t=>`<button type="button" data-txtype="${t}" class="${filterType===t?'on':''}" aria-pressed="${filterType===t}">${t}</button>`).join('')}
+      </div>
+      <label class="tx-month-pick"><span class="sr-only">Month</span>
+        <select id="txMonth">
+          <option value="All" ${filterMonth==='All'?'selected':''}>All months</option>
+          ${monthsPresent.map(mo=>`<option value="${mo}" ${filterMonth===mo?'selected':''}>${monthTitle(mo)}</option>`).join('')}
+        </select>
+      </label>
       <button class="btn secondary" id="exportCsvBtn">Export CSV</button>
       <button class="btn" id="addTxBtn">+ Add transaction</button>
     </div>
-    ${rows.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No transactions match. Add one to get started.</div>` : `
-    <table class="data">
-      <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Details</th><th class="num">Amount</th><th class="num">Balance (AUD)</th><th></th></tr></thead>
-      <tbody>
-        ${rows.map(r=>{
-          const cur = r.currency || 'AUD';
-          const showAUD = cur!=='AUD';
-          return `
-          <tr>
-            <td class="muted">${r.date}</td>
-            <td><span class="pill ${r.type}">${r.type}</span></td>
-            <td>${r.category}</td>
-            <td class="muted">${r.details||''}</td>
-            <td class="num ${r.type==='Income'?'pos':'neg'}">
-              ${r.type==='Income'?'+':'−'}${moneyCur(r.amount, cur, 2)}
-              ${showAUD ? `<div class="muted" style="font-size:10.5px;">≈${moneyWhole(txAmountAUD(r))} AUD</div>` : ''}
-            </td>
-            <td class="num">${r.offBalance ? '<span class="muted" title="This category is set to stay out of the running balance">—</span>' : money(r.balance)}</td>
-            <td>
-              <button class="icon-btn" style="color:var(--gold);" data-edit="${r.id}" title="Edit">✎</button>
-              <button class="icon-btn" data-del="${r.id}" title="Delete">✕</button>
-            </td>
-          </tr>
-        `;}).join('')}
-      </tbody>
-    </table>`}
+
+    <div class="dash-kpis tx-kpis">
+      <div class="dash-kpi"><div class="k-label">Last record</div><div class="k-val">${lastRecord ? shortIsoDate(lastRecord.date) : '—'}</div>
+        <div class="k-sub">${lastRecord ? (daysAgo===0 ? 'today' : `${daysAgo} day${daysAgo===1?'':'s'} ago`) + ` · today is ${formatDateShort(todayISO)}` : 'No records yet'}</div></div>
+      <div class="dash-kpi"><div class="k-label">Records</div><div class="k-val">${totalRecords.toLocaleString('en-AU')}</div><div class="k-sub">${thisYearRecords} this year</div></div>
+      <div class="dash-kpi"><div class="k-label">Lifetime tracking balance</div><div class="k-val ${allTimeBalance<0?'neg':'pos'}">${moneyWhole(Math.abs(allTimeBalance))}</div>
+        <div class="k-sub">${allTimeBalance>=0 ? 'of tracked income left to be allocated' : 'allocated more than tracked income'}</div></div>
+      <div class="dash-kpi"><div class="k-label">This month</div><div class="k-val">${thisMonth.n} record${thisMonth.n===1?'':'s'}</div>
+        <div class="k-sub">in ${moneyWhole(thisMonth.inc)} · out ${moneyWhole(thisMonth.exp)} · saved ${moneyWhole(thisMonth.sav)}</div></div>
+    </div>
+
+    ${rows.length===0 ? `<div class="empty-state"><div class="glyph">·</div>${state.transactions.length ? 'No transactions match these filters.' : 'No transactions yet. Add one to get started.'}</div>` : `
+    <div class="card dash-card tx-card">
+      <div class="plan-table-wrap">
+      <table class="data tx-table">
+        <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Details</th><th class="num">Amount</th><th class="num">Balance (AUD)</th><th></th></tr></thead>
+        <tbody>${tableBody}</tbody>
+      </table>
+      </div>
+    </div>`}
   `;
 
-  document.getElementById('txType').onchange = e=>{ state.ui.txFilterType=e.target.value; saveState(); render(); };
+  c.querySelectorAll('[data-txtype]').forEach(b=> b.onclick = ()=>{ state.ui.txFilterType = b.dataset.txtype; saveState(); render(); });
   document.getElementById('txMonth').onchange = e=>{ state.ui.txFilterMonth=e.target.value; saveState(); render(); };
-  document.getElementById('txSearch').oninput = e=>{ state.ui.txSearch=e.target.value; saveState(); render(); };
+  // Searching re-renders the list, so put the cursor back where it was — before V4.10
+  // every keystroke dropped focus from the box.
+  document.getElementById('txSearch').oninput = e=>{
+    const pos = e.target.selectionStart;
+    state.ui.txSearch = e.target.value; saveState(); render();
+    const box = document.getElementById('txSearch');
+    if(box){ box.focus(); try{ box.setSelectionRange(pos, pos); }catch(_){} }
+  };
   document.getElementById('addTxBtn').onclick = ()=> openTxModal();
   document.getElementById('exportCsvBtn').onclick = exportTransactionsCSV;
   c.querySelectorAll('[data-edit]').forEach(b=> b.onclick = ()=> openTxModal(b.dataset.edit));
@@ -3310,9 +3445,13 @@ function openTxModal(editId){
 function renderPlanning(c){
   if(!isSaneYear(Number(state.ui.planYear))) state.ui.planYear = TODAY.getFullYear();
   const y = state.ui.planYear;
-  const years = yearOptions();
   ensurePlanningYear(y);
   const mobileMonth = (state.ui.planMobileMonth ?? TODAY.getMonth());
+  // Same range as the dashboard's arrows: years with real data, plus three ahead.
+  // yearOptions() grows every time a year is merely looked at, so it can't bound ‹ ›.
+  const { minYear, maxYear } = dashYearBounds();
+  const curMonth = y===TODAY.getFullYear() ? TODAY.getMonth() : -1;
+  const excluded = new Set(state.settings.excludedFromSummary || []);
 
   // Actual tracked amounts per type/month, used to highlight budget cells
   const monthlyActuals = {};
@@ -3320,15 +3459,28 @@ function renderPlanning(c){
     monthlyActuals[t] = [];
     for(let mi=0; mi<12; mi++) monthlyActuals[t].push(trackedTotals(y, mi)[t]);
   });
+  const typeTotals = {};
+  TYPES.forEach(t=>{
+    typeTotals[t] = new Array(12).fill(0);
+    state.categories[t].forEach(cat=> state.planning[y][t][cat].forEach((v,i)=> typeTotals[t][i] += Number(v)||0));
+  });
+  const toAllocate = typeTotals.Income.map((v,i)=> v - typeTotals.Expenses[i] - typeTotals.Savings[i]);
+  const toAllocateTotal = toAllocate.reduce((a,b)=>a+b,0);
+  const monthsDone = toAllocate.filter((v,i)=> Math.abs(v) < 0.005 && typeTotals.Income[i] > 0).length;
+  const yearSum = t=> typeTotals[t].reduce((a,b)=>a+b,0);
+  const curCls = i=> i===curMonth ? ' pl-cur' : '';
 
-  function typeTable(type){
-    const excluded = new Set(state.settings.excludedFromSummary || []);
+  const typeRows = type=>{
     const cats = state.categories[type];
-    const monthTotals = new Array(12).fill(0);
+    const head = `
+      <tr class="pl-type" data-plantype="${type}">
+        <td class="catname pl-type-name ${type}">${type}</td>
+        ${typeTotals[type].map((v,i)=>`<td class="num muted${curCls(i)}">${moneyWhole(v)}</td>`).join('')}
+        <td class="num muted">${moneyWhole(yearSum(type))}</td>
+      </tr>`;
     const rows = cats.map(cat=>{
       const isSpecial = excluded.has(`${type}|||${cat}`);
       const arr = state.planning[y][type][cat];
-      arr.forEach((v,i)=> monthTotals[i]+= Number(v)||0);
       const rowTotal = arr.reduce((a,b)=>a+(Number(b)||0),0);
       const cells = arr.map((v,i)=>{
         const budget = Number(v)||0;
@@ -3339,77 +3491,75 @@ function renderPlanning(c){
           if(type==='Expenses') cls = actual>budget && !isOnBudget ? 'pinput-over' : (isOnBudget ? 'pinput-met' : (actual/budget>=0.8 ? 'pinput-near' : ''));
           else cls = actual>=budget ? 'pinput-met' : (actual/budget>=0.8 ? 'pinput-near' : '');
         }
-        return `<td><input type="number" step="1" class="${cls}" value="${v||''}" placeholder="0" data-m="${i}" title="Actual so far: ${moneyWhole(actual)}"></td>`;
+        return `<td class="${curCls(i).trim()}"><input type="number" step="1" class="${cls}" value="${v||''}" placeholder="0" data-m="${i}" title="Actual so far: ${moneyWhole(actual)}" aria-label="${cat}, ${MONTHS[i]} budget"></td>`;
       }).join('');
       return `<tr data-cat="${cat}" data-type="${type}">
-        <td class="catname ${type}">${cat}${isSpecial?' <span class="muted" title="Special — excluded from graphs/donuts/breakdown totals" style="font-size:11px;">☆</span>':''}</td>
+        <td class="catname ${type} pl-cat">${cat}${isSpecial?' <span class="muted" title="Special — excluded from graphs/donuts/breakdown totals" style="font-size:11px;">☆</span>':''}</td>
         ${cells}
         <td class="num" style="font-weight:600;">${moneyWhole(rowTotal)}</td>
       </tr>`;
     }).join('');
-    const grandTotal = monthTotals.reduce((a,b)=>a+b,0);
-    return `
-      <div class="section-title" style="color:${type==='Income'?'var(--green)':type==='Expenses'?'var(--pink)':'var(--blue-bright)'};">${type}</div>
-      <div class="card card-${type}"><div class="plan-table-wrap">
-      <table class="data plan mobile-condensed pm-${mobileMonth}">
-        <thead><tr><th>Category</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th class="num">Total</th></tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr style="font-weight:600;"><td>Total</td>${monthTotals.map(v=>`<td class="num">${moneyWhole(v)}</td>`).join('')}<td class="num">${moneyWhole(grandTotal)}</td></tr></tfoot>
-      </table>
-      </div></div>
-    `;
-  }
-
-  // To-be-allocated: Income - Expenses - Savings, per month
-  const incT = new Array(12).fill(0), expT = new Array(12).fill(0), savT = new Array(12).fill(0);
-  state.categories.Income.forEach(cat=> state.planning[y].Income[cat].forEach((v,i)=> incT[i]+=Number(v)||0));
-  state.categories.Expenses.forEach(cat=> state.planning[y].Expenses[cat].forEach((v,i)=> expT[i]+=Number(v)||0));
-  state.categories.Savings.forEach(cat=> state.planning[y].Savings[cat].forEach((v,i)=> savT[i]+=Number(v)||0));
-  const toAllocate = incT.map((v,i)=> v - expT[i] - savT[i]);
-  const toAllocateTotal = toAllocate.reduce((a,b)=>a+b,0);
+    return head + rows;
+  };
 
   c.innerHTML = `
-    <h1 class="page-title">Planning</h1>
-    <div class="page-sub">Set your monthly budget per category. Add categories in Settings. The ☆ marks a category as Special — its transactions still count toward Transactions/Balance, but are left out of graphs, donuts, and breakdown totals (useful for things like an opening balance).</div>
-    <div class="toolbar">
-      <label class="field">Year
-        <select id="planYear">${years.map(yr=>`<option value="${yr}" ${yr===y?'selected':''}>${yr}</option>`).join('')}</select>
-      </label>
+    <div class="dash-head">
+      <h1 class="page-title">Planning</h1>
+      <span class="muted dash-head-sub">monthly budget per category — type into any cell</span>
+      <div class="spacer"></div>
+      <div class="dash-step">
+        <button type="button" id="planPrev" aria-label="Previous year" ${y<=minYear?'disabled':''}>‹</button>
+        <span id="planYearLabel" style="min-width:70px; text-align:center; font-size:13px;">${y}</span>
+        <button type="button" id="planNext" aria-label="Next year" ${y>=maxYear?'disabled':''}>›</button>
+      </div>
       <label class="field plan-mobile-month-picker">Month
         <select id="planMobileMonth">${MONTHS.map((m,i)=>`<option value="${i}" ${i===mobileMonth?'selected':''}>${m}</option>`).join('')}</select>
       </label>
-      <div class="spacer"></div>
-      <div class="muted" style="font-size:11.5px; display:flex; gap:14px; align-items:center;">
-        <span><span style="display:inline-block;width:9px;height:9px;background:rgba(217,105,95,0.45);border-radius:2px;margin-right:4px;"></span>Expenses over budget</span>
-        <span><span style="display:inline-block;width:9px;height:9px;background:rgba(34,197,94,0.45);border-radius:2px;margin-right:4px;"></span>Income/Savings goal met</span>
-        <span><span style="display:inline-block;width:9px;height:9px;background:rgba(201,162,39,0.4);border-radius:2px;margin-right:4px;"></span>Approaching (80%+)</span>
-      </div>
     </div>
-    <div class="card">
-      <h3>To be allocated (Income − Expenses − Savings)</h3>
+
+    <div class="dash-kpis pl-kpis">
+      <div class="dash-kpi"><div class="k-label">Planned income</div><div class="k-val pos">${moneyWhole(yearSum('Income'))}</div><div class="k-sub">${y} · ${moneyWhole(yearSum('Income')/12)} a month on average</div></div>
+      <div class="dash-kpi"><div class="k-label">Planned expenses</div><div class="k-val" style="color:var(--pink)">${moneyWhole(yearSum('Expenses'))}</div><div class="k-sub">${y} · ${moneyWhole(yearSum('Expenses')/12)} a month on average</div></div>
+      <div class="dash-kpi"><div class="k-label">Planned savings</div><div class="k-val" style="color:var(--blue-bright)">${moneyWhole(yearSum('Savings'))}</div><div class="k-sub">${y} · ${moneyWhole(yearSum('Savings')/12)} a month on average</div></div>
+      <div class="dash-kpi"><div class="k-label">To be allocated</div><div class="k-val ${Math.abs(toAllocateTotal)<0.005?'pos':(toAllocateTotal<0?'neg':'')}" style="${Math.abs(toAllocateTotal)>=0.005 && toAllocateTotal>0?'color:var(--amber)':''}">${Math.abs(toAllocateTotal)<0.005 ? 'Done ✓' : moneyWhole(toAllocateTotal)}</div><div class="k-sub">income − expenses − savings, whole year</div></div>
+      <div class="dash-kpi"><div class="k-label">Months done</div><div class="k-val">${monthsDone} of 12</div><div class="k-sub">every planned dollar assigned</div></div>
+    </div>
+
+    <div class="card dash-card pl-card">
+      <div class="dash-card-head wrap"><span class="dash-card-title">Budget grid</span><span class="muted">${y}</span><div class="spacer"></div>
+        <div class="muted pl-legend">
+          <span><span class="pl-key over"></span>Expenses over budget</span>
+          <span><span class="pl-key met"></span>Income/Savings goal met</span>
+          <span><span class="pl-key near"></span>Approaching (80%+)</span>
+          ${curMonth>=0 ? '<span><span class="pl-key cur"></span>This month</span>' : ''}
+          <span>☆ Special</span>
+        </div>
+      </div>
       <div class="plan-table-wrap">
-      <table class="data plan mobile-condensed pm-${mobileMonth}">
-        <thead><tr><th>Category</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th class="num">Total</th></tr></thead>
-        <tbody><tr>
-          <td class="catname">To be allocated</td>
-          ${toAllocate.map(v=>{
-            const isZero = Math.abs(v) < 0.005;
-            return isZero
-              ? `<td class="pos" style="text-align:center;">Done ✓</td>`
-              : `<td class="${v<0?'neg':'pos'}" style="text-align:center; font-family:var(--mono);">${moneyWhole(v)}</td>`;
-          }).join('')}
-          <td class="num" style="font-weight:600;">${moneyWhole(toAllocateTotal)}</td>
-        </tr></tbody>
+      <table class="data plan pl-grid mobile-condensed pm-${mobileMonth}">
+        <thead><tr><th>Category</th>${MONTHS.map((m,i)=>`<th class="${curCls(i).trim()}">${m}</th>`).join('')}<th class="num">Total</th></tr></thead>
+        <tbody>
+          <tr class="pl-alloc">
+            <td class="catname"><b>To be allocated</b></td>
+            ${toAllocate.map((v,i)=>{
+              const isZero = Math.abs(v) < 0.005;
+              return isZero
+                ? `<td class="pos${curCls(i)}" style="text-align:center;" title="Every dollar of planned income is allocated">✓</td>`
+                : `<td class="${v<0?'neg':'pl-left'}${curCls(i)}" style="text-align:center; font-family:var(--mono);">${moneyWhole(v)}</td>`;
+            }).join('')}
+            <td class="num" style="font-weight:600;">${moneyWhole(toAllocateTotal)}</td>
+          </tr>
+          ${TYPES.map(typeRows).join('')}
+        </tbody>
       </table>
       </div>
-      <div class="muted" style="font-size:11.5px; margin-top:8px;">"Done ✓" means every dollar of planned income that month is allocated to Expenses or Savings.</div>
+      <div class="muted pl-foot">✓ means every dollar of planned income that month is allocated to Expenses or Savings. Hover a cell for what has actually been tracked. Add categories in Settings; ☆ Special categories still count toward Transactions and the balance but are left out of graphs and breakdown totals.</div>
     </div>
-    ${typeTable('Income')}
-    ${typeTable('Expenses')}
-    ${typeTable('Savings')}
   `;
 
-  document.getElementById('planYear').onchange = e=>{ state.ui.planYear = Number(e.target.value); saveState(); render(); };
+  const stepYear = d=>{ const n = y + d; if(n<minYear || n>maxYear) return; state.ui.planYear = n; saveState(); render(); };
+  document.getElementById('planPrev').onclick = ()=> stepYear(-1);
+  document.getElementById('planNext').onclick = ()=> stepYear(1);
   document.getElementById('planMobileMonth').onchange = e=>{ state.ui.planMobileMonth = Number(e.target.value); saveState(); render(); };
   c.querySelectorAll('table.plan tbody input').forEach(inp=>{
     inp.onchange = ()=>{
@@ -6553,45 +6703,104 @@ function renderBills(c){
   const inM   = sumKind('income');
   const saveM = sumKind('saving');
   const netM  = inM - outM - saveM;
+  const filter = ['all','expense','income','saving'].includes(state.ui.billFilter) ? state.ui.billFilter : 'all';
+  const todayISO = isoDate(TODAY);
+  const in7  = isoDate(new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate()+7));
+  const in21 = isoDate(new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate()+21));
+
+  // What's still owed this month and what lands in the next week, from the same entries
+  const unpaid = k=> state.bills.filter(b=> b.kind===k && !(b.paidMonths||[]).includes(mk) && nextDueDate(b)
+    && isoDate(nextDueDate(b)).slice(0,7) <= mk).length;
+  const soon = [];
+  state.bills.forEach(b=> billOccurrences(b, todayISO, in21).forEach(d=> soon.push({ b, d })));
+  soon.sort((x,y)=> x.d < y.d ? -1 : x.d > y.d ? 1 : 0);
+  const week = soon.filter(x=> x.d <= in7 && x.b.kind==='expense');
+  const weekSum = week.reduce((s,x)=> s + toAUD(Number(x.b.amount)||0, x.b.currency||'AUD'), 0);
+
+  const KIND_ORDER = [['expense','Money out'], ['income','Money in'], ['saving','To savings']];
+  const shownKinds = KIND_ORDER.filter(([k])=> filter==='all' || filter===k);
+  // ↑↓ move an entry past the previous / next entry of the same type, since that is
+  // the neighbour you can see; the stored order of everything else is left alone.
+  const sameKindNeighbour = (idx, dir)=>{
+    const kind = state.bills[idx].kind;
+    for(let j = idx+dir; j>=0 && j<state.bills.length; j+=dir) if(state.bills[j].kind===kind) return j;
+    return -1;
+  };
+  const groupHTML = ([k,label])=>{
+    const items = state.bills.map((b,idx)=>({ b, idx })).filter(x=> x.b.kind===k);
+    if(!items.length) return '';
+    const monthly = items.reduce((s,x)=> s + billMonthlyAUD(x.b), 0);
+    return `
+      <tr class="bl-group"><td colspan="6"><div class="bl-group-line">
+        <span class="bl-group-name kind-${k}"><span class="dash-sw bl-sw kind-${k}"></span>${label}</span>
+        <span class="muted">${items.length} entr${items.length===1?'y':'ies'}</span>
+        <span class="spacer"></span>
+        <span class="num-font">${moneyWhole(monthly)} a month</span>
+      </div></td></tr>
+      ${items.map(({b, idx})=>{
+        const paid = (b.paidMonths||[]).includes(mk);
+        return `
+        <tr class="bl-row">
+          <td class="bl-name">${b.name}${b.notes?` <span class="muted bl-notes">${b.notes}</span>`:''}</td>
+          <td class="num bl-amt kind-${k}">${moneyCur(b.amount, b.currency||'AUD')}</td>
+          <td class="muted">${b.frequency}</td>
+          <td class="bl-due">${dueBadge(b)}</td>
+          <td><label class="bl-paid"><input type="checkbox" data-paid="${b.id}" ${paid?'checked':''}><span class="muted">${paid?'Done':'Due'}</span></label></td>
+          <td class="bl-actions">
+            <button class="icon-btn" data-billup="${b.id}" title="Move up" ${sameKindNeighbour(idx,-1)<0?'disabled':''}>↑</button>
+            <button class="icon-btn" data-billdown="${b.id}" title="Move down" ${sameKindNeighbour(idx,1)<0?'disabled':''}>↓</button>
+            <button class="icon-btn" style="color:var(--gold);" data-editbill="${b.id}" title="Edit">✎</button>
+            <button class="icon-btn" data-delbill="${b.id}" title="Delete">✕</button>
+          </td>
+        </tr>`;}).join('')}`;
+  };
+  const kindCls = k=> k==='income' ? 'pos' : (k==='saving' ? 'tx-sav' : 'neg');
 
   c.innerHTML = `
-    <h1 class="page-title">Bills &amp; Scheduled Money</h1>
-    <div class="page-sub">Everything that lands on a date — bills going out, income coming in, and transfers to savings. The Calendar tab projects these forward. Use ↑↓ to reorder.</div>
-    <div class="row" style="margin-bottom:16px;">
-      <div class="card metric"><h3>Money out</h3><div class="big neg">${moneyWhole(outM)}</div><div class="cap">per month, annual ÷ 12, in AUD</div></div>
-      <div class="card metric"><h3>Money in</h3><div class="big pos">${moneyWhole(inM)}</div><div class="cap">per month, annual ÷ 12, in AUD</div></div>
-      <div class="card metric"><h3>To savings</h3><div class="big" style="color:var(--blue-bright);">${moneyWhole(saveM)}</div><div class="cap">leaves spendable cash, not spending</div></div>
-      <div class="card metric"><h3>Left over</h3><div class="big ${netM>=0?'pos':'neg'}">${moneyWhole(netM)}</div><div class="cap">scheduled money in less out and saved</div></div>
+    <div class="dash-head">
+      <h1 class="page-title">Bills &amp; Scheduled Money</h1>
+      <span class="muted dash-head-sub">everything that lands on a date — the Calendar projects these forward</span>
+      <div class="spacer"></div>
+      <div class="dash-seg" role="group" aria-label="Show">
+        ${[['all','All'], ...KIND_ORDER].map(([k,l])=>`<button type="button" data-billfilter="${k}" class="${filter===k?'on':''}" aria-pressed="${filter===k}">${l}</button>`).join('')}
+      </div>
+      <button class="btn" id="addBillBtn">+ Add entry</button>
     </div>
-    <div class="toolbar"><div class="spacer"></div><button class="btn" id="addBillBtn">+ Add entry</button></div>
+
+    <div class="dash-kpis bl-kpis">
+      <div class="dash-kpi"><div class="k-label">Money out</div><div class="k-val neg">${moneyWhole(outM)}</div><div class="k-sub">a month, annual ÷ 12, AUD${unpaid('expense')?` · ${unpaid('expense')} still due`:''}</div></div>
+      <div class="dash-kpi"><div class="k-label">Money in</div><div class="k-val pos">${moneyWhole(inM)}</div><div class="k-sub">a month, annual ÷ 12, AUD</div></div>
+      <div class="dash-kpi"><div class="k-label">To savings</div><div class="k-val" style="color:var(--blue-bright);">${moneyWhole(saveM)}</div><div class="k-sub">leaves spendable cash, not spending${unpaid('saving')?` · ${unpaid('saving')} still due`:''}</div></div>
+      <div class="dash-kpi"><div class="k-label">Left over</div><div class="k-val ${netM>=0?'pos':'neg'}">${moneyWhole(netM)}</div><div class="k-sub">scheduled in less out and saved</div></div>
+      <div class="dash-kpi"><div class="k-label">Due in 7 days</div><div class="k-val ${week.length?'':'muted'}" style="${week.length?'color:var(--amber);':''}">${week.length ? `${week.length} · ${moneyWhole(weekSum)}` : 'Nothing'}</div>
+        <div class="k-sub">${week.length ? week.slice(0,2).map(x=> `${x.b.name} ${shortIsoDate(x.d)}`).join(' · ') : 'money out, next 7 days'}</div></div>
+    </div>
+
     ${state.bills.length===0 ? `<div class="empty-state"><div class="glyph">·</div>Nothing scheduled yet. Add a bill, your salary, or a monthly transfer to savings.</div>` : `
-    <table class="data">
-      <thead><tr><th></th><th>Name</th><th>Type</th><th class="num">Amount</th><th>Frequency</th><th>Next due</th><th>Done this month</th><th></th></tr></thead>
-      <tbody>
-        ${state.bills.map((b,idx)=>{
-          const paid = (b.paidMonths||[]).includes(mk);
-          return `
-          <tr>
-            <td style="white-space:nowrap;">
-              <button class="icon-btn" data-billup="${b.id}" title="Move up" ${idx===0?'disabled':''}>↑</button>
-              <button class="icon-btn" data-billdown="${b.id}" title="Move down" ${idx===state.bills.length-1?'disabled':''}>↓</button>
-            </td>
-            <td>${b.name}${b.notes?`<div class="muted" style="font-size:11.5px;">${b.notes}</div>`:''}</td>
-            <td><span class="pill kind-${b.kind}">${BILL_KIND_LABEL[b.kind]}</span></td>
-            <td class="num">${moneyCur(b.amount, b.currency||'AUD')}</td>
-            <td class="muted">${b.frequency}</td>
-            <td style="font-size:12.5px;">${dueBadge(b)}</td>
-            <td><input type="checkbox" data-paid="${b.id}" ${paid?'checked':''}></td>
-            <td>
-              <button class="icon-btn" style="color:var(--gold);" data-editbill="${b.id}" title="Edit">✎</button>
-              <button class="icon-btn" data-delbill="${b.id}" title="Delete">✕</button>
-            </td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>`}
+    <div class="bl-grid">
+      <div class="card dash-card bl-card">
+        <div class="plan-table-wrap">
+        <table class="data bl-table">
+          <thead><tr><th>Name</th><th class="num">Amount</th><th>Frequency</th><th>Next due</th><th>This month</th><th></th></tr></thead>
+          <tbody>${shownKinds.map(groupHTML).join('')}</tbody>
+        </table>
+        </div>
+      </div>
+      <div class="card dash-card bl-soon">
+        <div class="dash-card-head"><span class="dash-card-title">Next 3 weeks</span><span class="muted">from these entries</span></div>
+        ${soon.length ? soon.map(x=>`
+          <div class="bl-soon-row">
+            <span class="bl-soon-date muted">${shortIsoDate(x.d)}</span>
+            <span class="dash-sw bl-sw kind-${x.b.kind}"></span>
+            <span class="bl-soon-name">${x.b.name}</span>
+            <span class="num-font ${kindCls(x.b.kind)}">${x.b.kind==='income'?'+':'−'}${moneyCur(x.b.amount, x.b.currency||'AUD')}</span>
+          </div>`).join('') : `<div class="muted" style="font-size:12px;">Nothing dated in the next 21 days.</div>`}
+        <div class="muted bl-soon-foot">The Calendar tab shows these against your cash.</div>
+      </div>
+    </div>`}
   `;
 
+  c.querySelectorAll('[data-billfilter]').forEach(b=> b.onclick = ()=>{ state.ui.billFilter = b.dataset.billfilter; saveState(); render(); });
   document.getElementById('addBillBtn').onclick = ()=> openBillModal();
   c.querySelectorAll('[data-paid]').forEach(cb=> cb.onchange = ()=>{
     const b = state.bills.find(x=>x.id===cb.dataset.paid);
@@ -6619,18 +6828,16 @@ function renderBills(c){
     }
   });
   c.querySelectorAll('[data-editbill]').forEach(b=> b.onclick = ()=> openBillModal(b.dataset.editbill));
-  c.querySelectorAll('[data-billup]').forEach(b=>{
-    b.onclick = ()=>{
-      const idx = state.bills.findIndex(x=>x.id===b.dataset.billup);
-      if(idx>0){ [state.bills[idx-1], state.bills[idx]] = [state.bills[idx], state.bills[idx-1]]; saveState(); render(); }
-    };
-  });
-  c.querySelectorAll('[data-billdown]').forEach(b=>{
-    b.onclick = ()=>{
-      const idx = state.bills.findIndex(x=>x.id===b.dataset.billdown);
-      if(idx>=0 && idx<state.bills.length-1){ [state.bills[idx+1], state.bills[idx]] = [state.bills[idx], state.bills[idx+1]]; saveState(); render(); }
-    };
-  });
+  const move = (id, dir)=>{
+    const idx = state.bills.findIndex(x=>x.id===id);
+    if(idx<0) return;
+    const j = sameKindNeighbour(idx, dir);
+    if(j<0) return;
+    [state.bills[j], state.bills[idx]] = [state.bills[idx], state.bills[j]];
+    saveState(); render();
+  };
+  c.querySelectorAll('[data-billup]').forEach(b=> b.onclick = ()=> move(b.dataset.billup, -1));
+  c.querySelectorAll('[data-billdown]').forEach(b=> b.onclick = ()=> move(b.dataset.billdown, 1));
 }
 
 function openBillModal(editId){
@@ -8509,26 +8716,58 @@ function renderLiquidity(c){
       <div class="rv">${moneyWhole(val)}</div>
     </div>`;
 
+  // V4.10 — a status line for your rules, then each question as a card with its answer up top.
+  const ruleState = (value, limit, higherIsBetter)=>{
+    const pass = higherIsBetter ? value >= limit : value <= limit;
+    const near = higherIsBetter ? value >= limit*0.9 : value <= limit*1.1;
+    return pass ? 'pass' : (near ? 'close' : 'breach');
+  };
+  const rules = [
+    { label:`Runway on essentials ${runEssTier===Infinity?'—':runEssTier.toFixed(1)+' mo'} (limit ${L.limits.runwayMonths})`, st: ruleState(runEssTier===Infinity?0:runEssTier, L.limits.runwayMonths, true) },
+    { label:`Essential costs ${fixedPct.toFixed(0)}% of income (limit ${L.limits.fixedPct}%)`, st: ruleState(fixedPct, L.limits.fixedPct, false) },
+    { label:`${conc.name} ${conc.pct.toFixed(0)}% of reachable cash (limit ${L.limits.concPct}%)`, st: ruleState(conc.pct, L.limits.concPct, false) },
+    { label:`Cash today ${moneyWhole(lad.cum.today)} (limit ${moneyWhole(L.limits.bufferToday)})`, st: ruleState(lad.cum.today, L.limits.bufferToday, true) }
+  ];
+  const passing = rules.filter(r=> r.st==='pass').length;
+  const flagged = rules.filter(r=> r.st!=='pass');
+  const liqCard = (n, title, sub, answer, body, extra)=> `
+    <section class="card dash-card liq-card ${extra||''}">
+      <div class="liq-card-head">
+        <span class="liq-n">${n}</span><span class="liq-t">${title}</span><span class="spacer"></span>${answer||''}
+      </div>
+      <div class="liq-card-sub">${sub}</div>
+      ${body}
+    </section>`;
+  const answer = (v, cls, note)=> `<span class="liq-answer ${cls||''}">${v}${note?`<span class="liq-answer-note">${note}</span>`:''}</span>`;
+
   c.innerHTML = `
-    <div class="toolbar">
-      <div class="liq-basis">
+    <div class="dash-head">
+      <h1 class="page-title">Liquidity</h1>
+      <span class="muted dash-head-sub">five questions about money you can actually reach</span>
+      <div class="spacer"></div>
+      <label class="liq-basis">
         <span>Spending measured from</span>
         <select id="liqBasis" style="width:auto;">
           <option value="actuals" ${sp.basis==='actuals'?'selected':''}>Actuals — last 3 complete months</option>
           <option value="budget" ${sp.basis==='budget'?'selected':''}>Budget — this year's plan</option>
         </select>
-      </div>
-      <div class="spacer"></div>
-      <div class="muted" style="font-size:11.5px;">${sp.label}</div>
+      </label>
+    </div>
+
+    <div class="liq-status ${flagged.some(r=>r.st==='breach')?'breach':(flagged.length?'close':'pass')}" role="status">
+      <span class="liq-status-main">${passing} of ${rules.length} rules hold</span>
+      ${flagged.map(r=> `<span class="pill ${r.st}">${r.st==='breach'?'Breach':'Close'}</span><span class="liq-status-rule">${r.label}</span>`).join('')}
+      <span class="spacer"></span>
+      <span class="muted">${sp.label}</span>
     </div>
 
     ${notice.map(n=> `<div class="liq-banner">${n}</div>`).join('')}
 
-    <div class="liq-q"><span class="n">1</span><span class="t">If income stopped today, how long could I live?</span></div>
-    <div class="liq-sub">Each row adds a slower source of cash, so you can see how far you get before having to touch the money you'd rather leave invested. Locked accounts are excluded entirely. Savings contributions aren't counted as spending &mdash; if income stops, saving stops with it.</div>
-    <div class="liq-body">
-      <div class="card">
-        <table class="tiers">
+    <div class="liq-grid">
+      ${liqCard(1, 'If income stopped today, how long could I live?',
+        `Each row adds a slower source of cash, so you can see how far you get before having to touch the money you'd rather leave invested. Locked accounts are excluded entirely. Savings contributions aren't counted as spending &mdash; if income stops, saving stops with it.`,
+        answer(months1(runEssTier), '', `on essentials, ${tierLabel(L.runwayTier||'week').toLowerCase()}`),
+        `<table class="tiers">
           <thead>
             <tr>
               <th>What you'd spend down</th>
@@ -8556,49 +8795,30 @@ function renderLiquidity(c){
         <div class="liq-note">
           Essentials cover ${sp.essCount} categor${sp.essCount===1?'y':'ies'}; cutting the rest frees ${moneyWhole(sp.total - sp.essential)} a month.
           ${lad.locked>0 ? `${moneyWhole(lad.locked)} is locked and left out of every row.` : ''}
-        </div>
-      </div>
-    </div>
+        </div>`)}
 
-    <div class="liq-q"><span class="n">2</span><span class="t">If I needed cash urgently, how much could I get?</span></div>
-    <div class="liq-sub">Net worth is not the same as available money. Each rung adds the accounts that clear within that window.</div>
-    <div class="liq-body">
-      <div class="card">
-        ${rung('Today', lad.cum.today)}
+      ${liqCard(2, 'If I needed cash urgently, how much could I get?',
+        'Net worth is not the same as available money. Each rung adds the accounts that clear within that window.',
+        answer(moneyWhole(lad.reachable), '', 'within a month'),
+        `${rung('Today', lad.cum.today)}
         ${rung('Within a week', lad.cum.week)}
         ${rung('Within a month', lad.cum.month)}
         ${rung('Locked up', lad.locked, 'locked')}
-        <div class="liq-note">Net worth ${moneyWhole(lad.net)} — of which ${moneyWhole(lad.reachable)} is reachable inside a month.</div>
-      </div>
-    </div>
+        <div class="liq-note">Net worth ${moneyWhole(lad.net)} — of which ${moneyWhole(lad.reachable)} is reachable inside a month.</div>`)}
 
-    <div class="liq-q"><span class="n">3</span><span class="t">Am I holding the right currency?</span></div>
-    <div class="liq-sub">If most of your eventual spending is in baht but most of your assets sit in dollars, you're carrying an exchange rate bet whether you chose it or not.</div>
-    <div class="liq-body">
-      <div class="row">
-        <div class="card metric">
-          <h3>Assets held in baht</h3>
-          <div class="big">${fx.thbPct.toFixed(0)}%</div>
-          <div class="cap">${moneyWhole(fx.thbAUD)} of ${moneyWhole(fx.net)}</div>
-        </div>
-        <div class="card metric">
-          <h3>Retirement spending in baht</h3>
-          <div class="big">${Math.round(Number(L.thbSpendShare)||0)}%</div>
-          <div class="cap">your estimate, set in Settings</div>
-        </div>
-        <div class="card metric">
-          <h3>Mismatch</h3>
-          <div class="big" style="color:${gap>40?'var(--amber)':'var(--text)'};">${gap.toFixed(0)} pts</div>
-          <div class="cap">${gap>40?'largely unhedged':'broadly aligned'}</div>
-        </div>
-      </div>
-    </div>
+      ${liqCard(3, 'Am I holding the right currency?',
+        "If most of your eventual spending is in baht but most of your assets sit in dollars, you're carrying an exchange rate bet whether you chose it or not.",
+        answer(`${gap.toFixed(0)} pts`, gap>40?'amber':'', gap>40?'largely unhedged':'broadly aligned'),
+        `<div class="dash-kpis liq-fx">
+          <div class="dash-kpi"><div class="k-label">Assets held in baht</div><div class="k-val">${fx.thbPct.toFixed(0)}%</div><div class="k-sub">${moneyWhole(fx.thbAUD)} of ${moneyWhole(fx.net)}</div></div>
+          <div class="dash-kpi"><div class="k-label">Retirement spending in baht</div><div class="k-val">${Math.round(Number(L.thbSpendShare)||0)}%</div><div class="k-sub">your estimate, set in Settings</div></div>
+          <div class="dash-kpi"><div class="k-label">Mismatch</div><div class="k-val" style="color:${gap>40?'var(--amber)':'var(--text)'};">${gap.toFixed(0)} pts</div><div class="k-sub">${gap>40?'largely unhedged':'broadly aligned'}</div></div>
+        </div>`)}
 
-    <div class="liq-q"><span class="n">4</span><span class="t">Am I still inside my own rules?</span></div>
-    <div class="liq-sub">Thresholds you set once in Settings. Amber means you're within 10% of the line rather than over it.</div>
-    <div class="liq-body">
-      <div class="card">
-        <table class="limits">
+      ${liqCard(4, 'Am I still inside my own rules?',
+        "Thresholds you set once in Settings. Amber means you're within 10% of the line rather than over it.",
+        answer(`${passing} of ${rules.length}`, flagged.some(r=>r.st==='breach')?'neg':(flagged.length?'amber':'pos'), 'pass'),
+        `<table class="limits">
           <tr>
             <td>Runway on essentials, at least ${L.limits.runwayMonths} months <span class="muted" style="font-size:11px;">(${tierLabel(L.runwayTier||'week').toLowerCase()})</span></td>
             <td class="lv">${runEssTier===Infinity?'—':runEssTier.toFixed(1)}</td>
@@ -8621,11 +8841,18 @@ function renderLiquidity(c){
           </tr>
         </table>
         ${conc.splitCount > 0 ? `<div class="liq-note">Holdings inside split accounts are measured separately. At account level the largest single exposure is ${conc.acctName} at ${conc.acctPct.toFixed(0)}% — that's one provider between you and that money, which the limit above doesn't capture.</div>` : ''}
-      </div>
-    </div>
+        <div class="liq-note">Change the limits in <button type="button" class="dash-link" id="liqToSettings">Settings → Liquidity limits</button>.</div>`)}
 
-    ${liquidityTrendHTML()}
+      ${liquidityTrendHTML()}
+    </div>
   `;
+
+  const toSet = document.getElementById('liqToSettings');
+  if(toSet) toSet.onclick = ()=>{
+    goToTab('settings');
+    const el = document.getElementById('set-liquidity');
+    if(el && el.scrollIntoView) el.scrollIntoView({ block:'start' });
+  };
 
   document.getElementById('liqBasis').onchange = e=>{
     liqSettings().spendBasis = e.target.value;
@@ -8642,20 +8869,20 @@ function renderLiquidity(c){
 function liquidityTrendHTML(){
   const snaps = (liqSettings().snapshots || []).slice(-6);
   const thisMonth = monthKey(TODAY);
+  const head = (sub)=> `
+      <div class="liq-card-head"><span class="liq-n">5</span><span class="liq-t">Which way is this moving?</span></div>
+      <div class="liq-card-sub">${sub}</div>`;
   if(snaps.length < 2){
     return `
-      <div class="liq-q"><span class="n">5</span><span class="t">Which way is this moving?</span></div>
-      <div class="liq-sub">A snapshot is saved automatically the first time you open this tab each month. Once there are two, this section shows the direction of travel rather than just today's position.</div>
-      <div class="liq-body">
-        <div class="card">
-          <div class="muted" style="font-size:12.5px;">
-            ${snaps.length===1
-              ? `First snapshot saved for ${monthLabel(snaps[0].month)}. The trend appears next month.`
-              : `No snapshots yet.`}
-          </div>
-          <div class="toolbar" style="margin:12px 0 0 0;"><button class="btn secondary" id="liqSnapNow">Update this month's snapshot</button></div>
-        </div>
-      </div>`;
+    <section class="card dash-card liq-card wide">
+      ${head("A snapshot is saved automatically the first time you open this tab each month. Once there are two, this section shows the direction of travel rather than just today's position.")}
+      <div class="muted" style="font-size:12.5px;">
+        ${snaps.length===1
+          ? `First snapshot saved for ${monthLabel(snaps[0].month)}. The trend appears next month.`
+          : `No snapshots yet.`}
+      </div>
+      <div class="toolbar" style="margin:12px 0 0 0;"><button class="btn secondary" id="liqSnapNow">Update this month's snapshot</button></div>
+    </section>`;
   }
   const prev = snaps[snaps.length-2], cur = snaps[snaps.length-1];
   const col = k=> snaps.map(s=> s[k]);
@@ -8669,27 +8896,24 @@ function liquidityTrendHTML(){
   const mo   = v=> (v===null||v===undefined) ? '—' : v.toFixed(1)+' mo';
   const pct  = v=> (v===null||v===undefined) ? '—' : v.toFixed(0)+'%';
   return `
-    <div class="liq-q"><span class="n">5</span><span class="t">Which way is this moving?</span></div>
-    <div class="liq-sub">Last ${snaps.length} monthly snapshots, ${monthLabel(snaps[0].month)} to ${monthLabel(cur.month)}. A direction is worth more than a level — a shrinking runway tells you something months before it breaches a limit.</div>
-    <div class="liq-body">
-      <div class="card">
-        <table class="trend">
-          <thead><tr><th></th><th class="r">${monthLabel(cur.month)}</th><th class="r">vs ${monthLabel(prev.month)}</th><th class="spark"></th></tr></thead>
-          <tbody>
-            ${row('Runway on essentials', 'runwayEss', mo,  { higherIsBetter:true })}
-            ${row('Cash reachable today', 'today',     moneyWhole, { higherIsBetter:true, money:true, epsilon:1 })}
-            ${row('Essential spending',   'spendEss',  moneyWhole, { higherIsBetter:false, money:true, epsilon:1 })}
-            ${row('Essential share of income', 'fixedPct', pct, { higherIsBetter:false, pct:true })}
-            ${row('Largest holding',      'concPct',   pct, { higherIsBetter:false, pct:true })}
-            ${row('Assets held in baht',  'thbPct',    pct, { higherIsBetter:true, pct:true })}
-          </tbody>
-        </table>
-        <div class="liq-note" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-          <span>${cur.month===thisMonth ? `${monthLabel(cur.month)} was captured on ${formatDateShort(cur.capturedAt)}.` : `No snapshot yet for ${monthLabel(thisMonth)}.`}</span>
-          <button class="btn secondary" id="liqSnapNow" style="margin-left:auto;">Update this month's snapshot</button>
-        </div>
+    <section class="card dash-card liq-card wide">
+      ${head(`Last ${snaps.length} monthly snapshots, ${monthLabel(snaps[0].month)} to ${monthLabel(cur.month)}. A direction is worth more than a level — a shrinking runway tells you something months before it breaches a limit.`)}
+      <table class="trend">
+        <thead><tr><th></th><th class="r">${monthLabel(cur.month)}</th><th class="r">vs ${monthLabel(prev.month)}</th><th class="spark"></th></tr></thead>
+        <tbody>
+          ${row('Runway on essentials', 'runwayEss', mo,  { higherIsBetter:true })}
+          ${row('Cash reachable today', 'today',     moneyWhole, { higherIsBetter:true, money:true, epsilon:1 })}
+          ${row('Essential spending',   'spendEss',  moneyWhole, { higherIsBetter:false, money:true, epsilon:1 })}
+          ${row('Essential share of income', 'fixedPct', pct, { higherIsBetter:false, pct:true })}
+          ${row('Largest holding',      'concPct',   pct, { higherIsBetter:false, pct:true })}
+          ${row('Assets held in baht',  'thbPct',    pct, { higherIsBetter:true, pct:true })}
+        </tbody>
+      </table>
+      <div class="liq-note" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <span>${cur.month===thisMonth ? `${monthLabel(cur.month)} was captured on ${formatDateShort(cur.capturedAt)}.` : `No snapshot yet for ${monthLabel(thisMonth)}.`}</span>
+        <button class="btn secondary" id="liqSnapNow" style="margin-left:auto;">Update this month's snapshot</button>
       </div>
-    </div>`;
+    </section>`;
 }
 
 /* =========================================================
@@ -8699,7 +8923,22 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.9', name: 'A denser Investments tab', date: 'Sep 2026', current: true,
+    no: 'V4.10', name: 'Transactions, Bills, Planning and Liquidity', date: 'Sep 2026', current: true,
+    items: [
+      'Transactions: type is a row of buttons (All, Income, Expenses, Savings) beside the search box and month picker, and the summary strip replaces the four cards. Date of Today is folded into Last record.',
+      'Transactions are grouped by month, each with its own in, out and saved for the rows shown. Dates read 21 Sep Mon, and ✎ / ✕ appear when you hover a row (always on a touch screen).',
+      'Typing in the Transactions search box no longer drops the cursor after every letter.',
+      'Bills: entries are grouped into Money out, Money in and To savings, each with its monthly total, and buttons at the top show one group at a time. ↑↓ move an entry within its group.',
+      'Bills: the strip counts what is still due this month and what money out lands in the next 7 days. A Next 3 weeks list beside the table shows every dated entry coming up, from the same schedule the Calendar uses.',
+      'Planning: ‹ › step through the years — the same range as the dashboard, so looking at an empty year can no longer stretch it. The strip shows the year\'s planned income, expenses and savings, what is left to allocate and how many months are done.',
+      'Planning: one grid instead of four tables. To be allocated sits at the top with ✓ for a finished month, each type has a subtotal row, and this month\'s column is tinted. Cell colours, the hover showing what was tracked and the single-month view on a phone are unchanged.',
+      'Liquidity: a status line says how many of your four rules hold and names any that are close or breached. Each question is a card with its answer in the corner — runway on essentials, cash within a month, the baht gap, rules passing — and the trend runs full width underneath.',
+      'Liquidity: a link under the rules goes straight to Settings → Liquidity limits.',
+      'Nothing new is saved apart from which Bills group you are viewing.'
+    ]
+  },
+  {
+    no: 'V4.9', name: 'A denser Investments tab', date: 'Sep 2026', current: false,
     items: [
       'Show amounts in USD, AUD or THB is a toggle in the header, next to Record purchase, Record dividend and Update prices. Those three buttons now appear once; the Rebalance card and the stale-price warning used to repeat them.',
       'The dividends-only note, the Net Worth tie-out and Reset investment records share one line under the header. The stale-price warning moved up beside them, because a stale price affects every figure on the tab, not only drift.',
