@@ -1023,6 +1023,43 @@
   .liq-fx{ grid-template-columns:repeat(3, minmax(0,1fr)); margin-bottom:0; }
   @media (max-width: 1100px){ .liq-grid{ grid-template-columns:1fr; } }
   @media (max-width: 600px){ .liq-fx{ grid-template-columns:1fr; } .liq-card-sub{ margin-left:0; } }
+
+  /* V4.11 Projection */
+  .proj-card{ margin-top:12px; padding:10px 12px; }
+  .proj-inputs{ display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; margin:2px 0 6px 0; }
+  .proj-method{ font-size:11.5px; margin-bottom:10px; }
+  .proj-kpis{ grid-template-columns:repeat(4, minmax(0,1fr)); }
+  .proj-body{ display:grid; grid-template-columns:minmax(0,1.8fr) minmax(0,1fr); gap:16px; align-items:start; }
+  .proj-chart{ min-width:0; }
+  .proj-chart svg{ display:block; width:100%; height:auto; }
+  .proj-sub-title{ font-size:13.5px; margin-bottom:2px; }
+  .proj-small{ font-size:11px; margin-bottom:8px; line-height:1.45; }
+  .proj-fx-row{ display:flex; align-items:baseline; gap:8px; padding:7px 0; border-bottom:1px solid var(--border); font-size:12.5px; flex-wrap:wrap; }
+  .proj-fx-label{ flex:1; min-width:120px; }
+  .proj-fx-rate{ font-size:11px; }
+  .proj-fx-val{ font-size:14px; }
+  .proj-fx-row.now .proj-fx-val{ color:var(--gold-bright); }
+  table.proj-returns td{ font-size:12.5px; }
+  @media (max-width: 1100px){ .proj-body{ grid-template-columns:1fr; } .proj-kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+
+  /* V4.11 Calendar */
+  .cal-layers{ display:flex; gap:4px; }
+  .cal-title-lbl{ min-width:130px; text-align:center; font-size:13px; }
+  .cal-kpis{ grid-template-columns:repeat(4, minmax(0,1fr)); }
+  .cl-card{ padding:9px 12px 6px 12px; margin-bottom:12px; }
+  .cl-svg{ display:block; width:100%; height:84px; }
+  .cl-line{ fill:none; stroke:var(--gold-bright); stroke-width:1.8; vector-effect:non-scaling-stroke; }
+  .cl-buffer{ stroke:var(--red); stroke-width:1; stroke-dasharray:4 4; opacity:0.6; vector-effect:non-scaling-stroke; }
+  .cl-min{ fill:var(--amber); }
+  .cl-min.low{ fill:var(--red); }
+  .cl-tick{ font-size:10px; fill:var(--text-faint); }
+  .cal-legend .muted{ margin-left:auto; }
+  @media (max-width: 1100px){ .cal-kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+
+  /* V4.11 Planning */
+  .pl-reset{ color:var(--red); font-size:11.5px; }
+  .pl-foot-row{ display:flex; gap:12px; align-items:baseline; margin-top:8px; }
+  .pl-foot-row .pl-foot{ flex:1; margin-top:0; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -3469,6 +3506,11 @@ function renderPlanning(c){
   const monthsDone = toAllocate.filter((v,i)=> Math.abs(v) < 0.005 && typeTotals.Income[i] > 0).length;
   const yearSum = t=> typeTotals[t].reduce((a,b)=>a+b,0);
   const curCls = i=> i===curMonth ? ' pl-cur' : '';
+  // Copy is only offered for a year with nothing planned at all, so it can never
+  // overwrite a budget. Reset clears the year back to that state.
+  const planHasValues = yr=> !!state.planning[yr] && TYPES.some(t=> Object.values(state.planning[yr][t]||{}).some(arr=> Array.isArray(arr) && arr.some(v=> Number(v))));
+  const yearHasPlan = planHasValues(y);
+  const canCopy = !yearHasPlan && planHasValues(y-1);
 
   const typeRows = type=>{
     const cats = state.categories[type];
@@ -3515,6 +3557,7 @@ function renderPlanning(c){
       <label class="field plan-mobile-month-picker">Month
         <select id="planMobileMonth">${MONTHS.map((m,i)=>`<option value="${i}" ${i===mobileMonth?'selected':''}>${m}</option>`).join('')}</select>
       </label>
+      ${canCopy ? `<button class="btn secondary" id="planCopyBtn" title="Fill ${y} with every budget from ${y-1}">Copy ${y-1} plan</button>` : ''}
     </div>
 
     <div class="dash-kpis pl-kpis">
@@ -3553,11 +3596,43 @@ function renderPlanning(c){
         </tbody>
       </table>
       </div>
-      <div class="muted pl-foot">✓ means every dollar of planned income that month is allocated to Expenses or Savings. Hover a cell for what has actually been tracked. Add categories in Settings; ☆ Special categories still count toward Transactions and the balance but are left out of graphs and breakdown totals.</div>
+      <div class="pl-foot-row">
+        <div class="muted pl-foot">✓ means every dollar of planned income that month is allocated to Expenses or Savings. Hover a cell for what has actually been tracked. Add categories in Settings; ☆ Special categories still count toward Transactions and the balance but are left out of graphs and breakdown totals.</div>
+        ${yearHasPlan ? `<button type="button" class="dash-link pl-reset" id="planResetBtn">Reset ${y} plan</button>` : ''}
+      </div>
     </div>
   `;
 
   const stepYear = d=>{ const n = y + d; if(n<minYear || n>maxYear) return; state.ui.planYear = n; saveState(); render(); };
+  const copyBtn = document.getElementById('planCopyBtn');
+  if(copyBtn) copyBtn.onclick = ()=>{
+    if(planHasValues(y)) return;   // belt and braces: never copy over a planned year
+    if(!confirm(`Copy every budget from ${y-1} into ${y}?\n\n${y} has no budgets yet, so nothing is overwritten. Categories that no longer exist are skipped.`)) return;
+    captureRestorePoint(`Before copying ${y-1} plan into ${y}`, true);
+    ensurePlanningYear(y);
+    let n = 0;
+    TYPES.forEach(t=> state.categories[t].forEach(cat=>{
+      const from = state.planning[y-1] && state.planning[y-1][t] && state.planning[y-1][t][cat];
+      if(Array.isArray(from)){ state.planning[y][t][cat] = from.map(v=> Number(v)||0); n++; }
+    }));
+    saveState(); render();
+    toast(`${n} categor${n===1?'y':'ies'} copied from ${y-1}.`);
+  };
+  const resetBtn = document.getElementById('planResetBtn');
+  if(resetBtn) resetBtn.onclick = ()=>{
+    confirmDestructive({
+      title: `Reset ${y} plan`,
+      what: `Every budget in ${y}`,
+      lines: ['Sets all twelve months of every category to zero', 'Transactions and other years are untouched', `Afterwards you can copy ${y-1}'s plan in again`],
+      confirmLabel: `Reset ${y}`,
+      onConfirm: ()=>{
+        captureRestorePoint(`Before resetting ${y} plan`, true);
+        TYPES.forEach(t=> Object.keys(state.planning[y][t]||{}).forEach(cat=>{ state.planning[y][t][cat] = new Array(12).fill(0); }));
+        saveState(); render();
+        toast(`${y} plan reset. Settings → Restore points has a copy from just before.`);
+      }
+    });
+  };
   document.getElementById('planPrev').onclick = ()=> stepYear(-1);
   document.getElementById('planNext').onclick = ()=> stepYear(1);
   document.getElementById('planMobileMonth').onchange = e=>{ state.ui.planMobileMonth = Number(e.target.value); saveState(); render(); };
@@ -3567,7 +3642,19 @@ function renderPlanning(c){
       const type = tr.dataset.type, cat = tr.dataset.cat, m = Number(inp.dataset.m);
       ensurePlanningYear(y);
       state.planning[y][type][cat][m] = Number(inp.value)||0;
-      saveState(); render();
+      saveState();
+      // Redraw after focus has moved (Tab, Shift+Tab or a click on another cell), then
+      // put it back on that same cell — the redraw used to throw your place away.
+      setTimeout(()=>{
+        const a = document.activeElement;
+        const next = a && a.matches && a.matches('table.plan tbody input') ? { type:a.closest('tr').dataset.type, cat:a.closest('tr').dataset.cat, m:a.dataset.m } : null;
+        render();
+        if(next){
+          const again = [...document.querySelectorAll('table.plan tbody tr')].find(r=> r.dataset.type===next.type && r.dataset.cat===next.cat);
+          const cell = again && again.querySelector(`input[data-m="${next.m}"]`);
+          if(cell){ cell.focus(); try{ cell.select(); }catch(_){} }
+        }
+      }, 0);
     };
   });
 }
@@ -4401,7 +4488,7 @@ function renderNetWorth(c){
     const targetBal = hasSubs ? fromAUD(balAUD, targetCur) : bal;
     if(a.target>0) targetUnits.push(Math.max(0, Math.min(100, (targetBal/a.target)*100)));
     const native = hasSubs ? '<span class="muted" style="font-size:10.5px;">mixed</span>'
-      : (a.currency!=='AUD' ? moneyCur(bal, a.currency) : moneyCur(bal, 'AUD'));
+      : (a.currency!=='AUD' ? moneyCur(bal, a.currency) : '');
     const setup = nwEditing() ? `
           <span class="nwt-setup">
             <label class="nwt-inline">Cash speed
@@ -4440,7 +4527,7 @@ function renderNetWorth(c){
           ${pricedInfoHTML(sub, subCur)}
         </div></td>
         ${targetCell(`${a.id}|||${sub.id}`, subBal, sub.target, subCur, true)}
-        <td class="num muted">${moneyCur(subBal, subCur)}</td>
+        <td class="num muted">${subCur!=='AUD' ? moneyCur(subBal, subCur) : ''}</td>
         <td class="num">${moneyWhole(toAUD(subBal, subCur))}</td>
         <td><div class="nw-actions">
           <button class="icon-btn" style="color:var(--gold);" data-adjsub="${a.id}|||${sub.id}" title="Manual adjustment">±</button>
@@ -5160,6 +5247,9 @@ function projectionSectionHTML(){
   const essTHB = thb(sp.essential);
 
   const capped = inv.filter(u=> realReturn(u.unit) > Number(IS.returnCap));
+  const usingAverage = IS.monthlyContribution === null || IS.monthlyContribution === undefined;
+  const avgNote = p.usingAverage ? (p.savingsFlagged ? 'six-month average of your investing categories' : 'six-month average of all Savings — flag your investing categories in Settings to narrow it') : 'the amount you entered';
+  const avgNoteBlank = p.savingsFlagged ? 'the six-month average of your investing categories' : 'the six-month average of all Savings';
 
   const rows = targetWeights().map(w=>{
     const u = w.unit;
@@ -5169,10 +5259,10 @@ function projectionSectionHTML(){
     const isCapped = real > Number(IS.returnCap);
     const isDefault = nom === undefined || nom === null || nom === '';
     return `<tr>
-      <td>${u.subId ? u.unit.name : u.acc.name}<div class="sub">${sleeveLabel(w.sleeve)} · ${(w.weight*100).toFixed(1)}% target</div></td>
+      <td>${u.subId ? u.unit.name : u.acc.name} <span class="inv-hsleeve">${sleeveLabel(w.sleeve)} · ${(w.weight*100).toFixed(1)}% target</span></td>
       <td class="r">${moneyWhole(u.valueAUD)}</td>
       <td class="r"><input class="reb-weight" type="number" step="0.5" data-assumed="${u.subId?`${u.acc.id}|||${u.subId}`:u.acc.id}"
-        value="${isDefault ? '' : nom}" placeholder="${nominalReturn(u.unit).toFixed(1)}"></td>
+        value="${isDefault ? '' : nom}" placeholder="${nominalReturn(u.unit).toFixed(1)}" aria-label="Nominal return for ${u.subId ? u.unit.name : u.acc.name}"></td>
       <td class="r ${isDefault?'muted':''}">${real.toFixed(1)}%</td>
       <td class="r">${isCapped
         ? `<span class="delta out" title="Above your ${IS.returnCap}% ceiling">${used.toFixed(1)}% ▲</span>`
@@ -5180,71 +5270,67 @@ function projectionSectionHTML(){
     </tr>`;
   }).join('');
 
-  // FX line: the same portfolio, translated at a range of rates.
+  // FX: the same portfolio, translated at a range of rates.
   const fxRates = rate ? [rate*0.85, rate, rate*1.15] : [];
-  const fxCells = fxRates.map((r,i)=>`
-    <div class="card metric">
-      <h3>${i===0?'Baht weaker for you':i===1?'Rate today':'Baht stronger for you'}</h3>
-      <div class="big" style="font-size:19px;${i===1?'color:var(--gold-bright);':''}">฿${Math.round(p.finalAssumed*r).toLocaleString('en-AU')}</div>
-      <div class="cap">at ${r.toFixed(1)} THB per AUD</div>
+  const fxRows = fxRates.map((r,i)=>`
+    <div class="proj-fx-row ${i===1?'now':''}">
+      <span class="proj-fx-label">${i===0?'Baht weaker for you':i===1?'Rate today':'Baht stronger for you'}</span>
+      <span class="proj-fx-rate muted">${r.toFixed(1)} THB per AUD</span>
+      <span class="proj-fx-val num-font">฿${Math.round(p.finalAssumed*r).toLocaleString('en-AU')}</span>
     </div>`).join('');
+  const minYear = TODAY.getFullYear() + 1;
 
   return `
-    <div class="section-title">Projection to ${p.endYear}</div>
-    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">
-      ${yearsLeft.toFixed(1)} years, contributing ${moneyWhole(p.monthly)} a month${p.usingAverage ? (p.savingsFlagged ? ' (six-month average of your investing categories)' : ' (six-month average of all Savings — flag your investing categories in Settings to narrow it)') : ''},
-      rebalanced back to target every six months. Everything is in today's money — assumed returns have ${Number(IS.inflation).toFixed(1)}% inflation taken off,
-      so the figures can be compared with what you spend now. This is arithmetic on assumptions, not a forecast.
-    </div>
+    <section class="card dash-card proj-card" id="invProjection">
+      <div class="dash-card-head wrap"><span class="dash-card-title">Projection to ${p.endYear}</span>
+        <span class="muted">${yearsLeft.toFixed(1)} years · today's money · arithmetic on assumptions, not a forecast</span></div>
 
-    ${capped.length ? `<div class="liq-banner">${capped.length} holding${capped.length>1?'s have':' has'} a past return above your ${IS.returnCap}% ceiling, so the ceiling is used instead. A single stock's recent run is not a planning assumption — extrapolating it for ${Math.round(yearsLeft)} years would dominate everything else here.</div>` : ''}
+      <div class="proj-inputs">
+        <label class="liq-basis"><span>Project to</span>
+          <input type="number" id="projYear" min="${minYear}" max="2100" step="1" value="${p.endYear}" style="width:72px;"></label>
+        <label class="liq-basis" title="Leave blank to use ${avgNoteBlank}"><span>Contributing</span>
+          <input type="number" id="projMonthly" min="0" step="50" value="${usingAverage ? '' : Number(IS.monthlyContribution)}" placeholder="${Math.round(p.monthly)}" style="width:86px;"> <span>/ month</span></label>
+        <label class="liq-basis"><span>Baseline</span>
+          <input type="number" id="projBase" min="0" max="20" step="0.5" value="${IS.baselineReturn}" style="width:56px;"> <span>%</span></label>
+        <label class="liq-basis"><span>Withdrawal</span>
+          <input type="number" id="projWr" min="1" max="10" step="0.5" value="${wr}" style="width:56px;"> <span>%</span></label>
+        <label class="liq-basis"><span>Ceiling on real return</span>
+          <input type="number" id="projCap" step="1" min="0" max="50" value="${IS.returnCap}" style="width:56px;"> <span>%</span></label>
+        <label class="liq-basis"><span>Inflation</span>
+          <input type="number" id="projInf" step="0.5" min="0" max="20" value="${IS.inflation}" style="width:56px;"> <span>%</span></label>
+      </div>
+      <div class="muted proj-method">
+        Contributing ${moneyWhole(p.monthly)} a month (${avgNote}), rebalanced back to target every six months.
+        Assumed returns have ${Number(IS.inflation).toFixed(1)}% inflation taken off, so the figures compare with what you spend now.
+      </div>
 
-    <div class="row" style="margin-bottom:14px;">
-      <div class="card metric">
-        <h3>Projected at ${p.endYear}</h3>
-        <div class="big" style="color:var(--gold-bright);">${bahtWhole(thb(p.finalAssumed))}</div>
-        <div class="cap">${moneyWhole(p.finalAssumed)} AUD</div>
-      </div>
-      <div class="card metric">
-        <h3>If everything earned ${IS.baselineReturn}%</h3>
-        <div class="big">${bahtWhole(thb(p.finalBaseline))}</div>
-        <div class="cap">${p.finalAssumed>=p.finalBaseline?'+':''}${moneyWhole(p.finalAssumed-p.finalBaseline)} from your assumptions</div>
-      </div>
-      <div class="card metric">
-        <h3>Of which you contributed</h3>
-        <div class="big">${bahtWhole(thb(p.contributed))}</div>
-        <div class="cap">${moneyWhole(growth)} is projected growth</div>
-      </div>
-      <div class="card metric">
-        <h3>Monthly income at ${wr}%</h3>
-        <div class="big">${bahtWhole(thb(incomeAUD))}</div>
-        <div class="cap">${essTHB!==null&&sp.essential>0 ? `essentials today ${bahtWhole(essTHB)}` : 'set essential categories to compare'}</div>
-      </div>
-    </div>
+      ${capped.length ? `<div class="liq-banner">${capped.length} holding${capped.length>1?'s have':' has'} a past return above your ${IS.returnCap}% ceiling, so the ceiling is used instead. A single stock's recent run is not a planning assumption — extrapolating it for ${Math.round(yearsLeft)} years would dominate everything else here.</div>` : ''}
 
-    <div class="card" style="margin-bottom:14px;">
-      ${projectionChartSVG(p, v=> rate ? v*rate : v, rate ? 'THB' : 'AUD')}
-    </div>
-
-    <div class="section-title" style="font-size:15px;">Exchange rate risk</div>
-    <div class="muted" style="font-size:12px; margin:-4px 0 10px 0;">The same portfolio, translated at ±15%. Nothing about the investments changes between these three — only the rate. This is the currency mismatch on the Liquidity tab expressed as an amount of actual retirement.</div>
-    <div class="row" style="margin-bottom:14px;">${rate ? fxCells : '<div class="muted" style="font-size:12.5px;">No THB rate loaded.</div>'}</div>
-
-    <div class="section-title" style="font-size:15px;">Assumed returns</div>
-    <div class="card">
-      <div class="toolbar" style="margin:0 0 12px 0;">
-        <div class="liq-basis"><span>Ceiling on real return</span>
-          <input type="number" id="projCap" step="1" min="0" max="50" value="${IS.returnCap}" style="width:56px;"> <span>%</span></div>
-        <div class="liq-basis"><span>Inflation</span>
-          <input type="number" id="projInf" step="0.5" min="0" max="20" value="${IS.inflation}" style="width:56px;"> <span>%</span></div>
-        <div class="spacer"></div>
+      <div class="dash-kpis proj-kpis">
+        <div class="dash-kpi"><div class="k-label">Projected at ${p.endYear}</div><div class="k-val" style="color:var(--gold-bright);">${bahtWhole(thb(p.finalAssumed))}</div><div class="k-sub">${moneyWhole(p.finalAssumed)} AUD</div></div>
+        <div class="dash-kpi"><div class="k-label">If everything earned ${IS.baselineReturn}%</div><div class="k-val">${bahtWhole(thb(p.finalBaseline))}</div><div class="k-sub">${p.finalAssumed>=p.finalBaseline?'+':''}${moneyWhole(p.finalAssumed-p.finalBaseline)} from your assumptions</div></div>
+        <div class="dash-kpi"><div class="k-label">Of which you contributed</div><div class="k-val">${bahtWhole(thb(p.contributed))}</div><div class="k-sub">${moneyWhole(growth)} is projected growth</div></div>
+        <div class="dash-kpi"><div class="k-label">Monthly income at ${wr}%</div><div class="k-val">${bahtWhole(thb(incomeAUD))}</div><div class="k-sub">${essTHB!==null&&sp.essential>0 ? `essentials today ${bahtWhole(essTHB)}` : 'set essential categories to compare'}</div></div>
       </div>
-      <table class="reb">
+
+      <div class="proj-body">
+        <div class="proj-chart">${projectionChartSVG(p, v=> rate ? v*rate : v, rate ? 'THB' : 'AUD')}</div>
+        <div class="proj-fx">
+          <div class="proj-sub-title">Exchange rate risk</div>
+          <div class="muted proj-small">The same portfolio, translated at ±15%. Nothing about the investments changes between these three — only the rate. This is the currency mismatch on the Liquidity tab expressed as an amount of actual retirement.</div>
+          ${rate ? fxRows : '<div class="muted" style="font-size:12.5px;">No THB rate loaded.</div>'}
+        </div>
+      </div>
+    </section>
+
+    <section class="card dash-card proj-card">
+      <div class="dash-card-head"><span class="dash-card-title">Assumed returns</span><span class="muted">per holding</span></div>
+      <div class="plan-table-wrap"><table class="reb proj-returns">
         <thead><tr><th>Holding</th><th class="r">Value</th><th class="r">Nominal you enter</th><th class="r">Real (after ${Number(IS.inflation).toFixed(1)}% inflation)</th><th class="r">Used</th></tr></thead>
         <tbody>${rows}</tbody>
-      </table>
+      </table></div>
       <div class="liq-note">Enter the return you'd find quoted for each holding — that figure is nominal, before inflation. The real column is worked out for you by subtracting the inflation rate above, and that is what compounds through the projection. Leave a row blank to use the baseline. A real rate above your ceiling is reduced to the ceiling and marked ▲.</div>
-    </div>`;
+    </section>`;
 }
 
 /* =========================================================
@@ -5763,6 +5849,22 @@ function wireInvestingSection(c){
   };
   projField('projCap', v=> investSettings().returnCap = Math.max(0, v));
   projField('projInf', v=> investSettings().inflation = Math.max(0, v));
+  projField('projBase', v=> investSettings().baselineReturn = Math.max(0, Math.min(20, v)));
+  projField('projWr',   v=> investSettings().withdrawalRate = Math.max(1, Math.min(10, v)));
+  const projYear = document.getElementById('projYear');
+  if(projYear) projYear.onchange = ()=>{
+    const v = Math.round(Number(projYear.value));
+    if(!isFinite(v) || v < TODAY.getFullYear()+1 || v > 2100){
+      toast(`Pick a year between ${TODAY.getFullYear()+1} and 2100.`); render(); return;
+    }
+    investSettings().retireYear = v; saveState(); render();
+  };
+  const projMonthly = document.getElementById('projMonthly');
+  if(projMonthly) projMonthly.onchange = ()=>{
+    // Blank goes back to the six-month average rather than meaning zero.
+    investSettings().monthlyContribution = projMonthly.value.trim()==='' ? null : Math.max(0, Number(projMonthly.value)||0);
+    saveState(); render();
+  };
 }
 
 function investingSectionHTML(){
@@ -7220,30 +7322,65 @@ function renderCalendar(c){
       </div>`;
   }).join('');
 
-  c.innerHTML = `
-    <h1 class="page-title">Calendar</h1>
-    <div class="page-sub">When money actually lands, not just how much. Bills, income and transfers come from the Bills tab; dated to-dos come from your lists.</div>
+  // V4.11 — header row, summary strip, and the next 60 days of reachable cash as a line.
+  const openTodos = todoItems().filter(t=> !t.done);
+  const dueThisMonth = openTodos.filter(t=> t.dueDate && t.dueDate.slice(0,7) === currentMonthKey()).length;
+  const cashLine = (()=>{
+    const days = Object.keys(proj.balances).filter(iso=> iso >= proj.startISO && iso <= proj.horizonISO).sort();
+    if(days.length < 2) return '';
+    const vals = days.map(d=> proj.balances[d]);
+    const lo = Math.min(...vals, buffer), hi = Math.max(...vals, buffer);
+    const pad = (hi - lo) * 0.12 || Math.max(1, Math.abs(hi) * 0.05);
+    const W = 800, H = 84, top = 8, bottom = 18;
+    const x = i=> (i/(days.length-1)) * W;
+    const yv = v=> top + (1 - (v - (lo-pad)) / ((hi+pad) - (lo-pad))) * (H - top - bottom);
+    const pts = vals.map((v,i)=> `${x(i).toFixed(1)},${yv(v).toFixed(1)}`).join(' ');
+    const mi = days.indexOf(proj.min.date);
+    const tick = i=> `<text x="${x(i).toFixed(1)}" y="${H-4}" text-anchor="${i===0?'start':(i===days.length-1?'end':'middle')}" class="cl-tick">${i===0?'today':shortIsoDate(days[i])}</text>`;
+    return `
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="cl-svg" role="img"
+        aria-label="Reachable cash over the next 60 days, lowest ${moneyWhole(proj.min.balance)} on ${formatDateShort(proj.min.date)}">
+        ${buffer > 0 ? `<line x1="0" x2="${W}" y1="${yv(buffer).toFixed(1)}" y2="${yv(buffer).toFixed(1)}" class="cl-buffer"></line>` : ''}
+        <polyline points="${pts}" class="cl-line"></polyline>
+        ${mi>=0 ? `<circle cx="${x(mi).toFixed(1)}" cy="${yv(proj.min.balance).toFixed(1)}" r="3.5" class="cl-min ${proj.min.balance < buffer ? 'low':''}"></circle>` : ''}
+        ${tick(0)}${tick(Math.round((days.length-1)/2))}${tick(days.length-1)}
+      </svg>`;
+  })();
 
-    <div class="row" style="margin-bottom:16px;">
-      <div class="card metric">
-        <h3>Cash you can reach today</h3>
-        <div class="big">${moneyWhole(proj.opening)}</div>
-        <div class="cap">the "today" tier from Liquidity</div>
+  c.innerHTML = `
+    <div class="dash-head">
+      <h1 class="page-title">Calendar</h1>
+      <span class="muted dash-head-sub">when money actually lands, not just how much</span>
+      <div class="spacer"></div>
+      <div class="cal-layers" role="group" aria-label="Show on the calendar">
+        <button class="tchip${calLayers.money?' active':''}" data-callayer="money" aria-pressed="${!!calLayers.money}">Money</button>
+        <button class="tchip${calLayers.events?' active':''}" data-callayer="events" aria-pressed="${!!calLayers.events}">Events</button>
+        <button class="tchip${calLayers.todos?' active':''}" data-callayer="todos" aria-pressed="${!!calLayers.todos}">To dos</button>
       </div>
-      <div class="card metric">
-        <h3>Lowest point in 60 days</h3>
-        <div class="big ${proj.min.balance < buffer ? 'neg' : ''}">${moneyWhole(proj.min.balance)}</div>
-        <div class="cap">${minDays === 0 ? 'today — nothing scheduled brings it lower'
-          : `${formatDateShort(proj.min.date)}, in ${minDays} day${minDays===1?'':'s'}`}</div>
+      <div class="dash-step">
+        <button type="button" id="calPrev" aria-label="Previous month">‹</button>
+        <span class="cal-title-lbl">${calMonthLabel(key)}</span>
+        <button type="button" id="calNext" aria-label="Next month">›</button>
       </div>
-      <div class="card metric">
-        <h3>Scheduled in ${calMonthLabel(key).split(' ')[0]}</h3>
-        <div class="big ${monthNet>=0?'pos':'neg'}">${monthNet>=0?'+':'−'}${moneyWhole(Math.abs(monthNet))}</div>
-        <div class="cap">money in less money out and saved</div>
-      </div>
+      ${key === currentMonthKey() ? '' : `<button class="btn secondary" id="calToday">Today</button>`}
+      <button class="btn secondary" id="calCats">Categories</button>
+      <button class="btn" id="calAddEvent">+ Event</button>
     </div>
 
-    ${noSchedule ? `<div class="liq-banner">Nothing on the calendar yet. Add your salary, your bills and your monthly transfer to savings on the Bills tab, each with a next-due date, and the projection above becomes real.</div>` : ''}
+    <div class="dash-kpis cal-kpis">
+      <div class="dash-kpi"><div class="k-label">Cash you can reach today</div><div class="k-val">${moneyWhole(proj.opening)}</div><div class="k-sub">the "today" tier from Liquidity</div></div>
+      <div class="dash-kpi"><div class="k-label">Lowest point in 60 days</div><div class="k-val ${proj.min.balance < buffer ? 'neg' : ''}">${moneyWhole(proj.min.balance)}</div>
+        <div class="k-sub">${minDays === 0 ? 'today — nothing scheduled brings it lower' : `${formatDateShort(proj.min.date)}, in ${minDays} day${minDays===1?'':'s'}`}</div></div>
+      <div class="dash-kpi"><div class="k-label">Scheduled in ${calMonthLabel(key).split(' ')[0]}</div><div class="k-val ${monthNet>=0?'pos':'neg'}">${monthNet>=0?'+':'−'}${moneyWhole(Math.abs(monthNet))}</div><div class="k-sub">money in less money out and saved</div></div>
+      <div class="dash-kpi"><div class="k-label">Open to-dos</div><div class="k-val">${openTodos.length}</div><div class="k-sub">${dueThisMonth ? `${dueThisMonth} due this month` : 'none due this month'}</div></div>
+    </div>
+
+    ${noSchedule ? `<div class="liq-banner">Nothing on the calendar yet. Add your salary, your bills and your monthly transfer to savings on the Bills tab, each with a next-due date, and the projection above becomes real.</div>` : `
+    <div class="card dash-card cl-card">
+      <div class="dash-card-head wrap"><span class="dash-card-title">Reachable cash, next 60 days</span>
+        <span class="muted">lowest ${moneyWhole(proj.min.balance)} on ${formatDateShort(proj.min.date)}${buffer>0 ? ` · dashed line: your ${moneyWhole(buffer)} buffer` : ''}</span></div>
+      ${cashLine}
+    </div>`}
 
     <div class="cal-pane-tabs">
       <button class="tchip${calPane==='calendar'?' active':''}" data-calpane="calendar">Calendar</button>
@@ -7252,20 +7389,6 @@ function renderCalendar(c){
 
     <div class="cal-wrap pane-${calPane}">
       <div class="cal-pane-cal">
-        <div class="cal-head">
-          <button class="cal-nav" id="calPrev" title="Previous month">‹</button>
-          <span class="cal-title">${calMonthLabel(key)}</span>
-          <button class="cal-nav" id="calNext" title="Next month">›</button>
-          ${key === currentMonthKey() ? '' : `<button class="cal-nav" id="calToday">Today</button>`}
-          <div class="spacer" style="flex:1;"></div>
-          <button class="btn secondary" id="calCats">Categories</button>
-          <button class="btn" id="calAddEvent">+ Event</button>
-        </div>
-        <div class="todo-chips" style="margin-bottom:10px;">
-          <button class="tchip${calLayers.money?' active':''}" data-callayer="money">Money</button>
-          <button class="tchip${calLayers.events?' active':''}" data-callayer="events">Events</button>
-          <button class="tchip${calLayers.todos?' active':''}" data-callayer="todos">To dos</button>
-        </div>
         <div class="cal-grid">
           ${DOW.map(d=>`<div class="cal-dow">${d}</div>`).join('')}
           ${cells.join('')}
@@ -7280,6 +7403,7 @@ function renderCalendar(c){
           <span><i style="background:var(--gold);"></i>Rebalance</span>
           <span><i style="background:var(--ec-neutral);"></i>Event</span>
           <span><i style="background:var(--text-faint);"></i>To do</span>
+          <span class="muted">Click an empty part of a day to add an event there.</span>
         </div>
       </div>
       <div class="cal-pane-todo">${todoPaneHTML()}</div>
@@ -8923,7 +9047,20 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.10', name: 'Transactions, Bills, Planning and Liquidity', date: 'Sep 2026', current: true,
+    no: 'V4.11', name: 'Calendar, projection controls, and copying a year\'s plan', date: 'Sep 2026', current: true,
+    items: [
+      'Calendar: Money / Events / To dos, the month arrows, Categories and + Event share the header row. The strip adds Open to-dos beside cash today, the 60-day low and the month\'s scheduled total.',
+      'Calendar: a line of reachable cash for the next 60 days, from the same projection as the low-point figure, with the lowest day marked and your cash buffer drawn dashed.',
+      'Investments → Projection is one card: the year you project to, the monthly contribution, the baseline return and the withdrawal rate can now be changed there, next to the ceiling and inflation. Leave the contribution blank to use the six-month average, as before.',
+      'The projection chart and the exchange-rate risk sit side by side; assumed returns per holding are their own card underneath.',
+      'Planning: Copy last year\'s plan appears only while the year has no budgets at all, asks first, and never overwrites anything. Reset clears every budget in the year, after asking, with a restore point saved first.',
+      'Planning: pressing Tab after typing in a cell now keeps your place in the grid.',
+      'Net Worth: the Native column is blank for AUD accounts, since it would only repeat the AUD figure.',
+      'Nothing new is stored except the projection settings you change.'
+    ]
+  },
+  {
+    no: 'V4.10', name: 'Transactions, Bills, Planning and Liquidity', date: 'Sep 2026', current: false,
     items: [
       'Transactions: type is a row of buttons (All, Income, Expenses, Savings) beside the search box and month picker, and the summary strip replaces the four cards. Date of Today is folded into Last record.',
       'Transactions are grouped by month, each with its own in, out and saved for the rows shown. Dates read 21 Sep Mon, and ✎ / ✕ appear when you hover a row (always on a touch screen).',
