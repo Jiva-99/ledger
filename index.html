@@ -880,6 +880,46 @@
     .ver-item .vcount{ display:none; }
     .ver-item ul{ margin-left:20px; }
   }
+
+  /* V4.9 Investments */
+  .inv-status{ display:flex; gap:14px; flex-wrap:wrap; align-items:baseline; font-size:11.5px; color:var(--text-faint); margin:-2px 0 10px 0; }
+  .inv-status .spacer{ flex:1; }
+  .inv-warn{ color:var(--amber); }
+  .inv-reset{ font-size:11.5px; color:var(--text-dim); }
+  .inv-stale{ font-size:12px; color:var(--amber); border:1px solid rgba(217,139,61,0.45); background:rgba(217,139,61,0.09);
+    border-radius:var(--radius); padding:8px 12px; margin-bottom:12px; }
+  .inv-kpis{ grid-template-columns:repeat(4, minmax(0,1fr)); }
+  table.inv-hold th{ padding:4px 8px; }
+  table.inv-hold td{ padding:5px 8px; font-size:12.5px; font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  table.inv-hold td:first-child{ font-family:var(--sans); }
+  table.inv-hold tfoot td{ border-top:1px solid var(--border); }
+  .inv-hname{ display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
+  .inv-hname .swatch{ margin:0; }
+  .inv-hsleeve{ font-size:10.5px; color:var(--text-faint); }
+  .inv-section-head{ margin:16px 0 8px 0; }
+  .inv-charts{ gap:12px; }
+  .inv-chart{ padding:9px 11px; min-width:0; }
+  .inv-chart-head{ display:flex; align-items:baseline; gap:8px; }
+  .inv-chart-head .n{ font-family:var(--mono); font-size:11px; color:var(--gold); }
+  .inv-chart-head .t{ font-size:13.5px; }
+  .inv-chart-note{ font-size:11px; color:var(--text-faint); line-height:1.45; margin:1px 0 6px 0; min-height:32px; }
+  .inv-two{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:12px; align-items:start; margin-top:16px; }
+  .inv-mini{ grid-template-columns:repeat(3, minmax(0,1fr)); margin-bottom:10px; }
+  .inv-mini .k-val{ font-size:16px; }
+  .inv-sleeves{ display:flex; flex-direction:column; }
+  .inv-sleeve-row{ display:flex; align-items:center; gap:10px; font-size:12.5px; padding:6px 0; border-bottom:1px solid var(--border); }
+  .inv-sleeve-name{ width:70px; flex-shrink:0; }
+  .inv-sleeve-track{ flex:1; position:relative; height:8px; background:var(--surface-raised); border-radius:4px; }
+  .inv-sleeve-track .fill{ position:absolute; left:0; top:0; bottom:0; border-radius:4px; background:var(--blue-bright); opacity:0.85; }
+  .inv-sleeve-track .fill.satellite{ background:var(--violet); }
+  .inv-sleeve-track .mark{ position:absolute; top:-3px; bottom:-3px; width:2px; margin-left:-1px; background:var(--text); }
+  .inv-sleeve-val{ width:80px; text-align:right; }
+  .inv-sleeve-pct{ width:96px; text-align:right; color:var(--text-faint); font-size:11.5px; }
+  .inv-small{ font-size:11px; margin-top:8px; }
+  .inv-reb-controls{ display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; margin-bottom:10px; }
+  .inv-proj{ margin-top:10px; }
+  @media (max-width: 1100px){ .inv-two{ grid-template-columns:1fr; } .inv-kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 600px){ .inv-mini{ grid-template-columns:1fr; } .inv-sleeve-pct{ display:none; } }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -5378,7 +5418,7 @@ function renderInvestments(c){
   const totalPnl = totalCost > 0 ? (totalUnrealised+totalRealised)/totalCost*100 : null;
 
   const table = `
-    <table class="reb inv-table">
+    <table class="reb inv-table inv-hold">
       <thead><tr>
         <th>Holding</th>
         <th class="r">Invested</th><th class="r">Current value</th>
@@ -5388,9 +5428,8 @@ function renderInvestments(c){
       </tr></thead>
       <tbody>
         ${rows.map(r=>`<tr>
-          <td><span class="swatch" style="background:${r.colour}"></span>${r.name}
-            <button class="icon-btn" data-ledger="${r.key}" title="View and edit purchases and dividends" style="font-size:11px;">🕐</button>
-            <div class="sub">${sleeveLabel(r.sleeve)}</div></td>
+          <td><span class="inv-hname"><span class="swatch" style="background:${r.colour}"></span><b>${r.name}</b><span class="inv-hsleeve">${sleeveLabel(r.sleeve)}</span>
+            <button class="icon-btn" data-ledger="${r.key}" title="Order record: view and edit purchases and dividends" style="font-size:11px;">🕐</button></span></td>
           <td class="r">${investMoney(r.cost)}</td>
           <td class="r">${investMoney(r.value)}</td>
           <td class="r" style="color:${r.unrealised>=0?'var(--green)':'var(--red)'}">${sign(r.unrealised)}</td>
@@ -5423,68 +5462,67 @@ function renderInvestments(c){
   const monthlyUnrealised = ms.months.map((m,i)=>
     ms.rows.reduce((t,r)=> t + r.series[i].unrealised, 0));
 
-  // Six charts stacked full width made the tab enormous, so they sit in a grid
-  // that drops to two columns on tablet and one on a phone.
+  // V4.9 — same six charts, as matching cards in the three-by-two grid.
   const chart = (n, title, note, body, legend, wide)=> `
-    <div class="chart-cell${wide?' wide':''}">
-      <div class="chart-head"><span class="n">${n}</span><span class="t">${title}</span></div>
-      <div class="chart-note">${note}</div>
-      <div class="card">${body}${legend||''}</div>
+    <div class="card dash-card inv-chart${wide?' wide':''}">
+      <div class="inv-chart-head"><span class="n">${n}</span><span class="t">${title}</span></div>
+      <div class="inv-chart-note">${note}</div>
+      ${body}${legend||''}
     </div>`;
+  const stale = stalePricedUnits();
+  const tieHTML = tie.unpriced
+    ? `<span class="inv-warn">${tie.unpriced} holding${tie.unpriced>1?'s have':' has'} no price yet, so Net Worth and this table can't be compared.</span>`
+    : tie.matches
+      ? `<span>Net Worth agrees at ${investMoney(tie.netWorth)}.</span>`
+      : `<span class="inv-warn">Net Worth carries ${investMoney(tie.netWorth)} but units × price come to ${investMoney(tie.table)} — ${investMoney(Math.abs(tie.diff))} apart. A manual adjustment is likely the cause.</span>`;
 
   c.innerHTML = `
-    <div class="toolbar">
-      <div class="liq-basis">
-        <span>Show amounts in</span>
-        <select id="invCur" style="width:auto;">
-          ${['USD','AUD','THB'].map(x=>`<option value="${x}" ${cur===x?'selected':''}>${x}</option>`).join('')}
-        </select>
-      </div>
+    <div class="dash-head">
+      <h1 class="page-title">Investments</h1>
+      <span class="muted dash-head-sub">cost basis from your order records</span>
       <div class="spacer"></div>
-      <button class="btn secondary" id="invBuyBtn">Record purchase</button>
+      <div class="dash-seg" role="group" aria-label="Show amounts in">
+        ${['USD','AUD','THB'].map(x=>`<button type="button" data-invcur="${x}" class="${cur===x?'on':''}" aria-pressed="${cur===x}">${x}</button>`).join('')}
+      </div>
+      <button class="btn" id="invBuyBtn">Record purchase</button>
       <button class="btn secondary" id="invDivBtn">Record dividend</button>
       <button class="btn secondary" id="invPriceBtn">Update prices</button>
     </div>
-    <div class="muted" style="font-size:11.5px; margin:-4px 0 12px 0; display:flex; gap:14px; flex-wrap:wrap; align-items:baseline;">
+    <div class="inv-status">
       <span>Realised return is dividends only — no holdings have been sold.</span>
-      <span>${tie.unpriced
-        ? `<span style="color:var(--amber);">${tie.unpriced} holding${tie.unpriced>1?'s have':' has'} no price yet, so Net Worth and this table can't be compared.</span>`
-        : tie.matches
-          ? `Net Worth agrees at ${investMoney(tie.netWorth)}.`
-          : `<span style="color:var(--amber);">Net Worth carries ${investMoney(tie.netWorth)} but units × price come to ${investMoney(tie.table)} — ${investMoney(Math.abs(tie.diff))} apart. A manual adjustment is likely the cause.</span>`}</span>
-      <button class="btn secondary" id="invResetBtn" style="margin-left:auto; font-size:11.5px; padding:3px 10px;">Reset investment records</button>
+      ${tieHTML}
+      <span class="spacer"></span>
+      <button class="dash-link inv-reset" id="invResetBtn">Reset investment records</button>
+    </div>
+    ${stale.length ? `<div class="inv-stale" role="status"><b>${stale.length} holding${stale.length>1?'s have':' has'} a stale price:</b>
+      ${stale.slice(0,3).map(x=> `${x.name} (${x.days===null?'never priced':x.days+'d'})`).join(', ')}${stale.length>3?` and ${stale.length-3} more`:''}.
+      Values, drift and your runway are all based on these — Update prices above.</div>` : ''}
+
+    <div class="dash-kpis inv-kpis">
+      <div class="dash-kpi"><div class="k-label">Invested</div><div class="k-val">${investMoney(totalCost)}</div><div class="k-sub">across ${rows.length} holding${rows.length===1?'':'s'}</div></div>
+      <div class="dash-kpi"><div class="k-label">Current value</div><div class="k-val" style="color:var(--gold-bright)">${investMoney(totalValue)}</div><div class="k-sub">${cur}</div></div>
+      <div class="dash-kpi"><div class="k-label">Total return</div><div class="k-val ${(totalUnrealised+totalRealised)>=0?'pos':'neg'}">${sign(totalUnrealised+totalRealised)}</div><div class="k-sub">${pct(totalPnl)} on what you invested</div></div>
+      <div class="dash-kpi"><div class="k-label">Unrealised / realised</div><div class="k-val">${investMoney(totalUnrealised)} <span class="muted">/</span> ${investMoney(totalRealised)}</div><div class="k-sub">price movement vs dividends</div></div>
     </div>
 
-    <div class="row" style="margin-bottom:14px;">
-      <div class="card metric"><h3>Invested</h3><div class="big">${investMoney(totalCost)}</div><div class="cap">across ${rows.length} holdings</div></div>
-      <div class="card metric"><h3>Current value</h3><div class="big" style="color:var(--gold-bright);">${investMoney(totalValue)}</div><div class="cap">${cur}</div></div>
-      <div class="card metric"><h3>Total return</h3>
-        <div class="big" style="color:${(totalUnrealised+totalRealised)>=0?'var(--green)':'var(--red)'};">${sign(totalUnrealised+totalRealised)}</div>
-        <div class="cap">${pct(totalPnl)} on what you invested</div></div>
-      <div class="card metric"><h3>Unrealised / realised</h3>
-        <div class="big" style="font-size:19px;">${investMoney(totalUnrealised)} <span class="muted">/</span> ${investMoney(totalRealised)}</div>
-        <div class="cap">price movement vs dividends</div></div>
+    <div class="card dash-card inv-scroll">
+      <div class="dash-card-head"><span class="dash-card-title">Holdings</span><span class="muted">${rows.length} holding${rows.length===1?'':'s'} · Alloc % is your cost base, Market % is today's value</span></div>
+      ${table}
     </div>
 
-    <div class="card inv-scroll" style="margin-bottom:14px;">${table}</div>
-
-    <div class="chart-grid">
+    <div class="inv-section-head"><span class="dash-card-title">Charts</span></div>
+    <div class="chart-grid inv-charts">
     ${chart(1,'Return by holding','What each holding has made or lost, price movement plus dividends.',
       investBarChart(rows.map(r=>({ label:r.name, value:r.totalReturn, colour:r.totalReturn>=0?r.colour:'var(--red)' })),
         { fmt, aria:'Return by holding' }))}
-
     ${chart(2,'Monthly contributions','What went in each month, split by holding.',
       investStackedChart(labels, contribSeries, { fmt, aria:'Monthly contributions by holding' }), investLegend(contribSeries))}
-
     ${chart(3,'Monthly contributions — share','The same months normalised to 100%, so the mix is visible regardless of how much went in.',
       investStackedChart(labels, contribSeries, { fmt, percent:true, aria:'Monthly contribution share' }), investLegend(contribSeries))}
-
     ${chart(4,'Total invested over time','Cumulative money in, split by holding. Dividends are excluded — this is your money only.',
       investStackedChart(labels, cumSeries, { fmt, aria:'Cumulative invested by holding' }), investLegend(cumSeries))}
-
     ${chart(5,'Total invested — share','Your cost base as a mix. Compare it with the Market % column above: where they differ, price movement has done the work.',
       investStackedChart(labels, cumSeries, { fmt, percent:true, aria:'Cumulative invested share' }), investLegend(cumSeries))}
-
     ${chart(6,'Unrealised profit and loss by month','The standing gap between what the portfolio was worth at each month end and what had been put in by then. Below zero means it was worth less than you had contributed.',
       investBarChart(labels.map((l,i)=>({ label: i % Math.ceil(labels.length/12) === 0 ? l : '', value: monthlyUnrealised[i] })),
         { fmt, aria:'Unrealised profit and loss by month' }))}
@@ -5493,8 +5531,9 @@ function renderInvestments(c){
     ${investingSectionHTML()}
   `;
 
-  const sel = document.getElementById('invCur');
-  if(sel) sel.onchange = ()=>{ state.ui.investCur = sel.value; saveState(); render(); };
+  c.querySelectorAll('[data-invcur]').forEach(b=>{
+    b.onclick = ()=>{ if(state.ui.investCur !== b.dataset.invcur){ state.ui.investCur = b.dataset.invcur; saveState(); render(); } };
+  });
   // The same three actions as the Net Worth tab — this is where you'd look for them.
   const bind = (id, fn)=>{ const b = document.getElementById(id); if(b) b.onclick = fn; };
   c.querySelectorAll('[data-ledger]').forEach(b=> b.onclick = ()=> openOrderLedger(b.dataset.ledger));
@@ -5580,10 +5619,10 @@ function investingSectionHTML(){
   const inv = investedUnits();
   if(!inv.length){
     return `
-      <div class="section-title">Core &amp; satellite</div>
-      <div class="card">
+      <div class="card dash-card" style="margin-top:16px;">
+        <div class="dash-card-head"><span class="dash-card-title">Core &amp; satellite</span></div>
         <div class="muted" style="font-size:12.5px;">
-          Tag a holding as Core or Satellite above and this section will track the split, flag drift,
+          Set an account's sleeve to Core or Satellite on the Net Worth tab (Edit setup) and this section will track the split, flag drift,
           and work out where your next contribution should go.
         </div>
       </div>`;
@@ -5594,7 +5633,6 @@ function investingSectionHTML(){
   const plan  = rebalancePlan(scope, IS.contribution, IS.contributionMode);
   const band  = Number(IS.driftBand) || 5;
   const split = contributionSplit(inv);
-  const stale = stalePricedUnits();
   const buckets = rebalanceBuckets(scope);
 
   const scopeEmpty = !plan.rows.length;
@@ -5644,75 +5682,72 @@ function investingSectionHTML(){
     }
   }
 
+  // V4.9 — the sleeve split on the left, the rebalance calculator on the right.
+  // The sleeve bars always show the whole portfolio, whatever scope Rebalance is set to.
+  const whole = rebalancePlan('whole', 0, IS.contributionMode);
+  const sleeveBars = whole.rows.map(r=>`
+    <div class="inv-sleeve-row">
+      <span class="inv-sleeve-name">${r.name}</span>
+      <span class="inv-sleeve-track" role="img" aria-label="${r.name}: ${r.currentPct.toFixed(1)}% now, target ${r.target.toFixed(0)}%">
+        <span class="fill ${r.key||r.name}" style="width:${Math.max(0,Math.min(100,r.currentPct))}%"></span>
+        <span class="mark" style="left:${Math.max(0,Math.min(100,r.target))}%"></span>
+      </span>
+      <span class="inv-sleeve-val num-font">${moneyWhole(r.value)}</span>
+      <span class="inv-sleeve-pct num-font">${r.currentPct.toFixed(1)}% / ${r.target.toFixed(0)}%</span>
+      <span class="delta ${driftClass(r.driftPp)}">${pp(r.driftPp)}</span>
+    </div>`).join('');
+
   return `
-    <div class="section-title" style="margin-top:26px;">Core &amp; satellite <span class="muted" style="font-size:13px;">— rebalancing, all values in AUD</span></div>
-    ${stale.length ? `<div class="fx-alert" style="color:var(--amber); border-color:rgba(217,139,61,0.45); background:rgba(217,139,61,0.09);">
-      <div><b>${stale.length} holding${stale.length>1?'s have':' has'} a stale price.</b>
-      ${stale.slice(0,3).map(x=> `${x.name} (${x.days===null?'never':x.days+'d'})`).join(', ')}${stale.length>3?` and ${stale.length-3} more`:''}.
-      Values, drift and your runway are all based on these.</div>
-      <div class="fx-alert-actions"><button class="btn secondary" id="updatePricesBtn">Update prices</button></div>
-    </div>` : ''}
-
-    <div class="row" style="margin-bottom:14px;">
-      <div class="card metric">
-        <h3>Invested value</h3>
-        <div class="big" style="color:var(--gold-bright);">${moneyWhole(split.value)}</div>
-        <div class="cap">${inv.length} holding${inv.length>1?'s':''} across both sleeves</div>
-      </div>
-      <div class="card metric">
-        <h3>You put in</h3>
-        <div class="big">${moneyWhole(split.contributed)}</div>
-        <div class="cap">contributions and opening balances</div>
-      </div>
-      <div class="card metric">
-        <h3>The market gave you</h3>
-        <div class="big" style="color:${split.gained>=0?'var(--green)':'var(--red)'};">${split.gained>=0?'+':''}${moneyWhole(split.gained)}</div>
-        <div class="cap">${split.returnPct===null?'—':`${split.returnPct>=0?'+':''}${split.returnPct.toFixed(1)}% on what you contributed`}</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="toolbar" style="margin:0 0 14px 0;">
-        <div class="liq-basis">
-          <span>Rebalance</span>
-          <select id="rebScope" style="width:auto;">
-            <option value="whole" ${scope==='whole'?'selected':''}>Whole portfolio — core vs satellite</option>
-            <option value="core" ${scope==='core'?'selected':''}>Within core only</option>
-            <option value="satellite" ${scope==='satellite'?'selected':''}>Within satellite only</option>
-          </select>
+    <div class="inv-two">
+      <div class="card dash-card" id="invSleeves">
+        <div class="dash-card-head"><span class="dash-card-title">Core &amp; satellite</span><span class="muted">all values in AUD</span></div>
+        <div class="dash-kpis inv-mini">
+          <div class="dash-kpi"><div class="k-label">Invested value</div><div class="k-val" style="color:var(--gold-bright)">${moneyWhole(split.value)}</div><div class="k-sub">${inv.length} holding${inv.length>1?'s':''} across both sleeves</div></div>
+          <div class="dash-kpi"><div class="k-label">You put in</div><div class="k-val">${moneyWhole(split.contributed)}</div><div class="k-sub">contributions and opening balances</div></div>
+          <div class="dash-kpi"><div class="k-label">The market gave you</div><div class="k-val ${split.gained>=0?'pos':'neg'}">${split.gained>=0?'+':''}${moneyWhole(split.gained)}</div><div class="k-sub">${split.returnPct===null?'—':`${split.returnPct>=0?'+':''}${split.returnPct.toFixed(1)}% on what you contributed`}</div></div>
         </div>
-        ${scope==='whole' ? `<div class="liq-basis"><span>Core target</span>
-          <input type="number" id="rebCoreTarget" step="5" min="0" max="100" value="${IS.coreTarget}" style="width:64px;"> <span>%</span></div>` : ''}
-        <div class="liq-basis"><span>About to invest</span>
-          <input type="number" id="rebContribution" step="100" min="0" value="${IS.contribution||0}" style="width:96px;"></div>
-        <label class="liq-basis" style="cursor:pointer;" title="Split the contribution by target weight instead of sending it to whatever is furthest below target">
-          <input type="checkbox" id="rebByWeight" ${IS.contributionMode==='weight'?'checked':''} style="width:auto;">
-          <span>Split by target weight</span></label>
-        <div class="liq-basis" title="The Calendar shows a reminder every six months from this date">
-          <span>Last rebalanced</span>
-          <input type="date" id="rebLastDate" value="${IS.lastRebalanceDate||''}" style="width:auto;"></div>
-        <div class="spacer"></div>
-        <button class="btn secondary" id="recordBuyBtn">Record purchase</button>
-        <button class="btn secondary" id="recordDivBtn">Record dividend</button>
-        <button class="btn secondary" id="updatePricesBtn">Update prices</button>
+        ${whole.rows.length ? `<div class="inv-sleeves">${sleeveBars}</div>
+          <div class="muted inv-small">Bar: share of the portfolio now. Marker: target. Grey drift is inside your ${band}pp band, amber is outside it.</div>` : ''}
       </div>
 
-      ${scopeEmpty
-        ? `<div class="muted" style="font-size:12.5px;">Nothing tagged as ${sleeveLabel(scope)} yet.</div>`
-        : `<table class="reb">
-        <thead>
-          <tr>
-            <th>${scope==='whole'?'Sleeve':'Holding'}</th>
-            <th class="r">Value</th><th class="r">Now</th><th class="r">Target${scope!=='whole'?' %':''}</th><th class="r">Drift</th>
-            ${plan.contribution>0 ? '<th class="r">Put in</th><th class="r">After</th>' : '<th class="r">To rebalance</th>'}
-          </tr>
-        </thead>
-        <tbody>${rowsHTML}</tbody>
-      </table>
-      <div class="liq-note">${verdict}</div>`}
-      ${weightWarn}
+      <div class="card dash-card" id="invRebalance">
+        <div class="dash-card-head"><span class="dash-card-title">Rebalance</span><span class="muted">where the next contribution should go</span></div>
+        <div class="inv-reb-controls">
+          <label class="liq-basis"><span>Scope</span>
+            <select id="rebScope" style="width:auto;">
+              <option value="whole" ${scope==='whole'?'selected':''}>Whole portfolio — core vs satellite</option>
+              <option value="core" ${scope==='core'?'selected':''}>Within core only</option>
+              <option value="satellite" ${scope==='satellite'?'selected':''}>Within satellite only</option>
+            </select>
+          </label>
+          ${scope==='whole' ? `<label class="liq-basis"><span>Core target</span>
+            <input type="number" id="rebCoreTarget" step="5" min="0" max="100" value="${IS.coreTarget}" style="width:64px;"> <span>%</span></label>` : ''}
+          <label class="liq-basis"><span>About to invest</span>
+            <input type="number" id="rebContribution" step="100" min="0" value="${IS.contribution||0}" style="width:96px;"></label>
+          <label class="liq-basis" style="cursor:pointer;" title="Split the contribution by target weight instead of sending it to whatever is furthest below target">
+            <input type="checkbox" id="rebByWeight" ${IS.contributionMode==='weight'?'checked':''} style="width:auto;">
+            <span>Split by target weight</span></label>
+          <label class="liq-basis" title="The Calendar shows a reminder every six months from this date">
+            <span>Last rebalanced</span>
+            <input type="date" id="rebLastDate" value="${IS.lastRebalanceDate||''}" style="width:auto;"></label>
+        </div>
+        ${scopeEmpty
+          ? `<div class="muted" style="font-size:12.5px;">Nothing tagged as ${sleeveLabel(scope)} yet.</div>`
+          : `<div class="plan-table-wrap"><table class="reb inv-reb">
+          <thead>
+            <tr>
+              <th>${scope==='whole'?'Sleeve':'Holding'}</th>
+              <th class="r">Value</th><th class="r">Now</th><th class="r">Target${scope!=='whole'?' %':''}</th><th class="r">Drift</th>
+              ${plan.contribution>0 ? '<th class="r">Put in</th><th class="r">After</th>' : '<th class="r">To rebalance</th>'}
+            </tr>
+          </thead>
+          <tbody>${rowsHTML}</tbody>
+        </table></div>
+        <div class="liq-note">${verdict}</div>`}
+        ${weightWarn}
+      </div>
     </div>
-    ${projectionSectionHTML()}`;
+    <div class="inv-proj">${projectionSectionHTML()}</div>`;
 }
 
 /* Opened from on top of the price screen. Restoring that screen by stashing and
@@ -8664,7 +8699,20 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.8', name: 'Settings and Versions, tidied', date: 'Sep 2026', current: true,
+    no: 'V4.9', name: 'A denser Investments tab', date: 'Sep 2026', current: true,
+    items: [
+      'Show amounts in USD, AUD or THB is a toggle in the header, next to Record purchase, Record dividend and Update prices. Those three buttons now appear once; the Rebalance card and the stale-price warning used to repeat them.',
+      'The dividends-only note, the Net Worth tie-out and Reset investment records share one line under the header. The stale-price warning moved up beside them, because a stale price affects every figure on the tab, not only drift.',
+      'Invested, Current value, Total return and Unrealised / realised are one strip, like the other tabs.',
+      'Holdings rows are one line each: colour, name, sleeve and the 🕐 order record together, then the figures. Alloc % (your cost base) and Market % (today\'s value) stay side by side.',
+      'The six charts are matching cards in the same three-by-two grid, with the same notes.',
+      'Core & satellite is two cards. On the left, your AUD figures — invested value, what you put in, what the market gave you — and a bar per sleeve against its target, which always shows the whole portfolio. On the right, Rebalance with all its settings, the table and the verdict.',
+      'Projection is unchanged.',
+      'Nothing about saved data changes.'
+    ]
+  },
+  {
+    no: 'V4.8', name: 'Settings and Versions, tidied', date: 'Sep 2026', current: false,
     items: [
       'Settings has a side menu that jumps to each section. The sections are cards, with Profiles beside Data and Liquidity limits beside Auto-save to Excel.',
       'Categories are one table instead of three columns of icons. Essential, Investing, Special and Off balance are labelled switches with a line under the heading saying what each one does. A switch that does not apply to a type shows a dash; Off balance stays greyed out until the category is Special, as before.',
