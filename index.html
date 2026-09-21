@@ -1060,6 +1060,33 @@
   .pl-reset{ color:var(--red); font-size:11.5px; }
   .pl-foot-row{ display:flex; gap:12px; align-items:baseline; margin-top:8px; }
   .pl-foot-row .pl-foot{ flex:1; margin-top:0; }
+
+  /* V4.12 collapsible sidebar (wider than 820px; below that the rail and phone drawer already apply) */
+  .sidebar{ transition:width 0.18s ease; }
+  .brand{ display:flex; align-items:flex-start; gap:8px; }
+  .brand-text{ flex:1; min-width:0; }
+  #navToggle{ background:none; border:1px solid var(--border); color:var(--text-faint); border-radius:6px; width:26px; height:24px;
+    font-size:13px; line-height:1; cursor:pointer; flex-shrink:0; margin-top:2px; font-family:inherit; }
+  #navToggle:hover{ color:var(--gold-bright); border-color:var(--gold); }
+  #navToggle:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+  .nav-sync-dot{ display:none; }
+  @media (min-width: 821px){
+    body.nav-collapsed .sidebar{ width:60px; overflow:hidden; }
+    body.nav-collapsed .brand{ padding:0 0 12px 0; justify-content:center; }
+    body.nav-collapsed .brand-text, body.nav-collapsed .profile-switcher, body.nav-collapsed .cloud-status,
+    body.nav-collapsed nav.tabs button span.label{ display:none; }
+    body.nav-collapsed nav.tabs{ padding:0 8px; }
+    body.nav-collapsed nav.tabs button{ justify-content:center; padding-left:0; padding-right:0; }
+    body.nav-collapsed nav.tabs button .num{ width:auto; }
+    body.nav-collapsed .nav-sync-dot{ display:block; width:8px; height:8px; border-radius:50%; margin:0 auto 10px auto; background:var(--text-faint); }
+    body.nav-collapsed[data-sync="synced"] .nav-sync-dot{ background:var(--green); }
+    body.nav-collapsed[data-sync="error"] .nav-sync-dot{ background:var(--red); }
+    body.nav-collapsed[data-sync="signedout"] .nav-sync-dot{ background:transparent; box-shadow:inset 0 0 0 1px var(--text-faint); }
+    body.nav-collapsed .sidebar-foot{ padding:10px 0 0 0; text-align:center; }
+    body.nav-collapsed .sidebar-foot button{ font-size:0; width:100%; padding:7px 0; }
+    body.nav-collapsed .sidebar-foot button::before{ content:attr(data-icon); font-size:15px; }
+  }
+  @media (max-width: 820px){ #navToggle{ display:none; } .brand-text{ display:block; } }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -1146,30 +1173,34 @@
   <div class="drawer-backdrop" id="drawerBackdrop"></div>
   <aside class="sidebar">
     <div class="brand">
-      <div class="mark">Ledger</div>
-      <div class="sub">Personal Budget</div>
+      <div class="brand-text">
+        <div class="mark">Ledger</div>
+        <div class="sub">Personal Budget</div>
+      </div>
+      <button type="button" id="navToggle" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar  [">«</button>
     </div>
+    <div class="nav-sync-dot" id="navSyncDot" title="Cloud sync"></div>
     <div class="profile-switcher">
       <select id="profileSelect"></select>
       <button id="addProfileBtn" title="New profile">＋</button>
     </div>
     <div class="cloud-status" id="cloudStatusArea"></div>
     <nav class="tabs" id="navTabs">
-      <button data-tab="dashboard" class="active"><span class="num">01</span><span class="label">Dashboard</span></button>
-      <button data-tab="transactions"><span class="num">02</span><span class="label">Transactions</span></button>
-      <button data-tab="planning"><span class="num">03</span><span class="label">Planning</span></button>
-      <button data-tab="networth"><span class="num">04</span><span class="label">Net Worth</span></button>
-      <button data-tab="bills"><span class="num">05</span><span class="label">Bills</span></button>
-      <button data-tab="calendar"><span class="num">06</span><span class="label">Calendar</span></button>
-      <button data-tab="investments"><span class="num">07</span><span class="label">Investments</span></button>
-      <button data-tab="liquidity"><span class="num">08</span><span class="label">Liquidity</span></button>
-      <button data-tab="settings"><span class="num">09</span><span class="label">Settings</span></button>
-      <button data-tab="versions"><span class="num">10</span><span class="label">Versions</span></button>
+      <button data-tab="dashboard" class="active" title="Dashboard"><span class="num">01</span><span class="label">Dashboard</span></button>
+      <button data-tab="transactions" title="Transactions"><span class="num">02</span><span class="label">Transactions</span></button>
+      <button data-tab="planning" title="Planning"><span class="num">03</span><span class="label">Planning</span></button>
+      <button data-tab="networth" title="Net Worth"><span class="num">04</span><span class="label">Net Worth</span></button>
+      <button data-tab="bills" title="Bills"><span class="num">05</span><span class="label">Bills</span></button>
+      <button data-tab="calendar" title="Calendar"><span class="num">06</span><span class="label">Calendar</span></button>
+      <button data-tab="investments" title="Investments"><span class="num">07</span><span class="label">Investments</span></button>
+      <button data-tab="liquidity" title="Liquidity"><span class="num">08</span><span class="label">Liquidity</span></button>
+      <button data-tab="settings" title="Settings"><span class="num">09</span><span class="label">Settings</span></button>
+      <button data-tab="versions" title="Versions"><span class="num">10</span><span class="label">Versions</span></button>
     </nav>
     <div class="sidebar-foot">
-      <button id="themeToggleBtn">☀ Light mode</button>
-      <button id="exportBtn">Export backup</button>
-      <button id="importBtn">Import backup</button>
+      <button id="themeToggleBtn" data-icon="◐" title="Light / dark mode">☀ Light mode</button>
+      <button id="exportBtn" data-icon="⤓" title="Export backup">Export backup</button>
+      <button id="importBtn" data-icon="⤒" title="Import backup">Import backup</button>
       <input type="file" id="importFile" accept="application/json" class="hidden">
     </div>
   </aside>
@@ -1706,6 +1737,10 @@ let cloudStatus = 'signed-out'; // 'signed-out' | 'pulling' | 'syncing' | 'synce
 function renderCloudStatus(){
   const el = document.getElementById('cloudStatusArea');
   if(!el) return;
+  // The collapsed sidebar has no room for the status text, so a dot carries it.
+  document.body.dataset.sync = !cloudAuthChecked ? 'checking' : (!cloudUser ? 'signedout' : (cloudStatus || 'synced'));
+  const dot = document.getElementById('navSyncDot');
+  if(dot) dot.title = !cloudUser ? 'Not signed in to cloud sync' : ({ pulling:'Loading from cloud…', syncing:'Syncing…', synced:'Synced', error:'Sync failed — retrying' }[cloudStatus] || 'Cloud sync');
   if(!cloudAuthChecked){
     el.innerHTML = `<button disabled style="opacity:0.5; cursor:default;">☁ Checking sign-in…</button>`;
     return;
@@ -9047,7 +9082,16 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.11', name: 'Calendar, projection controls, and copying a year\'s plan', date: 'Sep 2026', current: true,
+    no: 'V4.12', name: 'A sidebar you can fold away', date: 'Sep 2026', current: true,
+    items: [
+      'On an iPad or a computer, « beside the Ledger name folds the sidebar down to a narrow strip of tab numbers, giving the page about 150px more width. » opens it again, and [ on a keyboard does the same.',
+      'Folded, each number shows its tab name when you hover it, the active tab stays highlighted, and a dot shows cloud sync — green when synced, red if it failed, hollow when signed out. Light mode, Export and Import become icons at the bottom.',
+      'Profiles and the sync details are hidden while folded; unfold to switch profile or sign in.',
+      'The choice is remembered on each device separately. Phones and narrow screens are unchanged — they already use the bottom tab bar or the number strip.'
+    ]
+  },
+  {
+    no: 'V4.11', name: 'Calendar, projection controls, and copying a year\'s plan', date: 'Sep 2026', current: false,
     items: [
       'Calendar: Money / Events / To dos, the month arrows, Categories and + Event share the header row. The strip adds Open to-dos beside cash today, the 60-day low and the month\'s scheduled total.',
       'Calendar: a line of reachable cash for the next 60 days, from the same projection as the low-point figure, with the lowest day marked and your cash buffer drawn dashed.',
@@ -9630,6 +9674,38 @@ if(AUTO_SAVE_SUPPORTED && state.settings.autoSaveEnabled && !autoSaveHandle){
   state.settings.autoSaveEnabled = false;
 }
 applyTheme(loadTheme());
+
+/* Sidebar collapse. Kept per device, like the theme, since an iPad and a desktop
+   screen want different things. Only takes effect above 820px — narrower screens
+   already get the icon rail or the phone drawer. */
+const NAV_KEY = 'ledgerApp_navCollapsed_v1';
+function applyNavCollapsed(on){
+  document.body.classList.toggle('nav-collapsed', !!on);
+  const b = document.getElementById('navToggle');
+  if(b){
+    b.textContent = on ? '»' : '«';
+    b.setAttribute('aria-expanded', on ? 'false' : 'true');
+    b.setAttribute('aria-label', on ? 'Expand sidebar' : 'Collapse sidebar');
+    b.title = (on ? 'Expand sidebar' : 'Collapse sidebar') + '  [';
+  }
+  try{ localStorage.setItem(NAV_KEY, on ? '1' : '0'); }catch(e){ /* ignore */ }
+}
+function toggleNav(){ applyNavCollapsed(!document.body.classList.contains('nav-collapsed')); }
+(function(){
+  let saved = false;
+  try{ saved = localStorage.getItem(NAV_KEY) === '1'; }catch(e){ /* ignore */ }
+  applyNavCollapsed(saved);
+  const b = document.getElementById('navToggle');
+  if(b) b.addEventListener('click', toggleNav);
+  // [ toggles it from the keyboard, unless you're typing somewhere.
+  document.addEventListener('keydown', e=>{
+    if(e.key !== '[' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    if(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if(document.getElementById('modalRoot') && document.getElementById('modalRoot').innerHTML.trim()) return;
+    e.preventDefault(); toggleNav();
+  });
+})();
 renderProfileSwitcher();
 renderCloudStatus();
 wireMoreSheet();
