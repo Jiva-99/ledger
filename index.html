@@ -1087,6 +1087,16 @@
     body.nav-collapsed .sidebar-foot button::before{ content:attr(data-icon); font-size:15px; }
   }
   @media (max-width: 820px){ #navToggle{ display:none; } .brand-text{ display:block; } }
+
+  /* V4.13 Bills */
+  .bl-late{ color:var(--amber); }
+  .bl-wait{ color:var(--gold-bright); }
+  .bl-status{ white-space:nowrap; font-size:12px; }
+  .bl-freq{ white-space:nowrap; }
+  .bl-soon-row.late .bl-soon-date{ color:var(--amber); }
+  .bl-cycle-hint{ font-size:12px; color:var(--gold-bright); margin:8px 0 2px 0; min-height:18px; }
+  .bl-match{ border-top:1px solid var(--border); margin-top:12px; padding-top:10px; }
+  .bl-custom[hidden], #bMatchFields[hidden]{ display:none; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -1630,7 +1640,12 @@ function mergeWithDefaults(parsed){
   merged.bills.forEach(b=>{
     if(!b.currency) b.currency = 'AUD';
     if(!BILL_KIND_LABEL[b.kind]) b.kind = 'expense';
-    if(b.frequency !== 'Annually') b.frequency = 'Monthly';
+    // unit/every are the cycle; frequency is only its label. A version before V4.13
+    // saved 'Monthly' over anything it didn't know, but left unit/every alone — so
+    // reading them first puts a fortnightly bill back to fortnightly, never the reverse.
+    const cyc = billCycle(b);
+    b.unit = cyc.unit; b.every = cyc.every; b.frequency = cycleLabel(cyc);
+    if(b.match && !(typeof b.match.category === 'string' && b.match.category)) b.match = null;
     if(b.dueDate === undefined || b.dueDate === null){
       const nd = dueFromLastPaid(b);
       b.dueDate = nd ? isoDate(nd) : '';
@@ -1970,7 +1985,7 @@ function buildWorkbook(){
   // Bills
   const billRows = [['Name','Type','Amount','Currency','Frequency','Next Due','Last Paid','Notes']];
   state.bills.forEach(b=> billRows.push([b.name, BILL_KIND_LABEL[b.kind]||'Money out', Number(b.amount)||0,
-    b.currency||'AUD', b.frequency, b.dueDate||'', b.lastPaidDate||'', b.notes||'']));
+    b.currency||'AUD', billFreqLabel(b), (billStatus(b).next||''), b.lastPaidDate||'', b.notes||'']));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(billRows), 'Bills');
 
   const eventRows = [['Title','Category','Starts','Time','Ends','Repeats','Note']];
@@ -6757,23 +6772,47 @@ function addPeriod(d, frequency, n){
   return new Date(ty, tm, Math.min(d.getDate(), lastDay));
 }
 
-/* How the due date was worked out before bills carried one of their own: a bill
-   was due one period after it was last paid, and a bill never paid had no date
-   at all. Kept for the one-time migration and as a fallback. */
-function dueFromLastPaid(bill){
-  if(!bill.lastPaidDate) return null;
-  return addPeriod(new Date(bill.lastPaidDate+'T00:00:00'), bill.frequency, 1);
-}
+/* ---------- V4.13 cycles ----------
+   A bill repeats every N weeks, months or years. unit/every are the source of truth;
+   frequency is kept as a readable label (and so versions before V4.13 still find
+   'Monthly' or 'Annually' there). Loading never turns a cycle back into Monthly. */
+const BILL_FREQ_PRESETS = [
+  ['weekly',      'Weekly',          'week',  1],
+  ['fortnightly', 'Fortnightly',     'week',  2],
+  ['4weekly',     'Every 4 weeks',   'week',  4],
+  ['monthly',     'Monthly',         'month', 1],
+  ['2monthly',    'Every 2 months',  'month', 2],
+  ['quarterly',   'Quarterly',       'month', 3],
+  ['6monthly',    'Every 6 months',  'month', 6],
+  ['annually',    'Annually',        'year',  1]
+];
+const BILL_UNITS = ['week','month','year'];
+const BILL_MATCH_DAYS = 3;   // how far either side of the due date a transaction still counts
+const BILL_KIND_TYPE = { expense:'Expenses', income:'Income', saving:'Savings' };
 
-function nextDueDate(bill){
-  if(bill.dueDate) return new Date(bill.dueDate+'T00:00:00');
-  return dueFromLastPaid(bill);
+function billCycle(bill){
+  const u = bill && bill.unit, e = Math.round(Number(bill && bill.every));
+  if(BILL_UNITS.includes(u) && e >= 1 && e <= 520) return { unit:u, every:e };
+  return (bill && bill.frequency === 'Annually') ? { unit:'year', every:1 } : { unit:'month', every:1 };
+}
+function cycleLabel(c){
+  const p = BILL_FREQ_PRESETS.find(x=> x[2]===c.unit && x[3]===c.every);
+  return p ? p[1] : `Every ${c.every} ${c.unit}s`;
+}
+function cyclePresetKey(c){
+  const p = BILL_FREQ_PRESETS.find(x=> x[2]===c.unit && x[3]===c.every);
+  return p ? p[0] : 'custom';
+}
+const WEEKDAYS_LONG = ['Sundays','Mondays','Tuesdays','Wednesdays','Thursdays','Fridays','Saturdays'];
+function billFreqLabel(bill){
+  const c = billCycle(bill);
+  const a = billAnchor(bill);
+  return cycleLabel(c) + (c.unit==='week' && a ? ` · ${WEEKDAYS_LONG[a.getDay()].slice(0,3)}` : '');
 }
 
 /* The day of the month the bill is really on. Clamping a bill due on the 31st into
    February has to be presentational: if the clamped date became the new anchor, a
-   rent bill would walk 31st → 28th and stay there, and stepping back from Feb 28
-   would land on Jan 28 rather than the 31st it came from. Keeping the intended day
+   rent bill would walk 31st → 28th and stay there. Keeping the intended day
    separately makes the clamp reversible and non-accumulating. */
 function billDueDay(bill){
   const explicit = Number(bill.dueDay);
@@ -6781,34 +6820,115 @@ function billDueDay(bill){
   return bill.dueDate ? Number(bill.dueDate.slice(8,10)) : null;
 }
 
-/* The bill's due date n periods from where it sits now, clamped to a real day. */
-function shiftDue(bill, n){
-  const anchor = nextDueDate(bill);
-  if(!anchor) return null;
-  const stepped = addPeriod(anchor, bill.frequency, n);
-  const day = billDueDay(bill);
-  if(!day) return stepped;
-  const lastDay = new Date(stepped.getFullYear(), stepped.getMonth()+1, 0).getDate();
-  return new Date(stepped.getFullYear(), stepped.getMonth(), Math.min(day, lastDay));
+/* n cycles from a date. Weeks step in whole days; months and years are built from
+   parts (never setMonth), clamped to the month's last day, back to the intended day
+   when the month allows. new Date(y, m, d + days) is local-time safe. */
+function billStepDate(bill, from, n){
+  const c = billCycle(bill);
+  if(c.unit === 'week') return new Date(from.getFullYear(), from.getMonth(), from.getDate() + 7*c.every*n);
+  const months = (c.unit === 'year' ? 12 : 1) * c.every * n;
+  const idx = from.getMonth() + months;
+  const ty  = from.getFullYear() + Math.floor(idx / 12);
+  const tm  = ((idx % 12) + 12) % 12;
+  const day = billDueDay(bill) || from.getDate();
+  const lastDay = new Date(ty, tm + 1, 0).getDate();
+  return new Date(ty, tm, Math.min(day, lastDay));
 }
 
-/* Every date this bill falls on inside a window, oldest first. The stored due date
-   is an anchor rather than a boundary, so this steps back from it to the first
-   occurrence in range before walking forward — a bill anchored next year still
-   shows correctly when you page back through the calendar. */
+/* How the due date was worked out before bills carried one of their own. Kept for
+   the one-time migration and as a fallback. */
+function dueFromLastPaid(bill){
+  if(!bill.lastPaidDate) return null;
+  return billStepDate(bill, new Date(bill.lastPaidDate+'T00:00:00'), 1);
+}
+/* The stored date is an anchor: any date the bill falls on. Every other date follows
+   from the cycle, so nothing needs ticking off to move it on. */
+function billAnchor(bill){
+  if(bill.dueDate) return new Date(bill.dueDate+'T00:00:00');
+  return dueFromLastPaid(bill);
+}
+function shiftDue(bill, n){
+  const a = billAnchor(bill);
+  return a ? billStepDate(bill, a, n) : null;
+}
+
+/* Every date this bill falls on inside a window, oldest first. */
 function billOccurrences(bill, fromISO, toISO){
   const out = [];
-  if(!nextDueDate(bill)) return out;
+  if(!billAnchor(bill)) return out;
   const from = new Date(fromISO+'T00:00:00');
   const to   = new Date(toISO+'T00:00:00');
-  let start = 0;
-  while(start > -1200 && shiftDue(bill, start - 1) >= from) start--;
-  for(let i = start; i < start + 1200; i++){
+  // Jump close to the window first rather than walking one cycle at a time.
+  const c = billCycle(bill);
+  const approxDays = c.unit==='week' ? 7*c.every : (c.unit==='month' ? 30.44*c.every : 365.25*c.every);
+  let start = Math.floor(dayDiff(billAnchor(bill), from) / approxDays) - 2;
+  for(let guard=0; guard<50 && shiftDue(bill, start) >= from; guard++) start -= 2;
+  for(let i = start; i < start + 3000; i++){
     const d = shiftDue(bill, i);
     if(d > to) break;
     if(d >= from) out.push(isoDate(d));
   }
   return out;
+}
+
+/* ---------- Checking Transactions ----------
+   A linked bill looks for a transaction of its type and category (and a word in the
+   details, if given) within BILL_MATCH_DAYS of each due date. It only reads. */
+function billIsLinked(bill){ return !!(bill.match && bill.match.category); }
+function billFindMatch(bill, iso){
+  if(!billIsLinked(bill)) return null;
+  const type = BILL_KIND_TYPE[bill.kind] || 'Expenses';
+  const kw = (bill.match.keyword||'').trim().toLowerCase();
+  const d0 = new Date(iso+'T00:00:00');
+  let best = null;
+  (state.transactions||[]).forEach(t=>{
+    if(t.type !== type || t.category !== bill.match.category) return;
+    if(kw && !(t.details||'').toLowerCase().includes(kw)) return;
+    const gap = Math.abs(dayDiff(d0, new Date(t.date+'T00:00:00')));
+    if(gap <= BILL_MATCH_DAYS && (!best || gap < best.gap)) best = { tx:t, gap };
+  });
+  return best ? best.tx : null;
+}
+
+/* Where a bill stands today.
+   state: 'nodate' | 'scheduled' (not linked) | 'upcoming' | 'waiting' (due, inside
+   the match window) | 'late' (window passed, nothing found).
+   next: the date the bill is next expected — for a late one, the date it was due. */
+function billStatus(bill, todayISO){
+  const today = todayISO || isoDate(TODAY);
+  const anchor = billAnchor(bill);
+  if(!anchor) return { state:'nodate', next:null, lastSeen:null };
+  const c = billCycle(bill);
+  const cycleDays = c.unit==='week' ? 7*c.every : (c.unit==='month' ? 31*c.every : 366*c.every);
+  const ahead = isoDate(addDays(new Date(today+'T00:00:00'), cycleDays + 1));
+  if(!billIsLinked(bill)){
+    const next = billOccurrences(bill, today, ahead)[0] || null;
+    return { state:'scheduled', next, lastSeen:null };
+  }
+  // Linked: look back one cycle plus the window (never before the link was made,
+  // so turning it on doesn't flag months you never asked it to check).
+  let back = isoDate(addDays(new Date(today+'T00:00:00'), -Math.min(cycleDays + BILL_MATCH_DAYS, 45)));
+  if(bill.match.since && bill.match.since > back) back = bill.match.since;
+  const occ = billOccurrences(bill, back, ahead);
+  // Only the latest date that has come round can be waiting or late. An older one
+  // that never showed up is superseded once the next is due, so one missed record
+  // doesn't leave the bill stuck on a month long gone.
+  const latestDue = occ.filter(o=> o <= today).pop() || null;
+  let lastSeen = null;
+  for(const o of occ){
+    const tx = billFindMatch(bill, o);
+    if(tx){ lastSeen = { due:o, tx }; continue; }
+    if(latestDue && o < latestDue) continue;
+    const windowEnd = isoDate(addDays(new Date(o+'T00:00:00'), BILL_MATCH_DAYS));
+    if(o > today) return { state:'upcoming', next:o, lastSeen };
+    if(today <= windowEnd) return { state:'waiting', next:o, lastSeen };
+    return { state:'late', next:o, lastSeen, lateDays: dayDiff(new Date(o+'T00:00:00'), new Date(today+'T00:00:00')) };
+  }
+  return { state:'upcoming', next:null, lastSeen };
+}
+function nextDueDate(bill){
+  const s = billStatus(bill);
+  return s.next ? new Date(s.next+'T00:00:00') : null;
 }
 
 /* Money in adds to the balance; money out and money moved to savings both take
@@ -6817,24 +6937,38 @@ function billSign(bill){ return bill.kind === 'income' ? 1 : -1; }
 function billSignedAUD(bill){
   return billSign(bill) * toAUD(Number(bill.amount)||0, bill.currency||'AUD');
 }
+/* A month's share: 52 weeks, 12 months, 1 year to the year, each divided by 12. */
 function billMonthlyAUD(bill){
   const amt = toAUD(Number(bill.amount)||0, bill.currency||'AUD');
-  return bill.frequency === 'Annually' ? amt/12 : amt;
+  const c = billCycle(bill);
+  if(c.unit === 'week')  return amt * 52 / 12 / c.every;
+  if(c.unit === 'year')  return amt / 12 / c.every;
+  return amt / c.every;
 }
 
 function dueBadge(bill){
-  const nd = nextDueDate(bill);
-  if(!nd) return `<span class="muted">No date set</span>`;
-  const days = Math.round((nd - new Date(isoDate(TODAY)+'T00:00:00')) / 86400000);
-  const dateStr = isoDate(nd);
-  if(days < 0) return `<span class="neg">${dateStr} — overdue ${Math.abs(days)}d</span>`;
-  if(days === 0) return `<span class="neg">${dateStr} — due today</span>`;
+  const s = billStatus(bill);
+  if(s.state === 'nodate') return `<span class="muted">No date set</span>`;
+  if(!s.next) return `<span class="muted">—</span>`;
+  const dateStr = `${shortIsoDate(s.next)}${s.next.slice(0,4)!==String(TODAY.getFullYear()) ? ' '+s.next.slice(0,4) : ''}`;
+  if(s.state === 'late') return `<span style="color:var(--amber);">${dateStr} — ${s.lateDays}d ago</span>`;
+  const days = dayDiff(new Date(isoDate(TODAY)+'T00:00:00'), new Date(s.next+'T00:00:00'));
+  if(days < 0) return `<span style="color:var(--gold-bright);">${dateStr} — ${Math.abs(days)}d ago</span>`;
+  if(days === 0) return `<span class="neg">${dateStr} — today</span>`;
   if(days <= 5) return `<span style="color:var(--amber);">${dateStr} — in ${days}d</span>`;
   return `<span class="muted">${dateStr} — in ${days}d</span>`;
 }
+function billStatusHTML(bill){
+  const s = billStatus(bill);
+  if(s.state === 'nodate') return '<span class="muted">—</span>';
+  if(s.state === 'scheduled') return `<span class="muted" title="Rolls on by date. Edit the entry to have it check Transactions.">By date</span>`;
+  const seen = s.lastSeen ? `✓ seen ${shortIsoDate(s.lastSeen.tx.date)}` : '';
+  if(s.state === 'late') return `<span class="bl-late" title="No ${bill.match.category} transaction${bill.match.keyword?` mentioning “${escHTML(bill.match.keyword)}”`:''} within ${BILL_MATCH_DAYS} days of ${formatDateShort(s.next)}. It stays in the forecast until one appears.">Not seen yet</span>`;
+  if(s.state === 'waiting') return `<span class="bl-wait" title="Due — looking for it in Transactions for ${BILL_MATCH_DAYS} days either side">Looking for it</span>`;
+  return seen ? `<span class="pos">${seen}</span>` : `<span class="muted">Linked</span>`;
+}
 
 function renderBills(c){
-  const mk = currentMonthKey();
   const sumKind = k=> state.bills.filter(b=> b.kind===k).reduce((s,b)=> s + billMonthlyAUD(b), 0);
   const outM  = sumKind('expense');
   const inM   = sumKind('income');
@@ -6845,13 +6979,22 @@ function renderBills(c){
   const in7  = isoDate(new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate()+7));
   const in21 = isoDate(new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate()+21));
 
-  // What's still owed this month and what lands in the next week, from the same entries
-  const unpaid = k=> state.bills.filter(b=> b.kind===k && !(b.paidMonths||[]).includes(mk) && nextDueDate(b)
-    && isoDate(nextDueDate(b)).slice(0,7) <= mk).length;
+  // What's still to come this month, and linked bills that haven't shown up in Transactions
+  const monthEnd = isoDate(new Date(TODAY.getFullYear(), TODAY.getMonth()+1, 0));
+  const stat = new Map(state.bills.map(b=> [b.id, billStatus(b, todayISO)]));
+  const toCome = k=> state.bills.filter(b=> b.kind===k).reduce((n,b)=>
+    n + billOccurrences(b, todayISO, monthEnd).filter(d=> !(billIsLinked(b) && billFindMatch(b, d))).length, 0);
+  const late = state.bills.filter(b=> stat.get(b.id).state==='late');
   const soon = [];
-  state.bills.forEach(b=> billOccurrences(b, todayISO, in21).forEach(d=> soon.push({ b, d })));
-  soon.sort((x,y)=> x.d < y.d ? -1 : x.d > y.d ? 1 : 0);
-  const week = soon.filter(x=> x.d <= in7 && x.b.kind==='expense');
+  // Linked bills already seen in Transactions drop out; one that's late sits at the top.
+  late.forEach(b=> soon.push({ b, d: stat.get(b.id).next, late:true }));
+  state.bills.forEach(b=> billOccurrences(b, todayISO, in21).forEach(d=>{
+    if(billIsLinked(b) && billFindMatch(b, d)) return;
+    if(stat.get(b.id).state==='late' && stat.get(b.id).next===d) return;
+    soon.push({ b, d });
+  }));
+  soon.sort((x,y)=> (y.late?1:0)-(x.late?1:0) || (x.d < y.d ? -1 : x.d > y.d ? 1 : 0));
+  const week = soon.filter(x=> !x.late && x.d <= in7 && x.b.kind==='expense');
   const weekSum = week.reduce((s,x)=> s + toAUD(Number(x.b.amount)||0, x.b.currency||'AUD'), 0);
 
   const KIND_ORDER = [['expense','Money out'], ['income','Money in'], ['saving','To savings']];
@@ -6875,14 +7018,13 @@ function renderBills(c){
         <span class="num-font">${moneyWhole(monthly)} a month</span>
       </div></td></tr>
       ${items.map(({b, idx})=>{
-        const paid = (b.paidMonths||[]).includes(mk);
         return `
         <tr class="bl-row">
           <td class="bl-name">${b.name}${b.notes?` <span class="muted bl-notes">${b.notes}</span>`:''}</td>
           <td class="num bl-amt kind-${k}">${moneyCur(b.amount, b.currency||'AUD')}</td>
-          <td class="muted">${b.frequency}</td>
+          <td class="muted bl-freq">${billFreqLabel(b)}</td>
           <td class="bl-due">${dueBadge(b)}</td>
-          <td><label class="bl-paid"><input type="checkbox" data-paid="${b.id}" ${paid?'checked':''}><span class="muted">${paid?'Done':'Due'}</span></label></td>
+          <td class="bl-status">${billStatusHTML(b)}</td>
           <td class="bl-actions">
             <button class="icon-btn" data-billup="${b.id}" title="Move up" ${sameKindNeighbour(idx,-1)<0?'disabled':''}>↑</button>
             <button class="icon-btn" data-billdown="${b.id}" title="Move down" ${sameKindNeighbour(idx,1)<0?'disabled':''}>↓</button>
@@ -6905,9 +7047,9 @@ function renderBills(c){
     </div>
 
     <div class="dash-kpis bl-kpis">
-      <div class="dash-kpi"><div class="k-label">Money out</div><div class="k-val neg">${moneyWhole(outM)}</div><div class="k-sub">a month, annual ÷ 12, AUD${unpaid('expense')?` · ${unpaid('expense')} still due`:''}</div></div>
-      <div class="dash-kpi"><div class="k-label">Money in</div><div class="k-val pos">${moneyWhole(inM)}</div><div class="k-sub">a month, annual ÷ 12, AUD</div></div>
-      <div class="dash-kpi"><div class="k-label">To savings</div><div class="k-val" style="color:var(--blue-bright);">${moneyWhole(saveM)}</div><div class="k-sub">leaves spendable cash, not spending${unpaid('saving')?` · ${unpaid('saving')} still due`:''}</div></div>
+      <div class="dash-kpi"><div class="k-label">Money out</div><div class="k-val neg">${moneyWhole(outM)}</div><div class="k-sub">a month, AUD${toCome('expense')?` · ${toCome('expense')} still to come`:''}${late.filter(b=>b.kind==='expense').length?` · <span class="bl-late">${late.filter(b=>b.kind==='expense').length} not seen yet</span>`:''}</div></div>
+      <div class="dash-kpi"><div class="k-label">Money in</div><div class="k-val pos">${moneyWhole(inM)}</div><div class="k-sub">a month, AUD${late.filter(b=>b.kind==='income').length?` · <span class="bl-late">${late.filter(b=>b.kind==='income').length} not seen yet</span>`:''}</div></div>
+      <div class="dash-kpi"><div class="k-label">To savings</div><div class="k-val" style="color:var(--blue-bright);">${moneyWhole(saveM)}</div><div class="k-sub">leaves spendable cash, not spending${toCome('saving')?` · ${toCome('saving')} still to come`:''}</div></div>
       <div class="dash-kpi"><div class="k-label">Left over</div><div class="k-val ${netM>=0?'pos':'neg'}">${moneyWhole(netM)}</div><div class="k-sub">scheduled in less out and saved</div></div>
       <div class="dash-kpi"><div class="k-label">Due in 7 days</div><div class="k-val ${week.length?'':'muted'}" style="${week.length?'color:var(--amber);':''}">${week.length ? `${week.length} · ${moneyWhole(weekSum)}` : 'Nothing'}</div>
         <div class="k-sub">${week.length ? week.slice(0,2).map(x=> `${x.b.name} ${shortIsoDate(x.d)}`).join(' · ') : 'money out, next 7 days'}</div></div>
@@ -6918,7 +7060,7 @@ function renderBills(c){
       <div class="card dash-card bl-card">
         <div class="plan-table-wrap">
         <table class="data bl-table">
-          <thead><tr><th>Name</th><th class="num">Amount</th><th>Frequency</th><th>Next due</th><th>This month</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th class="num">Amount</th><th>Frequency</th><th>Next due</th><th>Status</th><th></th></tr></thead>
           <tbody>${shownKinds.map(groupHTML).join('')}</tbody>
         </table>
         </div>
@@ -6926,38 +7068,19 @@ function renderBills(c){
       <div class="card dash-card bl-soon">
         <div class="dash-card-head"><span class="dash-card-title">Next 3 weeks</span><span class="muted">from these entries</span></div>
         ${soon.length ? soon.map(x=>`
-          <div class="bl-soon-row">
-            <span class="bl-soon-date muted">${shortIsoDate(x.d)}</span>
+          <div class="bl-soon-row${x.late?' late':''}">
+            <span class="bl-soon-date muted">${x.late ? 'late' : shortIsoDate(x.d)}</span>
             <span class="dash-sw bl-sw kind-${x.b.kind}"></span>
             <span class="bl-soon-name">${x.b.name}</span>
             <span class="num-font ${kindCls(x.b.kind)}">${x.b.kind==='income'?'+':'−'}${moneyCur(x.b.amount, x.b.currency||'AUD')}</span>
           </div>`).join('') : `<div class="muted" style="font-size:12px;">Nothing dated in the next 21 days.</div>`}
-        <div class="muted bl-soon-foot">The Calendar tab shows these against your cash.</div>
+        <div class="muted bl-soon-foot">Entries linked to Transactions drop off once the payment shows up. The Calendar shows these against your cash.</div>
       </div>
     </div>`}
   `;
 
   c.querySelectorAll('[data-billfilter]').forEach(b=> b.onclick = ()=>{ state.ui.billFilter = b.dataset.billfilter; saveState(); render(); });
   document.getElementById('addBillBtn').onclick = ()=> openBillModal();
-  c.querySelectorAll('[data-paid]').forEach(cb=> cb.onchange = ()=>{
-    const b = state.bills.find(x=>x.id===cb.dataset.paid);
-    b.paidMonths = b.paidMonths||[];
-    // Ticking rolls the due date on by one period so the calendar stops showing it
-    // as owed; unticking rolls it straight back, so a mis-tap costs nothing.
-    if(cb.checked){
-      if(!b.paidMonths.includes(mk)) b.paidMonths.push(mk);
-      b.lastPaidDate = isoDate(TODAY);
-      // Pin the intended day now, while the date is still unclamped. Read back from
-      // an already-clamped date it would be 28, and the bill would never return to
-      // the 31st.
-      if(b.dueDate && !b.dueDay) b.dueDay = Number(b.dueDate.slice(8,10));
-      if(b.dueDate) b.dueDate = isoDate(shiftDue(b, 1));
-    } else {
-      b.paidMonths = b.paidMonths.filter(x=>x!==mk);
-      if(b.dueDate) b.dueDate = isoDate(shiftDue(b, -1));
-    }
-    saveState(); render();
-  });
   c.querySelectorAll('[data-delbill]').forEach(b=> b.onclick = ()=>{
     if(confirm('Delete this bill?')){
       state.bills = state.bills.filter(x=>x.id!==b.dataset.delbill);
@@ -6980,12 +7103,20 @@ function renderBills(c){
 function openBillModal(editId){
   const root = document.getElementById('modalRoot');
   const existing = editId ? state.bills.find(b=>b.id===editId) : null;
+  const cyc = existing ? billCycle(existing) : { unit:'month', every:1 };
+  const presetKey = cyclePresetKey(cyc);
+  const m = existing && existing.match ? existing.match : null;
+  const catOptions = (kind, sel)=> {
+    const t = BILL_KIND_TYPE[kind] || 'Expenses';
+    return `<option value="">Choose a ${t.toLowerCase()} category…</option>` +
+      state.categories[t].map(cat=> `<option ${cat===sel?'selected':''}>${escHTML(cat)}</option>`).join('');
+  };
   root.innerHTML = `
     <div class="modal-backdrop" id="mb">
       <div class="modal">
         <h2>${existing ? 'Edit scheduled entry' : 'Add scheduled entry'}</h2>
         <div class="form-grid">
-          <label class="field">Name <input type="text" id="bName" placeholder="e.g. Netflix, or Salary" value="${existing ? existing.name : ''}"></label>
+          <label class="field">Name <input type="text" id="bName" placeholder="e.g. Netflix, or Salary" value="${existing ? escHTML(existing.name) : ''}"></label>
           <label class="field">Type
             <select id="bKind">${BILL_KINDS.map(([k,lab])=>`<option value="${k}" ${(existing?existing.kind:'expense')===k?'selected':''}>${lab}</option>`).join('')}</select>
           </label>
@@ -6993,13 +7124,35 @@ function openBillModal(editId){
           <label class="field">Currency
             <select id="bCurrency">${NET_WORTH_CURRENCIES.map(cur=>`<option ${existing ? (cur===(existing.currency||'AUD')?'selected':'') : (cur==='AUD'?'selected':'')}>${cur}</option>`).join('')}</select>
           </label>
-          <label class="field">Frequency <select id="bFreq"><option ${existing&&existing.frequency==='Monthly'?'selected':''}>Monthly</option><option ${existing&&existing.frequency==='Annually'?'selected':''}>Annually</option></select></label>
+          <label class="field">Repeats
+            <select id="bFreq">
+              ${BILL_FREQ_PRESETS.map(p=>`<option value="${p[0]}" ${presetKey===p[0]?'selected':''}>${p[1]}</option>`).join('')}
+              <option value="custom" ${presetKey==='custom'?'selected':''}>Custom…</option>
+            </select>
+          </label>
+          <div class="field bl-custom" id="bCustomWrap" ${presetKey==='custom'?'':'hidden'}>Every
+            <div style="display:flex; gap:6px;">
+              <input type="number" id="bEvery" min="1" max="520" step="1" value="${cyc.every}" style="width:70px;" aria-label="Every how many">
+              <select id="bUnit" aria-label="Unit">${BILL_UNITS.map(u=>`<option value="${u}" ${cyc.unit===u?'selected':''}>${u}s</option>`).join('')}</select>
+            </div>
+          </div>
           <label class="field">Next due
             <input type="date" id="bDue" value="${existing ? (existing.dueDate||'') : ''}">
-            <span class="muted" style="font-size:11px;">Leave blank and it stays off the calendar. Ticking it off later moves this on one period.</span>
+            <span class="muted" style="font-size:11px;">Any date it falls on — every other date follows from how often it repeats, and it moves on by itself. Leave blank to keep it off the calendar.</span>
           </label>
-          <label class="field">Notes <input type="text" id="bNotes" placeholder="optional" value="${existing ? (existing.notes||'') : ''}"></label>
+          <label class="field">Notes <input type="text" id="bNotes" placeholder="optional" value="${existing ? escHTML(existing.notes||'') : ''}"></label>
         </div>
+        <div class="bl-cycle-hint" id="bHint" aria-live="polite"></div>
+
+        <div class="bl-match">
+          <label class="set-check"><input type="checkbox" id="bMatchOn" ${m?'checked':''}> Check it was paid in Transactions</label>
+          <div class="muted" style="font-size:11px; margin:2px 0 8px 24px;">Looks for a transaction in this category within ${BILL_MATCH_DAYS} days of each due date. Found: it shows ✓ and moves on. Not found: it shows “not seen yet” and stays in the Calendar forecast until it turns up. It only reads Transactions — it never adds or changes one.</div>
+          <div class="form-grid" id="bMatchFields" ${m?'':'hidden'}>
+            <label class="field">Category <select id="bMatchCat">${catOptions(existing?existing.kind:'expense', m?m.category:'')}</select></label>
+            <label class="field">Details contain <input type="text" id="bMatchKw" placeholder="optional, e.g. Vodafone" value="${m ? escHTML(m.keyword||'') : ''}"></label>
+          </div>
+        </div>
+
         <div class="form-actions">
           <button class="btn secondary" id="fCancel">Cancel</button>
           <button class="btn" id="fSave">${existing ? 'Save changes' : 'Save'}</button>
@@ -7007,29 +7160,67 @@ function openBillModal(editId){
       </div>
     </div>
   `;
-  document.getElementById('fCancel').onclick = ()=> root.innerHTML='';
-  document.getElementById('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
-  document.getElementById('fSave').onclick = ()=>{
-    const name = document.getElementById('bName').value.trim();
-    const bAmtVal = Number(document.getElementById('bAmt').value);
+  const $ = id=> document.getElementById(id);
+  const readCycle = ()=>{
+    const k = $('bFreq').value;
+    if(k === 'custom'){
+      const every = Math.round(Number($('bEvery').value));
+      return { unit: $('bUnit').value, every: (every>=1 && every<=520) ? every : null };
+    }
+    const p = BILL_FREQ_PRESETS.find(x=> x[0]===k);
+    return { unit:p[2], every:p[3] };
+  };
+  const hint = ()=>{
+    const c = readCycle(), due = $('bDue').value;
+    $('bCustomWrap').hidden = $('bFreq').value !== 'custom';
+    if(!c.every){ $('bHint').textContent = 'Enter how many (1 to 520).'; return; }
+    if(!due){ $('bHint').textContent = `${cycleLabel(c)} — add a date to put it on the calendar.`; return; }
+    const tmp = { unit:c.unit, every:c.every, dueDate:due, dueDay:Number(due.slice(8,10)) };
+    const d = new Date(due+'T00:00:00');
+    const next = billOccurrences(tmp, isoDate(TODAY), isoDate(addDays(TODAY, 800))).slice(0,3);
+    const on = c.unit==='week' ? ` on ${WEEKDAYS_LONG[d.getDay()]}`
+      : (Number(due.slice(8,10))>28 ? ` on the ${Number(due.slice(8,10))}th, or the month's last day when it's shorter` : '');
+    $('bHint').textContent = `${cycleLabel(c)}${on}. Next: ${next.map(x=> formatDateShort(x)).join(', ') || '—'}.`;
+  };
+  ['bFreq','bEvery','bUnit','bDue'].forEach(id=>{ $(id).addEventListener('change', hint); $(id).addEventListener('input', hint); });
+  $('bKind').addEventListener('change', ()=>{ $('bMatchCat').innerHTML = catOptions($('bKind').value, ''); });
+  $('bMatchOn').addEventListener('change', ()=>{ $('bMatchFields').hidden = !$('bMatchOn').checked; });
+  hint();
+
+  $('fCancel').onclick = ()=> root.innerHTML='';
+  $('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
+  $('fSave').onclick = ()=>{
+    const name = $('bName').value.trim();
+    const bAmtVal = Number($('bAmt').value);
     if(!name){ toast('Give the bill a name.'); return; }
     if(!bAmtVal || bAmtVal<=0){ toast('Enter an amount greater than 0.'); return; }
-    const frequency = document.getElementById('bFreq').value;
-    const currency = document.getElementById('bCurrency').value;
-    const kind = document.getElementById('bKind').value;
-    const dueDate = document.getElementById('bDue').value || '';
+    const c = readCycle();
+    if(!c.every){ toast('Enter how often it repeats — 1 to 520.'); return; }
+    const currency = $('bCurrency').value;
+    const kind = $('bKind').value;
+    const dueDate = $('bDue').value || '';
     // The day you typed is the day you mean, kept apart from the date so a month
     // that has no 31st can't quietly become the new rule.
     const dueDay = dueDate ? Number(dueDate.slice(8,10)) : null;
-    const notes = document.getElementById('bNotes').value.trim();
+    const notes = $('bNotes').value.trim();
+    let match = null;
+    if($('bMatchOn').checked){
+      const category = $('bMatchCat').value;
+      if(!category){ toast('Choose the category to look for, or untick the Transactions check.'); return; }
+      const keyword = $('bMatchKw').value.trim();
+      // Checking reaches back one cycle from when it was switched on — enough to show
+      // ✓ for the latest payment — but no further, so a month you never recorded
+      // doesn't come up as missing.
+      const cyc = c.unit==='week' ? 7*c.every : (c.unit==='month' ? 31*c.every : 366*c.every);
+      const since = (m && m.category===category && m.since) ? m.since : isoDate(addDays(TODAY, -(cyc + BILL_MATCH_DAYS)));
+      match = { category, keyword, since };
+    }
+    const fields = { name, amount:bAmtVal, currency, kind, unit:c.unit, every:c.every, frequency:cycleLabel(c), dueDate, dueDay, notes, match };
     if(existing){
-      Object.assign(existing, { name, amount:bAmtVal, currency, kind, frequency, dueDate, dueDay, notes });
+      Object.assign(existing, fields);
       toast('Entry updated.');
     } else {
-      state.bills.push({
-        id:uid(), name, amount:bAmtVal, currency, kind, frequency, dueDate, dueDay, notes,
-        lastPaidDate:'', paidMonths:[]
-      });
+      state.bills.push(Object.assign({ id:uid(), lastPaidDate:'', paidMonths:[] }, fields));
       toast('Entry added.');
     }
     saveState(); root.innerHTML=''; render();
@@ -7218,8 +7409,19 @@ function calendarEvents(fromISO, toISO, opts){
   if(layers.money !== false){
     (state.bills||[]).forEach(b=>{
       const signed = billSignedAUD(b);
-      billOccurrences(b, fromISO, toISO).forEach(iso=>
-        add(iso, { type:'money', kind:b.kind, name:b.name, signed, id:b.id }));
+      const linked = billIsLinked(b);
+      billOccurrences(b, fromISO, toISO).forEach(iso=>{
+        // Seen in Transactions: still drawn (with ✓), but the forecast skips it.
+        const seen = linked && !!billFindMatch(b, iso);
+        add(iso, { type:'money', kind:b.kind, name:b.name, signed, id:b.id, seen });
+      });
+      // A linked payment that is due or late and not seen yet hasn't left the account,
+      // so the forecast carries it on today rather than letting it vanish.
+      if(opts && opts.carryLate && linked){
+        const st = billStatus(b), today = isoDate(TODAY);
+        if((st.state==='late' || st.state==='waiting') && st.next && st.next < today && today >= fromISO && today <= toISO)
+          add(today, { type:'money', kind:b.kind, name:`${b.name} (not seen yet)`, signed, id:b.id, carried:true });
+      }
     });
     rebalanceDates(fromISO, toISO).forEach(iso=>
       add(iso, { type:'rebalance', name:'Rebalance due', signed:0 }));
@@ -7262,14 +7464,14 @@ function cashflowProjection(){
   const opening = liquidityLadder().cum.today;
   // Money only, and explicitly regardless of which layers are being shown — muting
   // the money layer is a display choice and must not silently change the forecast.
-  const events  = calendarEvents(startISO, endISO, { layers:{ money:true, events:false, todos:false } });
+  const events  = calendarEvents(startISO, endISO, { layers:{ money:true, events:false, todos:false }, carryLate:true });
   const balances = {};
   let bal = opening;
   let min = { date: startISO, balance: opening };
 
   for(let i=0; i<=dayDiff(start, end); i++){
     const iso = isoDate(addDays(start, i));
-    (events[iso]||[]).forEach(e=>{ bal += e.signed; });
+    (events[iso]||[]).forEach(e=>{ if(!e.seen) bal += e.signed; });
     balances[iso] = bal;
     if(iso <= horizonISO && bal < min.balance) min = { date: iso, balance: bal };
   }
@@ -7289,7 +7491,7 @@ function calEventHTML(ev, compact){
              : ev.type === 'money' ? `data-calbill="${ev.id}"`
              : ev.type === 'event' ? `data-calevent="${ev.id}"`
              : 'data-calreb="1"';
-  const label = escHTML(ev.name);
+  const label = (ev.seen ? '✓ ' : '') + escHTML(ev.name);
   const time  = ev.type === 'event' && ev.time ? `<span class="tm">${ev.time}</span> ` : '';
   const dot   = ev.type === 'event' ? `<span class="dot"></span>` : '';
   // The colour key is validated on load and again here, so it can only ever name
@@ -9082,7 +9284,20 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.12', name: 'A sidebar you can fold away', date: 'Sep 2026', current: true,
+    no: 'V4.13', name: 'Bills that repeat on any cycle', date: 'Sep 2026', current: true,
+    items: [
+      'Repeats can be weekly, fortnightly, every 4 weeks, monthly, every 2 months, quarterly, every 6 months or annually — or a custom every N weeks, months or years. “Every 2 Fridays” is Fortnightly with a Friday as the date; the list shows it as Fortnightly · Fri.',
+      'The form spells the schedule out as you fill it in — Fortnightly on Fridays, and the next three dates — so a wrong date is obvious before you save.',
+      'No more ticking. The date you give is an anchor; the next due date is worked out from it and moves on by itself. Monthly and yearly bills on the 29th–31st still land on the last day of a shorter month and go back afterwards.',
+      'Optionally, an entry can check Transactions: pick the category, and a word in the details if you like. A matching transaction within 3 days of the due date shows ✓ seen, and the entry moves on. If nothing turns up, it says Not seen yet in amber and the Calendar keeps that money in its forecast, on today, until it does.',
+      'Next 3 weeks drops entries already seen and lists late ones first. The strip counts what is still to come this month and anything not seen yet.',
+      'Monthly totals now count each cycle properly: a fortnightly amount is × 26 ÷ 12, every 6 months is ÷ 6.',
+      'Frequencies are stored as a cycle beside the old label, so an older copy of Ledger can\'t turn a fortnightly bill into a monthly one for good — this version puts it back. Update Ledger on every device anyway.',
+      'The old ticks are left in your data, unused.'
+    ]
+  },
+  {
+    no: 'V4.12', name: 'A sidebar you can fold away', date: 'Sep 2026', current: false,
     items: [
       'On an iPad or a computer, « beside the Ledger name folds the sidebar down to a narrow strip of tab numbers, giving the page about 150px more width. » opens it again, and [ on a keyboard does the same.',
       'Folded, each number shows its tab name when you hover it, the active tab stays highlighted, and a dot shows cloud sync — green when synced, red if it failed, hollow when signed out. Light mode, Export and Import become icons at the bottom.',
