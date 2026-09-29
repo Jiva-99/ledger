@@ -1144,6 +1144,9 @@
   .reb-tag{ font-family:var(--sans); font-size:10px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.85; }
   table.reb td.reb-trade{ white-space:nowrap; }
   table.reb tfoot td{ border-top:1px solid var(--border); border-bottom:none; padding-top:8px; font-weight:600; }
+
+  /* V4.15 */
+  .modal .row .card.metric{ min-width:130px; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -1734,6 +1737,7 @@ function mergeWithDefaults(parsed){
         l.total = (Number(l.units)||0) * (Number(l.price)||0);
       });
       if(Array.isArray(u.divs)) u.divs.forEach(d=>{ if(!d.id) d.id = uid(); });
+      if(Array.isArray(u.sales)) u.sales.forEach(s=>{ if(!s.id) s.id = uid(); });
     });
   });
   // Event categories carry the colour, so an event only stores which category it is
@@ -5464,31 +5468,57 @@ function investMoney(amountAUD, decimals){
 
    unit.lots = [{date, units, price, total}]                    purchases
    unit.divs = [{date, amount, units}]                          dividends
+   unit.sales = [{date, units, price}]                          sales (V4.15)
    unit.openingCost                                             pre-order basis  */
 function unitLots(unit){ return Array.isArray(unit.lots) ? unit.lots : []; }
 function unitDivs(unit){ return Array.isArray(unit.divs) ? unit.divs : []; }
+function unitSales(unit){ return Array.isArray(unit.sales) ? unit.sales : []; }
 
 function lotTotal(lot){ return (Number(lot.units)||0) * (Number(lot.price)||0); }
+function saleProceeds(s){ return (Number(s.units)||0) * (Number(s.price)||0); }
 
-/* Everything up to a date, in the holding's own currency. */
+/* Everything up to a date, in the holding's own currency.
+   V4.15 — sales use the average-cost method: a sale takes out its share of the cost
+   at the average cost per unit on the day it happens, and the rest of the proceeds
+   is realised gain (or loss). Events are walked in date order because the average
+   only means anything at a point in time; on the same day purchases come first,
+   then dividends, then sales. Without any sales this adds up exactly as before. */
 function costBasisAsOf(unit, uptoISO){
   let cost = Number(unit.openingCost) || 0;
   let units = Number(unit.openingUnits) || 0;
   let divCash = 0, divUnits = 0, divTotal = 0;
-  unitLots(unit).forEach(l=>{
-    if(uptoISO && l.date > uptoISO) return;
-    cost += lotTotal(l);
-    units += Number(l.units) || 0;
+  let netIn = cost, proceeds = 0, soldUnits = 0, soldCost = 0, saleGain = 0;
+  const RANK = { buy:0, div:1, sale:2 };
+  const events = [
+    ...unitLots(unit).map(r=> ({ k:'buy', r })),
+    ...unitDivs(unit).map(r=> ({ k:'div', r })),
+    ...unitSales(unit).map(r=> ({ k:'sale', r }))
+  ].filter(e=> !uptoISO || (e.r.date||'') <= uptoISO)
+   .sort((a,b)=> (a.r.date||'').localeCompare(b.r.date||'') || RANK[a.k] - RANK[b.k]);
+  events.forEach(({ k, r })=>{
+    if(k === 'buy'){
+      cost += lotTotal(r);
+      netIn += lotTotal(r);
+      units += Number(r.units) || 0;
+    } else if(k === 'div'){
+      const amt = Number(r.amount) || 0;
+      divTotal += amt;
+      // Units from a dividend cost you nothing — they must not raise the basis.
+      if(Number(r.units) > 0){ units += Number(r.units); divUnits += Number(r.units); }
+      else divCash += amt;
+    } else {
+      // Never sell more than the records hold; anything beyond that has no cost to take out.
+      const q = Math.max(0, Math.min(Number(r.units) || 0, units));
+      const avg = units > 0 ? cost/units : 0;
+      const out = avg * q, got = q * (Number(r.price) || 0);
+      cost -= out; units -= q;
+      proceeds += got; soldUnits += q; soldCost += out; saleGain += got - out;
+      netIn -= got;
+    }
   });
-  unitDivs(unit).forEach(d=>{
-    if(uptoISO && d.date > uptoISO) return;
-    const amt = Number(d.amount) || 0;
-    divTotal += amt;
-    // Units from a dividend cost you nothing — they must not raise the basis.
-    if(Number(d.units) > 0) units += Number(d.units); else divCash += amt;
-    if(Number(d.units) > 0) divUnits += Number(d.units);
-  });
-  return { cost, units, dividends: divTotal, dividendCash: divCash, dividendUnits: divUnits };
+  if(units < 1e-9){ units = 0; if(Math.abs(cost) < 0.005) cost = 0; }
+  return { cost, units, dividends: divTotal, dividendCash: divCash, dividendUnits: divUnits,
+           proceeds, soldUnits, soldCost, saleGain, netIn, sales: events.filter(e=> e.k==='sale').length };
 }
 
 /* Wipes the investment record for every holding in a Core or Satellite account so
@@ -5502,7 +5532,7 @@ function resetInvestmentRecords(){
     if(!accountSleeve(a)) return;
     accounts++;
     const wipe = u=>{
-      u.lots = []; u.divs = [];
+      u.lots = []; u.divs = []; u.sales = [];
       delete u.openingCost; delete u.openingUnits;
       delete u.units; delete u.price; delete u.pricedAt;
       u.history = [];
@@ -5535,7 +5565,7 @@ function investmentTieOut(){
            matches: unpriced === 0 && Math.abs(diff) < 1 };
 }
 
-function hasOrderData(unit){ return unitLots(unit).length > 0 || unitDivs(unit).length > 0; }
+function hasOrderData(unit){ return unitLots(unit).length > 0 || unitDivs(unit).length > 0 || unitSales(unit).length > 0; }
 
 function historyTotals(unit, uptoISO){
   let contributed = 0, dividends = 0, revaluation = 0;
@@ -5563,7 +5593,7 @@ function investmentRows(){
     const t = historyTotals(u.unit, today);
     const cost = toAUD(useLots ? cb.cost : t.contributed, u.currency);
     const value = u.valueAUD;
-    const realised = toAUD(useLots ? cb.dividends : t.dividends, u.currency);
+    const realised = toAUD(useLots ? cb.dividends + cb.saleGain : t.dividends, u.currency);
     const unrealised = useLots ? (value - cost) : toAUD(t.revaluation, u.currency);
     return {
       key: u.subId ? `${u.acc.id}|||${u.subId}` : u.acc.id,
@@ -5580,7 +5610,9 @@ function investmentRows(){
     r.allocPct = totalCost > 0 ? r.cost/totalCost*100 : 0;      // by money invested
     r.marketPct = totalValue > 0 ? r.value/totalValue*100 : 0;  // by what it's worth now
   });
-  return { rows, totalCost, totalValue,
+  const soldAll = units.reduce((a,u)=>{ const cb = costBasisAsOf(u.unit, today);
+    return { n: a.n + cb.sales, gain: a.gain + toAUD(cb.saleGain, u.currency) }; }, { n:0, gain:0 });
+  return { rows, totalCost, totalValue, sold: soldAll,
            totalUnrealised: rows.reduce((t,r)=>t+r.unrealised,0),
            totalRealised: rows.reduce((t,r)=>t+r.realised,0),
            anyLots: rows.some(r=>r.useLots) };
@@ -5612,10 +5644,10 @@ function investMonthlySeries(){
     const series = months.map(mo=>{
       const cum = useLots
         ? (()=>{ const cb = costBasisAsOf(u.unit, mo.endISO);
-                 return { contributed: cb.cost, dividends: cb.dividends }; })()
+                 return { contributed: cb.cost, netIn: cb.netIn, dividends: cb.dividends }; })()
         : historyTotals(u.unit, mo.endISO);
       const point = {
-        monthContribution: toAUD(cum.contributed - prev.contributed, u.currency),
+        monthContribution: toAUD((cum.netIn ?? cum.contributed) - (prev.netIn ?? prev.contributed), u.currency),
         monthDividend:     toAUD(cum.dividends   - prev.dividends,   u.currency),
         cumContribution:   toAUD(cum.contributed, u.currency),
         value:             toAUD(unitBalanceAsOf(u.unit, mo.endISO), u.currency)
@@ -5682,11 +5714,16 @@ function investStackedChart(labels, series, opts){
   const plotW = W-padL-padR, plotH = H-padT-padB;
   if(!labels.length || !series.length) return '<div class="muted" style="font-size:12.5px;">Nothing to show yet.</div>';
 
+  // V4.15 — a month where sales beat purchases has a negative total, which is drawn
+  // below a zero line. The percentage view is a mix of what went in, so it ignores them.
   const colTotals = labels.map((_,i)=> series.reduce((t,s)=> t + Math.max(0, s.values[i]||0), 0));
+  const negTotals = labels.map((_,i)=> series.reduce((t,s)=> t + Math.min(0, s.values[i]||0), 0));
   const max = o.percent ? 100 : Math.max(1, ...colTotals);
-  const Y = v=> padT + plotH - (v/max)*plotH;
+  const min = o.percent ? 0 : Math.min(0, ...negTotals);
+  const Y = v=> padT + plotH - ((v-min)/(max-min))*plotH;
   const bw = plotW/labels.length;
-  const sdp = max >= 100 ? 0 : max >= 10 ? 1 : max >= 1 ? 2 : 3;
+  const range = max - min;
+  const sdp = range >= 100 ? 0 : range >= 10 ? 1 : range >= 1 ? 2 : 3;
   const short = v=> o.percent ? v+'%'
                   : (Math.abs(v)>=1e6 ? (v/1e6).toFixed(1)+'m'
                   : Math.abs(v)>=1e3 ? Math.round(v/1e3)+'k'
@@ -5694,24 +5731,31 @@ function investStackedChart(labels, series, opts){
 
   let grid = '';
   for(let i=0;i<=4;i++){
-    const v = max*i/4, y = Y(v);
+    const v = min + range*i/4, y = Y(v);
     grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="0.5"/>
       <text x="${padL-8}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--text-faint)">${short(v)}</text>`;
   }
+  if(min < 0) grid += `<line x1="${padL}" y1="${Y(0).toFixed(1)}" x2="${W-padR}" y2="${Y(0).toFixed(1)}" stroke="var(--text-faint)" stroke-width="0.8" class="stk-zero"/>`;
 
   let cols = '';
   labels.forEach((lab,i)=>{
     const total = colTotals[i];
-    let acc = 0;
+    let up = 0, down = 0;
     const x = padL + i*bw + bw*0.15, w = bw*0.7;
     series.forEach(sr=>{
-      const raw = Math.max(0, sr.values[i]||0);
-      if(raw <= 0) return;
-      const v = o.percent ? (total>0 ? raw/total*100 : 0) : raw;
-      const y0 = Y(acc+v), y1 = Y(acc);
-      acc += v;
-      cols += `<rect x="${x.toFixed(1)}" y="${y0.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0.5,y1-y0).toFixed(1)}" fill="${sr.colour}">
-        <title>${lab} · ${sr.name}: ${o.fmt ? o.fmt(raw) : raw}${o.percent&&total>0?` (${(raw/total*100).toFixed(1)}%)`:''}</title></rect>`;
+      const raw = sr.values[i]||0;
+      if(raw > 0){
+        const v = o.percent ? (total>0 ? raw/total*100 : 0) : raw;
+        const y0 = Y(up+v), y1 = Y(up);
+        up += v;
+        cols += `<rect x="${x.toFixed(1)}" y="${y0.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0.5,y1-y0).toFixed(1)}" fill="${sr.colour}">
+          <title>${lab} · ${sr.name}: ${o.fmt ? o.fmt(raw) : raw}${o.percent&&total>0?` (${(raw/total*100).toFixed(1)}%)`:''}</title></rect>`;
+      } else if(raw < 0 && !o.percent){
+        const y0 = Y(down), y1 = Y(down+raw);
+        down += raw;
+        cols += `<rect class="stk-neg" x="${x.toFixed(1)}" y="${y0.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0.5,y1-y0).toFixed(1)}" fill="${sr.colour}" opacity="0.55">
+          <title>${lab} · ${sr.name}: ${o.fmt ? o.fmt(raw) : raw} (sold more than bought)</title></rect>`;
+      }
     });
   });
 
@@ -5733,7 +5777,7 @@ function investLegend(series){
 }
 
 function renderInvestments(c){
-  const { rows, totalCost, totalValue, totalUnrealised, totalRealised, anyLots } = investmentRows();
+  const { rows, totalCost, totalValue, totalUnrealised, totalRealised, anyLots, sold } = investmentRows();
   const cur = investDisplayCurrency();
   const tie = investmentTieOut();
 
@@ -5766,7 +5810,7 @@ function renderInvestments(c){
           <td class="r">${investMoney(r.cost)}</td>
           <td class="r">${investMoney(r.value)}</td>
           <td class="r" style="color:${r.unrealised>=0?'var(--green)':'var(--red)'}">${sign(r.unrealised)}</td>
-          <td class="r muted">${r.realised>0?investMoney(r.realised):'—'}</td>
+          <td class="r muted">${Math.abs(r.realised)>0.005?sign(r.realised):'—'}</td>
           <td class="r" style="color:${r.totalReturn>=0?'var(--green)':'var(--red)'}">${sign(r.totalReturn)}</td>
           <td class="r" style="color:${(r.pnlPct||0)>=0?'var(--green)':'var(--red)'}">${pct(r.pnlPct)}</td>
           <td class="r muted">${r.allocPct.toFixed(1)}%</td>
@@ -5778,7 +5822,7 @@ function renderInvestments(c){
         <td class="r"><b>${investMoney(totalCost)}</b></td>
         <td class="r"><b>${investMoney(totalValue)}</b></td>
         <td class="r" style="color:${totalUnrealised>=0?'var(--green)':'var(--red)'}"><b>${sign(totalUnrealised)}</b></td>
-        <td class="r muted">${totalRealised>0?investMoney(totalRealised):'—'}</td>
+        <td class="r muted">${Math.abs(totalRealised)>0.005?sign(totalRealised):'—'}</td>
         <td class="r" style="color:${(totalUnrealised+totalRealised)>=0?'var(--green)':'var(--red)'}"><b>${sign(totalUnrealised+totalRealised)}</b></td>
         <td class="r" style="color:${(totalPnl||0)>=0?'var(--green)':'var(--red)'}"><b>${pct(totalPnl)}</b></td>
         <td class="r muted">100%</td><td class="r muted">100%</td>
@@ -5818,11 +5862,12 @@ function renderInvestments(c){
         ${['USD','AUD','THB'].map(x=>`<button type="button" data-invcur="${x}" class="${cur===x?'on':''}" aria-pressed="${cur===x}">${x}</button>`).join('')}
       </div>
       <button class="btn" id="invBuyBtn">Record purchase</button>
+      <button class="btn secondary" id="invSellBtn">Record sale</button>
       <button class="btn secondary" id="invDivBtn">Record dividend</button>
       <button class="btn secondary" id="invPriceBtn">Update prices</button>
     </div>
     <div class="inv-status">
-      <span>Realised return is dividends only — no holdings have been sold.</span>
+      <span>${sold.n ? `Realised return is dividends plus ${sign(sold.gain)} from ${sold.n} sale${sold.n===1?'':'s'}, at average cost.` : 'Realised return is dividends only — no holdings have been sold.'}</span>
       ${tieHTML}
       <span class="spacer"></span>
       <button class="dash-link inv-reset" id="invResetBtn">Reset investment records</button>
@@ -5835,7 +5880,7 @@ function renderInvestments(c){
       <div class="dash-kpi"><div class="k-label">Invested</div><div class="k-val">${investMoney(totalCost)}</div><div class="k-sub">across ${rows.length} holding${rows.length===1?'':'s'}</div></div>
       <div class="dash-kpi"><div class="k-label">Current value</div><div class="k-val" style="color:var(--gold-bright)">${investMoney(totalValue)}</div><div class="k-sub">${cur}</div></div>
       <div class="dash-kpi"><div class="k-label">Total return</div><div class="k-val ${(totalUnrealised+totalRealised)>=0?'pos':'neg'}">${sign(totalUnrealised+totalRealised)}</div><div class="k-sub">${pct(totalPnl)} on what you invested</div></div>
-      <div class="dash-kpi"><div class="k-label">Unrealised / realised</div><div class="k-val">${investMoney(totalUnrealised)} <span class="muted">/</span> ${investMoney(totalRealised)}</div><div class="k-sub">price movement vs dividends</div></div>
+      <div class="dash-kpi"><div class="k-label">Unrealised / realised</div><div class="k-val">${investMoney(totalUnrealised)} <span class="muted">/</span> ${investMoney(totalRealised)}</div><div class="k-sub">${sold.n ? 'price movement vs dividends and sales' : 'price movement vs dividends'}</div></div>
     </div>
 
     <div class="card dash-card inv-scroll">
@@ -5848,11 +5893,11 @@ function renderInvestments(c){
     ${chart(1,'Return by holding','What each holding has made or lost, price movement plus dividends.',
       investBarChart(rows.map(r=>({ label:r.name, value:r.totalReturn, colour:r.totalReturn>=0?r.colour:'var(--red)' })),
         { fmt, aria:'Return by holding' }))}
-    ${chart(2,'Monthly contributions','What went in each month, split by holding.',
+    ${chart(2,'Monthly contributions','What went in each month, split by holding. A month where sales beat purchases dips below zero.',
       investStackedChart(labels, contribSeries, { fmt, aria:'Monthly contributions by holding' }), investLegend(contribSeries))}
     ${chart(3,'Monthly contributions — share','The same months normalised to 100%, so the mix is visible regardless of how much went in.',
       investStackedChart(labels, contribSeries, { fmt, percent:true, aria:'Monthly contribution share' }), investLegend(contribSeries))}
-    ${chart(4,'Total invested over time','Cumulative money in, split by holding. Dividends are excluded — this is your money only.',
+    ${chart(4,'Total invested over time','What the shares you hold cost, split by holding. A sale takes out the average cost of the shares sold; dividends are excluded.',
       investStackedChart(labels, cumSeries, { fmt, aria:'Cumulative invested by holding' }), investLegend(cumSeries))}
     ${chart(5,'Total invested — share','Your cost base as a mix. Compare it with the Market % column above: where they differ, price movement has done the work.',
       investStackedChart(labels, cumSeries, { fmt, percent:true, aria:'Cumulative invested share' }), investLegend(cumSeries))}
@@ -5871,6 +5916,7 @@ function renderInvestments(c){
   const bind = (id, fn)=>{ const b = document.getElementById(id); if(b) b.onclick = fn; };
   c.querySelectorAll('[data-ledger]').forEach(b=> b.onclick = ()=> openOrderLedger(b.dataset.ledger));
   bind('invBuyBtn',   ()=> openPurchaseModal());
+  bind('invSellBtn',  ()=> openSaleModal());
   bind('invDivBtn',   ()=> openDividendModal());
   bind('invPriceBtn', ()=> openPriceModal());
   bind('invResetBtn', ()=>{
@@ -5880,7 +5926,7 @@ function renderInvestments(c){
       title: 'Reset investment records',
       what: names || 'No sleeved accounts',
       lines: [
-        'Clears every purchase, dividend, price and balance history for these holdings',
+        'Clears every purchase, sale, dividend, price and balance history for these holdings',
         'Keeps the holdings themselves — names, currencies, sleeve, target weights, targets, assumed returns and tickers',
         'Cash and other accounts are untouched',
         'Net Worth for these accounts will read zero until you record your first purchase'
@@ -6027,7 +6073,7 @@ function investingSectionHTML(){
     else if(plan.sells < 1)
       verdict = `No selling needed — ${moneyWhole(plan.contribution)} split as above puts every holding exactly on target.`;
     else
-      verdict = `Sell ${moneyWhole(plan.sells)} and buy ${moneyWhole(plan.buys)}${plan.contribution>0 ? ` — a net ${moneyWhole(plan.buys - plan.sells)}, which is what you're putting in` : ''}, and every holding lands exactly on target. Selling a holding for more than it cost is a capital gains event; its order record (🕐 in the holdings table) shows what it cost.`;
+      verdict = `Sell ${moneyWhole(plan.sells)} and buy ${moneyWhole(plan.buys)}${plan.contribution>0 ? ` — a net ${moneyWhole(plan.buys - plan.sells)}, which is what you're putting in` : ''}, and every holding lands exactly on target. Selling a holding for more than it cost is a capital gains event; its order record (🕐 in the holdings table) shows what it cost. Once the orders fill, enter them with Record sale and Record purchase.`;
   }
   else if(withinBand) verdict = `Everything is within your ${band}pp band. Nothing to do.`;
   else if(plan.contribution > 0 && fixedByContribution)
@@ -6303,6 +6349,118 @@ function openPurchaseModal(){
     if(!n){ toast('Enter shares and a price for at least one holding.'); return; }
     saveState(); close(); render();
     toast(`${n} purchase${n>1?'s':''} recorded — ${moneyWhole(spent)} invested.`);
+  };
+}
+
+/* V4.15 — the other side of Record purchase. Shares sold and executed price, per
+   holding: the proceeds are shares x price, the cost that leaves is the average cost
+   of the shares sold, and the difference is realised. Only holdings with units and
+   a price can be sold, and never more than you hold. */
+function openSaleModal(){
+  const rows = allUnits().filter(u=> accountSleeve(u.acc) && isPriced(u.unit) && (Number(u.unit.units)||0) > 0);
+  const root = document.getElementById('modalRoot');
+  if(!rows.length){ toast('There is nothing to sell yet — record a purchase first.'); return; }
+  const fmtU = v=> Number(v).toLocaleString('en-AU', { maximumFractionDigits:4 });
+
+  root.innerHTML = `
+    <div class="modal-backdrop" id="sb">
+      <div class="modal price-modal">
+        <h2>Record sale</h2>
+        <div class="page-sub">Copy the shares and executed price from each Dime sell order. Leave a row blank to skip it. What the sold shares cost comes off at your average cost; the rest of the proceeds is realised gain or loss. Record what you bought with the money separately, with Record purchase.</div>
+        <label class="field" style="max-width:170px;">Date
+          <input type="date" id="sellDate" value="${isoDate(TODAY)}" min="1970-01-01" max="2200-12-31">
+        </label>
+        <div class="price-scroll">
+        <table class="price-grid">
+          <thead><tr><th>Holding</th><th class="r">Shares sold</th><th class="r">Executed price</th>
+            <th class="r">Proceeds</th><th class="r">Realised<div class="sub">vs average cost</div></th></tr></thead>
+          <tbody>
+            ${rows.map((u,i)=>{
+              const held = Number(u.unit.units)||0;
+              const cb = costBasisAsOf(u.unit, null);
+              const avg = hasOrderData(u.unit) && cb.units > 0 ? cb.cost/cb.units : null;
+              return `
+              <tr>
+                <td class="hold"><div class="hn">${u.unit.name || u.acc.name}</div>
+                  <div class="sub">${u.subId ? u.acc.name + ' · ' : ''}${u.currency} · holding ${fmtU(held)}${avg!==null ? ` · avg cost ${moneyCur(avg, u.currency, 2)}` : ''}</div></td>
+                <td class="r"><input type="number" step="any" min="0" max="${held}" id="su${i}" placeholder="—"></td>
+                <td class="r"><input type="number" step="any" min="0" id="sp${i}" placeholder="${Number(u.unit.price)}"></td>
+                <td class="r val" id="st${i}">—</td>
+                <td class="r val" id="sg${i}">—</td>
+              </tr>`;}).join('')}
+          </tbody>
+        </table>
+        </div>
+        <div class="liq-note" id="sellSummary">Nothing entered yet.</div>
+        <div class="form-actions">
+          <button class="btn secondary" id="sellCancel">Cancel</button>
+          <button class="btn" id="sellSave">Save sale</button>
+        </div>
+      </div>
+    </div>`;
+
+  const close = ()=> root.innerHTML='';
+  document.getElementById('sellCancel').onclick = close;
+  document.getElementById('sb').addEventListener('click', e=>{ if(e.target.id==='sb') close(); });
+  const num = id=> Number(document.getElementById(id).value) || 0;
+  // Average cost as of the sale date, the same figure the sale will use when saved.
+  const avgCost = (u, date)=>{
+    if(!hasOrderData(u.unit)){
+      const held = Number(u.unit.units)||0;
+      return held > 0 ? unitBalanceAsOf(u.unit, date)/held : 0;
+    }
+    const cb = costBasisAsOf(u.unit, date);
+    return cb.units > 0 ? cb.cost/cb.units : 0;
+  };
+  const recalc = ()=>{
+    const date = document.getElementById('sellDate').value || isoDate(TODAY);
+    let procAUD = 0, gainAUD = 0, n = 0, over = [];
+    rows.forEach((u,i)=>{
+      const q = num('su'+i), pr = num('sp'+i);
+      const t = document.getElementById('st'+i), g = document.getElementById('sg'+i);
+      if(q > (Number(u.unit.units)||0) + 1e-9) over.push(u.unit.name || u.acc.name);
+      if(q > 0 && pr > 0){
+        const proceeds = q*pr, gain = proceeds - q*avgCost(u, date);
+        t.textContent = moneyCur(proceeds, u.currency, 2);
+        g.innerHTML = `<span class="${gain>=0?'pos':'neg'}">${gain>=0?'+':'−'}${moneyCur(Math.abs(gain), u.currency, 2)}</span>`;
+        procAUD += toAUD(proceeds, u.currency); gainAUD += toAUD(gain, u.currency); n++;
+      } else { t.textContent = '—'; g.textContent = '—'; }
+    });
+    document.getElementById('sellSummary').innerHTML = over.length
+      ? `<span class="neg">More shares than you hold: ${over.join(', ')}.</span>`
+      : n ? `${n} holding${n>1?'s':''} · ${moneyWhole(procAUD)} proceeds · realised <span class="${gainAUD>=0?'pos':'neg'}">${gainAUD>=0?'+':'−'}${moneyWhole(Math.abs(gainAUD))}</span>.`
+          : 'Nothing entered yet.';
+  };
+  rows.forEach((u,i)=> ['su','sp'].forEach(pre=>{ document.getElementById(pre+i).oninput = recalc; }));
+  document.getElementById('sellDate').onchange = recalc;
+
+  document.getElementById('sellSave').onclick = ()=>{
+    const date = document.getElementById('sellDate').value;
+    if(!date || !isSaneYear(Number(date.slice(0,4)))){ toast('Check the date.'); return; }
+    const picked = rows.map((u,i)=> ({ u, q: num('su'+i), pr: num('sp'+i) })).filter(x=> x.q > 0 && x.pr > 0);
+    if(!picked.length){ toast('Enter shares and a price for at least one holding.'); return; }
+    const over = picked.filter(x=> x.q > (Number(x.u.unit.units)||0) + 1e-9);
+    if(over.length){ toast(`You hold fewer shares than that in ${over.map(x=> x.u.unit.name || x.u.acc.name).join(', ')}.`); return; }
+    let procAUD = 0, gainAUD = 0;
+    picked.forEach(({ u, q, pr })=>{
+      const held = Number(u.unit.units)||0;
+      // A holding sold before it ever had an order recorded starts its record here,
+      // exactly as a first purchase does.
+      if(u.unit.openingCost === undefined && !hasOrderData(u.unit)){
+        u.unit.openingCost = Math.max(0, unitBalanceAsOf(u.unit, date));
+        u.unit.openingUnits = held;
+      }
+      const before = costBasisAsOf(u.unit, null).saleGain;
+      u.unit.sales = unitSales(u.unit).concat([{ id: uid(), date, units: q, price: pr }]);
+      const n0 = (u.unit.history||[]).length;
+      applyPriceUpdate(u.unit, held - q, pr, date);
+      // The units leaving are recorded as a sale, not as a negative contribution.
+      (u.unit.history||[]).slice(n0).forEach(h=>{ if(h.kind === 'contribution'){ h.kind = 'sale'; h.note = 'Sale'; } });
+      procAUD += toAUD(q*pr, u.currency);
+      gainAUD += toAUD(costBasisAsOf(u.unit, null).saleGain - before, u.currency);
+    });
+    saveState(); close(); render();
+    toast(`${picked.length} sale${picked.length>1?'s':''} recorded — ${moneyWhole(procAUD)} proceeds, realised ${gainAUD>=0?'+':'−'}${moneyWhole(Math.abs(gainAUD))}.`);
   };
 }
 
@@ -6602,9 +6760,10 @@ function openOrderLedger(key){
     const cb = costBasisAsOf(unit, null);
     const entries = [
       ...unitLots(unit).map(l=> ({ kind:'buy', rec:l })),
-      ...unitDivs(unit).map(d=> ({ kind:'div', rec:d }))
+      ...unitDivs(unit).map(d=> ({ kind:'div', rec:d })),
+      ...unitSales(unit).map(s=> ({ kind:'sale', rec:s }))
     ].sort((a,b)=> (a.rec.date||'').localeCompare(b.rec.date||'')
-                || (a.kind === b.kind ? 0 : a.kind === 'buy' ? -1 : 1));
+                || ({ buy:0, div:1, sale:2 })[a.kind] - ({ buy:0, div:1, sale:2 })[b.kind]);
 
     const rows = entries.map(e=>{
       const r = e.rec;
@@ -6615,6 +6774,15 @@ function openOrderLedger(key){
           <td class="num"><input type="number" step="any" min="0" data-olunits="${r.id}" value="${Number(r.units)||0}" style="width:88px;"></td>
           <td class="num"><input type="number" step="any" min="0" data-olprice="${r.id}" value="${Number(r.price)||0}" style="width:96px;"></td>
           <td class="num">${moneyCur(lotTotal(r), cur, 2)}</td>
+          <td><button class="icon-btn" data-oldel="${r.id}" title="Delete">✕</button></td>
+        </tr>`;
+      if(e.kind === 'sale') return `
+        <tr data-olsale="${r.id}">
+          <td><input type="date" data-oldate="${r.id}" value="${r.date||''}" style="width:135px;"></td>
+          <td><span class="pill kind-expense">Sale</span></td>
+          <td class="num"><input type="number" step="any" min="0" data-olunits="${r.id}" value="${Number(r.units)||0}" style="width:88px;"></td>
+          <td class="num"><input type="number" step="any" min="0" data-olprice="${r.id}" value="${Number(r.price)||0}" style="width:96px;"></td>
+          <td class="num">−${moneyCur(saleProceeds(r), cur, 2)}</td>
           <td><button class="icon-btn" data-oldel="${r.id}" title="Delete">✕</button></td>
         </tr>`;
       return `
@@ -6635,11 +6803,12 @@ function openOrderLedger(key){
       <div class="modal-backdrop" id="olb">
         <div class="modal" style="width:680px; max-width:96vw;">
           <h2>Order record — ${label}</h2>
-          <div class="page-sub">Every purchase and dividend behind this holding's cost and return. Edit a figure and the return recalculates; the balance correction is dated to the record, not to today.</div>
+          <div class="page-sub">Every purchase, sale and dividend behind this holding's cost and return. Sales take out their cost at the average cost on the day. Edit a figure and the return recalculates; the balance correction is dated to the record, not to today.</div>
           <div class="row" style="margin-bottom:12px;">
             <div class="card metric"><h3>Cost basis</h3><div class="big">${moneyCur(cb.cost, cur)}</div><div class="cap">what you paid, ${cur}</div></div>
             <div class="card metric"><h3>Units from records</h3><div class="big">${cb.units.toLocaleString('en-AU',{maximumFractionDigits:4})}</div><div class="cap">${drift ? `holding shows ${liveUnits.toLocaleString('en-AU',{maximumFractionDigits:4})}` : 'matches the holding'}</div></div>
             <div class="card metric"><h3>Dividends</h3><div class="big" style="color:var(--green);">${moneyCur(cb.dividends, cur)}</div><div class="cap">${moneyCur(cb.dividendCash, cur)} cash</div></div>
+            ${cb.sales ? `<div class="card metric"><h3>Realised on sales</h3><div class="big ${cb.saleGain>=0?'pos':'neg'}">${cb.saleGain>=0?'+':'−'}${moneyCur(Math.abs(cb.saleGain), cur)}</div><div class="cap">${cb.soldUnits.toLocaleString('en-AU',{maximumFractionDigits:4})} units for ${moneyCur(cb.proceeds, cur)}</div></div>` : ''}
           </div>
           ${entries.length ? `
           <div style="max-height:320px; overflow-y:auto;">
@@ -6647,7 +6816,7 @@ function openOrderLedger(key){
               <thead><tr><th>Date</th><th>Type</th><th class="num">Units</th><th class="num">Price</th><th class="num">Amount</th><th></th></tr></thead>
               <tbody>${rows}</tbody>
             </table>
-          </div>` : `<div class="empty-state"><div class="glyph">·</div>No purchases or dividends recorded for this holding yet. Use Record purchase or Record dividend.</div>`}
+          </div>` : `<div class="empty-state"><div class="glyph">·</div>No purchases, sales or dividends recorded for this holding yet. Use Record purchase, Record sale or Record dividend.</div>`}
           ${Number(unit.openingCost) ? `<div class="muted" style="font-size:11.5px; margin-top:10px;">Opening position before the first recorded order: ${moneyCur(unit.openingCost, cur)} across ${(Number(unit.openingUnits)||0).toLocaleString('en-AU',{maximumFractionDigits:4})} units. It is part of the cost basis and is not listed above.</div>` : ''}
           <div class="form-actions"><button class="btn" id="olClose">Close</button></div>
         </div>
@@ -6659,15 +6828,24 @@ function openOrderLedger(key){
 
     const findLot = id=> unitLots(unit).find(x=> x.id === id);
     const findDiv = id=> unitDivs(unit).find(x=> x.id === id);
+    const findSale = id=> unitSales(unit).find(x=> x.id === id);
 
     root.querySelectorAll('[data-oldate]').forEach(inp=> inp.onchange = ()=>{
       const id = inp.dataset.oldate;
-      const rec = findLot(id) || findDiv(id);
+      const rec = findLot(id) || findDiv(id) || findSale(id);
       if(!rec || !inp.value) return;
       rec.date = inp.value;
       done();
     });
     root.querySelectorAll('[data-olprice]').forEach(inp=> inp.onchange = ()=>{
+      const s = findSale(inp.dataset.olprice);
+      if(s){
+        // A sale takes money out of the holding, so more proceeds means a lower balance.
+        const before = saleProceeds(s);
+        s.price = Math.max(0, Number(inp.value)||0);
+        reconcileOrderChange(unit, s.date, 0, -(saleProceeds(s) - before), 'sale', 'Sale corrected');
+        return done();
+      }
       const l = findLot(inp.dataset.olprice); if(!l) return;
       const before = lotTotal(l);
       l.price = Math.max(0, Number(inp.value)||0);
@@ -6684,6 +6862,14 @@ function openOrderLedger(key){
         l.total = lotTotal(l);
         reconcileOrderChange(unit, l.date, l.units - beforeU, lotTotal(l) - beforeV,
                              'contribution', 'Purchase corrected');
+        return done();
+      }
+      const s = findSale(id);
+      if(s){
+        const beforeU = Number(s.units)||0, beforeV = saleProceeds(s);
+        s.units = Math.max(0, Number(inp.value)||0);
+        reconcileOrderChange(unit, s.date, -(s.units - beforeU), -(saleProceeds(s) - beforeV),
+                             'sale', 'Sale corrected');
         return done();
       }
       const d = findDiv(id); if(!d) return;
@@ -6703,15 +6889,16 @@ function openOrderLedger(key){
     });
     root.querySelectorAll('[data-oldel]').forEach(b=> b.onclick = ()=>{
       const id = b.dataset.oldel;
-      const l = findLot(id), d = l ? null : findDiv(id);
-      const rec = l || d; if(!rec) return;
-      const after = l
-        ? costBasisAsOf({ ...unit, lots: unitLots(unit).filter(x=> x.id !== id) }, null)
-        : costBasisAsOf({ ...unit, divs: unitDivs(unit).filter(x=> x.id !== id) }, null);
+      const l = findLot(id), d = l ? null : findDiv(id), s = (l || d) ? null : findSale(id);
+      const rec = l || d || s; if(!rec) return;
+      const after = l ? costBasisAsOf({ ...unit, lots: unitLots(unit).filter(x=> x.id !== id) }, null)
+                  : d ? costBasisAsOf({ ...unit, divs: unitDivs(unit).filter(x=> x.id !== id) }, null)
+                      : costBasisAsOf({ ...unit, sales: unitSales(unit).filter(x=> x.id !== id) }, null);
       confirmDestructive({
-        title: l ? 'Delete purchase' : 'Delete dividend',
+        title: l ? 'Delete purchase' : d ? 'Delete dividend' : 'Delete sale',
         what: `${rec.date} — ${l ? `${Number(l.units)} units at ${moneyCur(l.price, cur, 2)}`
-                                 : moneyCur(d.amount, cur, 2)}`,
+                             : d ? moneyCur(d.amount, cur, 2)
+                                 : `${Number(s.units)} units sold at ${moneyCur(s.price, cur, 2)}`}`,
         lines: [`Cost basis becomes ${moneyCur(after.cost, cur)} across ${after.units.toLocaleString('en-AU',{maximumFractionDigits:4})} units.`],
         confirmLabel: 'Delete',
         onConfirm: ()=>{
@@ -6719,6 +6906,10 @@ function openOrderLedger(key){
             unit.lots = unitLots(unit).filter(x=> x.id !== id);
             reconcileOrderChange(unit, l.date, -(Number(l.units)||0), -lotTotal(l),
                                  'contribution', 'Purchase removed');
+          } else if(s){
+            // Undoing a sale puts the shares, and the money they were worth, back.
+            unit.sales = unitSales(unit).filter(x=> x.id !== id);
+            reconcileOrderChange(unit, s.date, Number(s.units)||0, saleProceeds(s), 'sale', 'Sale removed');
           } else {
             unit.divs = unitDivs(unit).filter(x=> x.id !== id);
             reconcileOrderChange(unit, d.date, -(Number(d.units)||0), -divBalanceValue(d),
@@ -6776,7 +6967,7 @@ function openHistoryModal(accId, subId){
         <div class="modal" style="width:540px;">
           <h2>History — ${label}</h2>
           <div class="page-sub">Newest first. "Balance" is the running total after each entry.</div>
-          ${hasOrderData(unit) ? `<div class="liq-note" style="margin-bottom:10px;">This holding's cost and return come from its purchase and dividend records, not from this list. Editing here changes the balance only — to correct what you paid, open the order record on the Investments tab.</div>` : ''}
+          ${hasOrderData(unit) ? `<div class="liq-note" style="margin-bottom:10px;">This holding's cost and return come from its purchase, sale and dividend records, not from this list. Editing here changes the balance only — to correct what you paid, open the order record on the Investments tab.</div>` : ''}
           <div style="max-height:360px; overflow-y:auto;">
             <table class="data">
               <thead><tr><th>Date</th><th class="num">Amount</th><th>Note</th><th class="num">Balance</th><th></th></tr></thead>
@@ -9528,7 +9719,19 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.14', name: 'Rebalance: sell to buy, and every holding at once', date: 'Sep 2026', current: true,
+    no: 'V4.15', name: 'Record sale', date: 'Sep 2026', current: true,
+    items: [
+      'Investments has a Record sale button beside Record purchase: the date, then shares sold and executed price for each holding. Proceeds and the realised gain or loss show as you type, and you can\'t sell more shares than you hold.',
+      'Sales use average cost. The cost that leaves with the sold shares is the average cost per share on the day of the sale; the rest of the proceeds is realised. Cost basis and units drop accordingly, so unrealised profit stays right instead of showing a false loss.',
+      'Realised now means dividends plus what sales made or lost, in the holdings table, the total and the summary strip. The status line says how many sales there have been.',
+      'The order record lists sales beside purchases and dividends, editable and deletable. Deleting a sale puts the shares and the balance back. When a holding has sales, the record shows what they realised.',
+      'A sale counts as money taken out, so selling $1,600 and buying $1,600 of something else nets to nothing in what you put in. Monthly contributions dip below zero in a month where sales beat purchases; Total invested over time is the cost of what you still hold.',
+      'Record the purchase you made with the proceeds separately. Nothing moves to a cash account.',
+      'Nothing changes for holdings with no sales.'
+    ]
+  },
+  {
+    no: 'V4.14', name: 'Rebalance: sell to buy, and every holding at once', date: 'Sep 2026', current: false,
     items: [
       'Rebalance has three methods instead of a tick box: Split by target weight and Top up the gaps work as before — ticked and unticked — and the new Full rebalance buys and sells so every holding lands exactly on target.',
       'In a full rebalance an overweight holding shows a negative amount — how much to sell — and the rest show what to buy. The column adds up to what you are about to invest, and a total row shows the buys and the sells. With nothing to invest it is a straight swap: the sells pay for the buys.',
