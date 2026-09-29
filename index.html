@@ -1135,6 +1135,15 @@
   .cc-tip-ev .pos, .cc-tip-ev .neg{ font-family:var(--mono); }
   .cc-tip-bal{ font-family:var(--mono); font-size:13px; color:var(--gold-bright); margin-top:3px; border-top:1px solid var(--border); padding-top:3px; }
   @media (max-width: 600px){ .cc{ grid-template-columns:36px minmax(0,1fr); grid-template-rows:130px 18px; } .cc-x span:nth-child(odd):not(.first){ display:none; } }
+
+  /* V4.14 Rebalance */
+  .inv-reb-mode{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:-2px 0 10px 0; font-size:12px; }
+  .inv-reb-mode-note{ font-size:11px; }
+  .reb-buy{ color:var(--green); font-family:var(--mono); white-space:nowrap; }
+  .reb-sell{ color:var(--red); font-family:var(--mono); white-space:nowrap; }
+  .reb-tag{ font-family:var(--sans); font-size:10px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.85; }
+  table.reb td.reb-trade{ white-space:nowrap; }
+  table.reb tfoot td{ border-top:1px solid var(--border); border-bottom:none; padding-top:8px; font-weight:600; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -5919,9 +5928,12 @@ function wireInvestingSection(c){
   bind('recordBuyBtn',    ()=> openPurchaseModal());
   bind('recordDivBtn',    ()=> openDividendModal());
   bind('rebScope', function(){ investSettings().scope = this.value; saveState(); render(); }, 'onchange');
-  bind('rebByWeight', function(){
-    investSettings().contributionMode = this.checked ? 'weight' : 'gaps'; saveState(); render();
-  }, 'onchange');
+  c.querySelectorAll('[data-rebmode]').forEach(b=>{
+    b.onclick = ()=>{
+      if(investSettings().contributionMode === b.dataset.rebmode) return;
+      investSettings().contributionMode = b.dataset.rebmode; saveState(); render();
+    };
+  });
   bind('rebContribution', function(){
     investSettings().contribution = Math.max(0, Number(this.value)||0); saveState(); render();
   }, 'onchange');
@@ -5969,30 +5981,38 @@ function investingSectionHTML(){
   }
 
   const IS    = investSettings();
-  const scope = ['whole','core','satellite'].includes(IS.scope) ? IS.scope : 'whole';
-  const plan  = rebalancePlan(scope, IS.contribution, IS.contributionMode);
+  const scope = REB_SCOPES.some(s=> s[0]===IS.scope) ? IS.scope : 'whole';
+  const mode  = REB_MODES.some(m=> m[0]===IS.contributionMode) ? IS.contributionMode : 'gaps';
+  const plan  = rebalancePlan(scope, IS.contribution, mode);
   const band  = Number(IS.driftBand) || 5;
   const split = contributionSplit(inv);
   const buckets = rebalanceBuckets(scope);
+  const readOnlyTarget = scope==='whole' || scope==='holdings';
+  // Buy / sell columns: always in a full rebalance, otherwise only once money is going in.
+  const showTrades = mode==='full' || plan.contribution > 0;
 
   const scopeEmpty = !plan.rows.length;
   // Being under target is not "good" and over target is not "bad" — both are drift.
   // Inside the band is grey, outside is amber, regardless of direction.
   const driftClass = d=> Math.abs(d) <= band ? 'flat' : 'out';
   const pp = d=> (d>0?'+':'') + d.toFixed(1) + 'pp';
+  // A sell is shown as a negative amount, so the column adds up to what you're putting in.
+  const tradeCell = v=> Math.abs(v) < 1 ? '<span class="muted">—</span>'
+    : v > 0 ? `<span class="reb-buy">+${moneyWhole(v)}</span>`
+            : `<span class="reb-sell">−${moneyWhole(Math.abs(v))} <span class="reb-tag">sell</span></span>`;
 
   const rowsHTML = plan.rows.map(r=>`
-    <tr>
-      <td>${r.name}</td>
+    <tr data-rebrow="${r.key}">
+      <td>${r.name}${scope==='holdings' ? ` <span class="inv-hsleeve">${sleeveLabel(r.sleeve)}</span>` : ''}</td>
       <td class="r">${moneyWhole(r.value)}</td>
       <td class="r">${r.currentPct.toFixed(1)}%</td>
-      ${scope==='whole'
+      ${readOnlyTarget
         ? `<td class="r muted">${r.target.toFixed(1)}%</td>`
         : `<td class="r"><input class="reb-weight" type="number" step="1" min="0" max="100" data-weight="${r.key}"
              value="${r.rawWeight !== null && r.rawWeight !== undefined ? r.rawWeight : ''}" placeholder="—"> <span class="muted">%</span></td>`}
       <td class="r"><span class="delta ${driftClass(r.driftPp)}">${pp(r.driftPp)}</span></td>
-      ${plan.contribution > 0
-        ? `<td class="r">${r.allocate > 0.5 ? moneyWhole(r.allocate) : '—'}</td>
+      ${showTrades
+        ? `<td class="r reb-trade">${tradeCell(r.allocate)}</td>
            <td class="r"><span class="delta ${driftClass(r.afterDriftPp)}">${pp(r.afterDriftPp)}</span></td>`
         : `<td class="r">${Math.abs(r.trade) < 1 ? '—' : (r.trade > 0 ? 'buy ' : 'sell ') + moneyWhole(Math.abs(r.trade))}</td>`}
     </tr>`).join('');
@@ -6002,16 +6022,23 @@ function investingSectionHTML(){
 
   let verdict;
   if(scopeEmpty) verdict = '';
+  else if(mode==='full'){
+    if(plan.sells < 1 && plan.buys < 1) verdict = 'Everything is already on target. Nothing to buy or sell.';
+    else if(plan.sells < 1)
+      verdict = `No selling needed — ${moneyWhole(plan.contribution)} split as above puts every holding exactly on target.`;
+    else
+      verdict = `Sell ${moneyWhole(plan.sells)} and buy ${moneyWhole(plan.buys)}${plan.contribution>0 ? ` — a net ${moneyWhole(plan.buys - plan.sells)}, which is what you're putting in` : ''}, and every holding lands exactly on target. Selling a holding for more than it cost is a capital gains event; its order record (🕐 in the holdings table) shows what it cost.`;
+  }
   else if(withinBand) verdict = `Everything is within your ${band}pp band. Nothing to do.`;
   else if(plan.contribution > 0 && fixedByContribution)
     verdict = `Contributing ${moneyWhole(plan.contribution)} as split above brings every holding back inside the ${band}pp band — no selling, so no capital gains event.`;
   else if(plan.contribution > 0)
-    verdict = `Even after ${moneyWhole(plan.contribution)}, the worst drift is ${plan.worstAfter.toFixed(1)}pp — still outside your ${band}pp band. Either contribute more, keep directing contributions this way for a few months, or sell to rebalance outright.`;
+    verdict = `Even after ${moneyWhole(plan.contribution)}, the worst drift is ${plan.worstAfter.toFixed(1)}pp — still outside your ${band}pp band. Either contribute more, keep directing contributions this way for a few months, or choose Full rebalance to see what selling would take.`;
   else
     verdict = `Worst drift is ${plan.worstDrift.toFixed(1)}pp against a ${band}pp band. Enter what you're about to invest and this will try to fix it with new money first, since selling triggers capital gains.`;
 
   let weightWarn = '';
-  if(scope !== 'whole'){
+  if(scope === 'core' || scope === 'satellite'){
     if(buckets.weightsSet === false){
       weightWarn = `<div class="liq-banner" style="margin-top:12px;">No target weights set inside ${sleeveLabel(scope)}, so an equal split is assumed. Type a target % against each holding above.</div>`;
     } else {
@@ -6020,11 +6047,17 @@ function investingSectionHTML(){
         weightWarn = `<div class="liq-banner" style="margin-top:12px;">Your weights add up to ${raw.toFixed(0)}%, not 100%. They're being scaled to 100% so the comparison still works — the Target column shows the scaled figures.</div>`;
       }
     }
+  } else if(scope === 'holdings'){
+    const notes = [];
+    (buckets.unweighted||[]).forEach(s=> notes.push(`No target weights set inside ${sleeveLabel(s)}, so its holdings split its share equally.`));
+    if(buckets.missingSleeve) notes.push(`Nothing is tagged ${sleeveLabel(buckets.missingSleeve)}, so the other sleeve's targets are scaled up to 100%.`);
+    notes.push(`Each target is its sleeve's share × its weight within the sleeve. Change the weights under Within core or Within satellite.`);
+    weightWarn = `<div class="muted inv-small">${notes.join(' ')}</div>`;
   }
 
   // V4.9 — the sleeve split on the left, the rebalance calculator on the right.
   // The sleeve bars always show the whole portfolio, whatever scope Rebalance is set to.
-  const whole = rebalancePlan('whole', 0, IS.contributionMode);
+  const whole = rebalancePlan('whole', 0, 'gaps');
   const sleeveBars = whole.rows.map(r=>`
     <div class="inv-sleeve-row">
       <span class="inv-sleeve-name">${r.name}</span>
@@ -6051,25 +6084,27 @@ function investingSectionHTML(){
       </div>
 
       <div class="card dash-card" id="invRebalance">
-        <div class="dash-card-head"><span class="dash-card-title">Rebalance</span><span class="muted">where the next contribution should go</span></div>
+        <div class="dash-card-head"><span class="dash-card-title">Rebalance</span><span class="muted">${mode==='full' ? 'buy and sell to land on target' : 'where the next contribution should go'}</span></div>
         <div class="inv-reb-controls">
           <label class="liq-basis"><span>Scope</span>
             <select id="rebScope" style="width:auto;">
-              <option value="whole" ${scope==='whole'?'selected':''}>Whole portfolio — core vs satellite</option>
-              <option value="core" ${scope==='core'?'selected':''}>Within core only</option>
-              <option value="satellite" ${scope==='satellite'?'selected':''}>Within satellite only</option>
+              ${REB_SCOPES.map(([v,l])=> `<option value="${v}" ${scope===v?'selected':''}>${l}</option>`).join('')}
             </select>
           </label>
-          ${scope==='whole' ? `<label class="liq-basis"><span>Core target</span>
+          ${readOnlyTarget ? `<label class="liq-basis"><span>Core target</span>
             <input type="number" id="rebCoreTarget" step="5" min="0" max="100" value="${IS.coreTarget}" style="width:64px;"> <span>%</span></label>` : ''}
           <label class="liq-basis"><span>About to invest</span>
             <input type="number" id="rebContribution" step="100" min="0" value="${IS.contribution||0}" style="width:96px;"></label>
-          <label class="liq-basis" style="cursor:pointer;" title="Split the contribution by target weight instead of sending it to whatever is furthest below target">
-            <input type="checkbox" id="rebByWeight" ${IS.contributionMode==='weight'?'checked':''} style="width:auto;">
-            <span>Split by target weight</span></label>
           <label class="liq-basis" title="The Calendar shows a reminder every six months from this date">
             <span>Last rebalanced</span>
             <input type="date" id="rebLastDate" value="${IS.lastRebalanceDate||''}" style="width:auto;"></label>
+        </div>
+        <div class="inv-reb-mode">
+          <span class="muted">Method</span>
+          <div class="dash-seg sm" role="group" aria-label="Rebalance method">
+            ${REB_MODES.map(([v,l,tip])=> `<button type="button" data-rebmode="${v}" class="${mode===v?'on':''}" aria-pressed="${mode===v}" title="${tip}">${l}</button>`).join('')}
+          </div>
+          <span class="muted inv-reb-mode-note">${(REB_MODES.find(m=> m[0]===mode)||[])[2]||''}</span>
         </div>
         ${scopeEmpty
           ? `<div class="muted" style="font-size:12.5px;">Nothing tagged as ${sleeveLabel(scope)} yet.</div>`
@@ -6077,11 +6112,17 @@ function investingSectionHTML(){
           <thead>
             <tr>
               <th>${scope==='whole'?'Sleeve':'Holding'}</th>
-              <th class="r">Value</th><th class="r">Now</th><th class="r">Target${scope!=='whole'?' %':''}</th><th class="r">Drift</th>
-              ${plan.contribution>0 ? '<th class="r">Put in</th><th class="r">After</th>' : '<th class="r">To rebalance</th>'}
+              <th class="r">Value</th><th class="r">Now</th><th class="r">Target${readOnlyTarget?'':' %'}</th><th class="r">Drift</th>
+              ${showTrades ? `<th class="r">${mode==='full' ? 'Buy / sell' : 'Put in'}</th><th class="r">After</th>` : '<th class="r">To rebalance</th>'}
             </tr>
           </thead>
           <tbody>${rowsHTML}</tbody>
+          ${showTrades ? `<tfoot><tr class="reb-total">
+            <td>Total</td><td class="r">${moneyWhole(plan.total)}</td><td></td><td></td><td></td>
+            <td class="r reb-trade">${mode==='full' && plan.sells >= 1
+              ? `<span class="reb-buy">+${moneyWhole(plan.buys)}</span> <span class="reb-sell">−${moneyWhole(plan.sells)}</span>`
+              : `<span class="reb-buy">+${moneyWhole(plan.buys)}</span>`}</td><td></td>
+          </tr></tfoot>` : ''}
         </table></div>
         <div class="liq-note">${verdict}</div>`}
         ${weightWarn}
@@ -6938,7 +6979,7 @@ function billStatus(bill, todayISO){
   if(!anchor) return { state:'nodate', next:null, lastSeen:null };
   const c = billCycle(bill);
   const cycleDays = c.unit==='week' ? 7*c.every : (c.unit==='month' ? 31*c.every : 366*c.every);
-  const ahead = isoDate(addDays(new Date(today+'T00:00:00'), cycleDays + 1));
+  const ahead = isoDate(addDays(new Date(today+'T00:00:00'), 2*cycleDays + BILL_MATCH_DAYS + 1));
   if(!billIsLinked(bill)){
     const next = billOccurrences(bill, today, ahead)[0] || null;
     return { state:'scheduled', next, lastSeen:null };
@@ -8850,6 +8891,21 @@ function stalePricedUnits(){
    Three scopes, all running through the same maths. "whole" treats the two
    sleeves as the two buckets; "core" and "satellite" treat the holdings inside
    one sleeve as the buckets, with their target weights normalised to 100%. */
+/* The four ways to slice the portfolio for rebalancing, and the three ways to use
+   the money. Older versions only know 'whole', 'core' and 'satellite', and treat any
+   method other than 'weight' as 'gaps', so the new values read back safely there. */
+const REB_SCOPES = [
+  ['whole',     'Whole portfolio — core vs satellite'],
+  ['holdings',  'Whole portfolio — each holding'],
+  ['core',      'Within core only'],
+  ['satellite', 'Within satellite only']
+];
+const REB_MODES = [
+  ['weight', 'Split by target weight', 'New money goes out in target proportions. Drift is left for the scheduled rebalance.'],
+  ['gaps',   'Top up the gaps',        'New money goes to whatever is furthest below target first. Never sells.'],
+  ['full',   'Full rebalance',         'Buys and sells so every holding lands exactly on target. Sells are negative.']
+];
+
 function rebalanceBuckets(scope){
   const inv = investedUnits();
   if(!inv.length) return { buckets:[], total:0, scope };
@@ -8862,6 +8918,29 @@ function rebalanceBuckets(scope){
       { key:'satellite', name:'Satellite', value: sum('satellite'), target: 100-coreTarget }
     ];
     return { buckets, total: buckets.reduce((s,b)=>s+b.value,0), scope };
+  }
+
+  if(scope === 'holdings'){
+    // One target per holding: its sleeve's share times its weight inside the sleeve —
+    // the same weights the projection already uses. If one sleeve has nothing in it,
+    // its share would be left unassigned, so the rest are scaled back up to 100%.
+    const tw = targetWeights();
+    const sum = tw.reduce((t,w)=> t + w.weight, 0) || 1;
+    const sleeves = ['core','satellite'];
+    const present = sleeves.filter(s=> inv.some(u=> u.sleeve===s));
+    const unweighted = present.filter(s=> !inv.some(u=> u.sleeve===s && (u.targetWeight||0) > 0));
+    const buckets = tw.map(w=>{
+      const u = w.unit;
+      return {
+        key: u.subId ? `${u.acc.id}|||${u.subId}` : u.acc.id,
+        name: u.subId ? u.unit.name : u.acc.name,
+        sleeve: w.sleeve,
+        value: u.valueAUD,
+        target: w.weight/sum*100
+      };
+    });
+    return { buckets, total: buckets.reduce((s,b)=>s+b.value,0), scope, unweighted,
+             missingSleeve: present.length===1 ? sleeves.find(s=> !present.includes(s)) : null };
   }
 
   const inSleeve = inv.filter(u=> u.sleeve === scope);
@@ -8879,11 +8958,15 @@ function rebalanceBuckets(scope){
            weightsSet: weightSum > 0 };
 }
 
-/* Drift, plus the trades that would close it. A positive action means buy. */
+/* Drift, plus the trades that would close it. A positive amount means buy, negative sell.
+   mode: 'weight' splits new money by target, 'gaps' sends it to the biggest shortfalls
+   first, 'full' buys and sells so everything lands exactly on target — its amounts add
+   up to the contribution, with the sells as negatives. */
 function rebalancePlan(scope, contribution, mode){
   const { buckets, total } = rebalanceBuckets(scope);
   const C = Math.max(0, Number(contribution) || 0);
-  if(!buckets.length || total + C <= 0) return { rows:[], total, contribution:C, allocated:0 };
+  const m = REB_MODES.some(x=> x[0]===mode) ? mode : 'gaps';
+  if(!buckets.length || total + C <= 0) return { rows:[], total, contribution:C, allocated:0, buys:0, sells:0, mode:m };
 
   const newTotal = total + C;
   const rows = buckets.map(b=>{
@@ -8897,21 +8980,18 @@ function rebalancePlan(scope, contribution, mode){
   });
   rows.forEach(r=> r.driftPp = r.currentPct - r.target);
 
-  // Allocate the contribution to whatever is furthest below target first. When the
-  // contribution more than covers every shortfall, the remainder goes out by target
-  // weight — which keeps you on target rather than overshooting into a new drift.
   const needSum = rows.reduce((s,r)=> s+r.need, 0);
-  const byWeight = mode === 'weight';
-  if(C > 0){
+  if(m === 'full'){
+    rows.forEach(r=> r.allocate = r.trade);
+  } else if(C > 0){
     // Between rebalances you may not want to act on drift at all — a top-up split
     // by target weight is the same every month and leaves the drift to the
     // scheduled rebalance. The after-contribution drift is still shown either way,
     // so choosing this never hides what it leaves behind.
-    if(byWeight){
-      rows.forEach(r=> r.allocate = C * r.target/100);
-    } else if(needSum <= 0){
+    if(m === 'weight' || needSum <= 0){
       rows.forEach(r=> r.allocate = C * r.target/100);
     } else if(needSum <= C){
+      // Close every shortfall, then spread what's left by target weight so it stays on target.
       const left = C - needSum;
       rows.forEach(r=> r.allocate = r.need + left * r.target/100);
     } else {
@@ -8921,18 +9001,19 @@ function rebalancePlan(scope, contribution, mode){
     rows.forEach(r=> r.allocate = 0);
   }
 
-  // Where each bucket lands once the contribution is applied — the honest test of
-  // whether new money alone is enough to fix the drift.
+  // Where each bucket lands afterwards — for 'full' that is exactly on target.
   rows.forEach(r=>{
     r.afterValue = r.value + r.allocate;
     r.afterPct = newTotal > 0 ? r.afterValue/newTotal*100 : 0;
     r.afterDriftPp = r.afterPct - r.target;
   });
 
-  const worstAfter = rows.reduce((m,r)=> Math.max(m, Math.abs(r.afterDriftPp)), 0);
-  return { rows, total, contribution:C, newTotal, mode: byWeight ? 'weight' : 'gaps',
+  const worstAfter = rows.reduce((mx,r)=> Math.max(mx, Math.abs(r.afterDriftPp)), 0);
+  return { rows, total, contribution:C, newTotal, mode:m,
            allocated: rows.reduce((s,r)=> s+r.allocate, 0),
-           worstDrift: rows.reduce((m,r)=> Math.max(m, Math.abs(r.driftPp)), 0),
+           buys:  rows.reduce((s,r)=> s + Math.max(0, r.allocate), 0),
+           sells: rows.reduce((s,r)=> s + Math.max(0, -r.allocate), 0),
+           worstDrift: rows.reduce((mx,r)=> Math.max(mx, Math.abs(r.driftPp)), 0),
            worstAfter };
 }
 
@@ -9447,7 +9528,19 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.13.1', name: 'A cash chart you can read', date: 'Sep 2026', current: true,
+    no: 'V4.14', name: 'Rebalance: sell to buy, and every holding at once', date: 'Sep 2026', current: true,
+    items: [
+      'Rebalance has three methods instead of a tick box: Split by target weight and Top up the gaps work as before — ticked and unticked — and the new Full rebalance buys and sells so every holding lands exactly on target.',
+      'In a full rebalance an overweight holding shows a negative amount — how much to sell — and the rest show what to buy. The column adds up to what you are about to invest, and a total row shows the buys and the sells. With nothing to invest it is a straight swap: the sells pay for the buys.',
+      'Selling a holding for more than it cost is a capital gains event, so a full rebalance says so and points to the order record for what each holding cost.',
+      'A fourth scope, Whole portfolio — each holding, puts every Core and Satellite holding in one table. Each target is its sleeve\'s share times its weight within the sleeve, so VT at 50% of an 85% core reads 42.5%. Weights are still set under Within core and Within satellite; the Core target can be changed here too.',
+      'Core vs satellite stays the default scope, and the sleeve bars on the left always show the whole portfolio as before.',
+      'An older copy of Ledger reads the new scope as Core vs satellite and the new method as Top up the gaps.',
+      'Bills fix: a linked bill paid a day or two before its due date could briefly show no next due date — and drop out of the Calendar forecast — when the following date was more than a month away. It now always finds the next one.'
+    ]
+  },
+  {
+    no: 'V4.13.1', name: 'A cash chart you can read', date: 'Sep 2026', current: false,
     items: [
       'Calendar: the reachable-cash chart steps on the day money lands instead of sloping between days, has a dollar scale, and is tall enough to read. Labels are no longer stretched across the width of the screen.',
       'The balance today, the lowest point and the balance on day 60 are written on the line. Anything below your cash buffer is shaded amber.',
