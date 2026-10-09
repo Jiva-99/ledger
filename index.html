@@ -1147,6 +1147,181 @@
 
   /* V4.15 */
   .modal .row .card.metric{ min-width:130px; }
+
+  /* V4.16 Calendar */
+  .cal-headrow{ row-gap:8px; }
+  .seg{ display:inline-flex; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; background:var(--surface); flex:none; }
+  .seg button{ all:unset; box-sizing:border-box; cursor:pointer; display:inline-flex; align-items:center; gap:6px; padding:5px 11px; font-size:12px; color:var(--text-dim); line-height:1.4; }
+  .seg button + button{ border-left:1px solid var(--border); }
+  .seg button.on{ background:var(--surface-raised); color:var(--text); }
+  .seg button:hover{ color:var(--text); }
+  .seg button:focus-visible{ box-shadow:inset 0 0 0 2px var(--gold); }
+  .seg svg{ width:12px; height:12px; flex:none; }
+  .cal-layers.seg{ gap:0; }
+
+  .cal-menu-wrap{ position:relative; }
+  .cal-menu{ position:absolute; top:calc(100% + 4px); left:0; z-index:40; min-width:190px; padding:4px;
+    background:var(--surface-raised); border:1px solid var(--border); border-radius:var(--radius); box-shadow:0 10px 28px rgba(0,0,0,0.28); }
+  .cal-menu.right{ left:auto; right:0; }
+  .cal-menu[hidden]{ display:none; }
+  .cal-menu-h{ font-size:11px; color:var(--text-faint); padding:5px 9px 3px; }
+  .cal-menu button{ all:unset; box-sizing:border-box; display:block; width:100%; padding:7px 9px; border-radius:4px; font-size:13px; cursor:pointer; color:var(--text); }
+  .cal-menu button:hover, .cal-menu button:focus-visible{ background:rgba(201,162,39,0.14); }
+  button.btn.cal-more{ padding:6px 9px; display:inline-flex; align-items:center; color:var(--text-dim); }
+
+  .cal-kpis.cal-strip{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; background:none; border:none; margin-bottom:12px; }
+  @media (max-width: 900px){ .cal-kpis.cal-strip{ grid-template-columns:minmax(0,1fr); } }
+  .cal-grp{ border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden; min-width:0; }
+  .cal-grp-h{ font-size:11.5px; color:var(--text-dim); padding:8px 14px 0; }
+  .cal-grp-row{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .cal-grp-row .dash-kpi + .dash-kpi{ border-left:1px solid var(--border); }
+  .cal-strip .dash-kpi .k-sub{ white-space:normal; }
+  .cal-strip .k-sub .sav{ color:var(--blue-bright); }
+  .k-val.warn, .warn{ color:var(--amber); }
+
+  .cc-note{ font-size:12px; color:var(--text-faint); margin:2px 0 6px; }
+  .cc-plot{ cursor:pointer; }
+  .cc-sel{ fill:rgba(201,162,39,0.13); }
+  .cc-min.low{ border-color:var(--amber); }
+  .cc-min.neg{ border-color:var(--red); }
+  /* The low point is always near the bottom, so its label goes above the line where
+     it can't collide with the dates along the axis. */
+  .cc-lbl.low{ transform:translate(-50%, -165%); background:var(--surface); padding:0 4px; border-radius:3px; }
+  .cc-lbl.low.right{ transform:translate(-100%, -165%); }
+  .cc-lbl.low.left{ transform:translate(0, -165%); }
+
+  .cal-gridcard{ padding:0; overflow:hidden; }
+  .cal-grid{ display:block; gap:0; background:var(--surface); border:none; border-radius:0; }
+  .cal-dows{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); }
+  .cal-dows .cal-dow{ padding:8px 8px; }
+  .cal-week{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); border-top:1px solid var(--border); min-height:96px; }
+  .cal-week .cal-day{ --ring:0 0 0 0 transparent; --strip:0 0 0 0 transparent;
+    position:relative; display:block; min-height:0; padding:0; gap:0; background:var(--surface);
+    border-right:1px solid var(--border); box-shadow:inset var(--ring), inset var(--strip); cursor:pointer; }
+  .cal-week .cal-day:nth-child(7){ border-right:none; }
+  .cal-week .cal-day.we{ background:color-mix(in srgb, var(--surface) 96%, var(--text)); }
+  .cal-week .cal-day.out{ background:var(--bg); }
+  .cal-week .cal-day:hover{ background:color-mix(in srgb, var(--surface) 93%, var(--gold)); }
+  .cal-week .cal-day.today{ --ring:0 0 0 1px var(--gold); }
+  .cal-week .cal-day.sel{ --ring:0 0 0 2px var(--gold); background:color-mix(in srgb, var(--surface) 92%, var(--gold)); }
+  /* Below buffer: a short bar along the foot of the day, inset so a run of low days
+     reads as marks on each day rather than as a border under the week. */
+  .cal-week .cal-day.low::after, .cal-week .cal-day.lowneg::after{ content:''; position:absolute; left:6px; right:6px; bottom:3px; height:2px; border-radius:2px; background:var(--amber); opacity:0.85; }
+  .cal-week .cal-day.lowneg::after{ background:var(--red); }
+  .cd-add{ all:unset; box-sizing:border-box; position:absolute; top:4px; left:28px; width:18px; height:18px; line-height:17px; text-align:center;
+    border-radius:4px; font-size:14px; color:var(--text-dim); background:var(--surface-raised); opacity:0; cursor:pointer; }
+  .cal-day:hover .cd-add, .cd-add:focus-visible{ opacity:1; }
+  .cd-add:hover{ color:var(--gold-bright); }
+  .cd-add:focus-visible{ box-shadow:0 0 0 2px var(--gold); }
+  @media (hover:none){ .cal-day.sel .cd-add{ opacity:1; } }
+  /* Day numbers and item stacks let clicks fall through to the day behind them;
+     only the chips themselves take a click. */
+  .cal-week .cd-top{ position:relative; z-index:1; display:flex; align-items:baseline; gap:6px; padding:6px 8px 2px; min-width:0; pointer-events:none; }
+  .cal-week .cd-num{ font-family:var(--mono); font-size:11.5px; color:var(--text-dim); }
+  .cal-week .cd-num.today{ color:var(--gold-bright); font-weight:700; }
+  .cal-week .cd-num.out{ opacity:0.45; }
+  .cal-week .cd-bal{ margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--text-faint); font-variant-numeric:tabular-nums; }
+  .cal-week .cd-bal.low{ color:var(--amber); }
+  .cal-week .cd-bal.neg{ color:var(--red); }
+  .cal-week .cd-items{ position:relative; z-index:1; display:flex; flex-direction:column; gap:3px; padding:2px 5px 11px; min-width:0; pointer-events:none; }
+  .cal-week .cd-items .cev{ pointer-events:auto; }
+  .cal-week .cd-top.past, .cal-week .cd-items.past{ opacity:0.6; }
+  .cc-lbl.buf.at-left{ right:auto; left:4px; }
+
+  .cev{ display:flex; align-items:center; gap:5px; font-size:11px; padding:2px 6px; border-left:none; }
+  .cev .nm{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cev .amt{ flex:none; font-family:var(--mono); font-variant-numeric:tabular-nums; font-weight:600; }
+  .cev.out, .cev.in, .cev.save{ color:var(--text); border-left:none; padding-left:7px; }
+  .cev.out{ background:rgba(236,72,153,0.11); box-shadow:inset 2px 0 0 var(--pink); }
+  .cev.in{ background:rgba(34,197,94,0.11); box-shadow:inset 2px 0 0 var(--green); }
+  .cev.save{ background:rgba(59,130,246,0.13); box-shadow:inset 2px 0 0 var(--blue-bright); }
+  .cev.out .amt{ color:var(--pink); }
+  .cev.in .amt{ color:var(--green); }
+  .cev.save .amt{ color:var(--blue-bright); }
+  .cev.seen{ opacity:0.55; }
+  .cev.reb{ border-left:none; box-shadow:inset 2px 0 0 var(--gold); }
+  .cev.event{ background:transparent; color:var(--text-dim); padding-left:5px; }
+  .cev.event .dot{ flex:none; width:7px; height:7px; margin:0; border-radius:50%; background:var(--ev-col, var(--ec-neutral)); }
+  .cev.event .tm{ flex:none; color:var(--text-faint); font-family:var(--mono); opacity:1; }
+  .cev.event:hover, .cev.todo:hover{ background:var(--surface-raised); filter:none; }
+  .cev.todo{ background:transparent; color:var(--text-dim); text-decoration:none; }
+  .cev.todo .box{ flex:none; width:8px; height:8px; border:1.4px solid var(--text-faint); border-radius:2px; }
+  .cev.todo.done{ text-decoration:none; }
+  .cev.todo.done .box{ background:var(--text-faint); }
+  .cev.todo.done .nm{ text-decoration:line-through; }
+
+  .cal-span{ all:unset; box-sizing:border-box; position:relative; z-index:1; display:flex; align-items:center; gap:6px; min-width:0; margin:1px 5px 2px; padding:0 8px; height:19px;
+    border-radius:4px; font-size:11px; cursor:pointer; white-space:nowrap; color:var(--text);
+    background:color-mix(in srgb, var(--ev-col, var(--ec-neutral)) 16%, transparent); }
+  .cal-span.cl{ margin-left:0; border-top-left-radius:0; border-bottom-left-radius:0; }
+  .cal-span.cr{ margin-right:0; border-top-right-radius:0; border-bottom-right-radius:0; }
+  .cal-span .dot{ flex:none; width:7px; height:7px; border-radius:50%; background:var(--ev-col, var(--ec-neutral)); }
+  .cal-span .nm{ overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .cal-span .when{ margin-left:auto; flex:none; font-family:var(--mono); font-size:10px; color:var(--text-faint); }
+  .cal-span .cont{ flex:none; color:var(--text-faint); }
+  .cal-span:hover{ filter:brightness(1.2); }
+  .cal-span:focus-visible, .cev:focus-visible, .cdp-row:focus-visible{ box-shadow:0 0 0 2px var(--gold); }
+
+  .cal-legend{ padding:9px 12px; margin-top:0; border-top:1px solid var(--border); align-items:center; }
+  .cal-legend i{ margin-right:6px; vertical-align:middle; }
+  .cal-legend i.lg-chip{ width:18px; height:10px; border-radius:2px; }
+  .cal-legend i.lg-chip.in{ background:rgba(34,197,94,0.22); box-shadow:inset 2px 0 0 var(--green); }
+  .cal-legend i.lg-chip.out{ background:rgba(236,72,153,0.22); box-shadow:inset 2px 0 0 var(--pink); }
+  .cal-legend i.lg-chip.save{ background:rgba(59,130,246,0.24); box-shadow:inset 2px 0 0 var(--blue-bright); }
+  .cal-legend i.lg-chip.reb{ background:rgba(201,162,39,0.22); box-shadow:inset 2px 0 0 var(--gold); }
+  .cal-legend i.lg-dot{ width:7px; height:7px; border-radius:50%; background:var(--text-dim); }
+  .cal-legend i.lg-box{ width:8px; height:8px; border-radius:2px; border:1.4px solid var(--text-faint); background:none; }
+  .cal-legend i.lg-strip{ width:18px; height:2px; border-radius:2px; background:var(--amber); }
+  .cc-lbl.start.below, .cc-lbl.end.below{ transform:translateY(40%); }
+  .cal-agenda{ padding:4px 12px; }
+  .cal-ag-bal.low{ color:var(--amber); }
+  .cal-ag-bal.neg{ color:var(--red); }
+
+  .cal-dayp{ margin-bottom:14px; }
+  .cdp-h{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+  .cdp-title{ font-size:15px; font-weight:600; }
+  .cdp-rel{ font-size:11.5px; color:var(--text-faint); white-space:nowrap; }
+  .cdp-bal{ display:flex; align-items:baseline; gap:8px; margin-top:10px; font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  .cdp-bal .from{ color:var(--text-dim); font-size:13px; }
+  .cdp-bal .arr{ color:var(--text-faint); }
+  .cdp-bal .to{ font-size:20px; }
+  .cdp-bal .to.warn{ color:var(--amber); }
+  .cdp-bal .to.neg{ color:var(--red); }
+  .cdp-sub{ font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+  .cdp-note{ font-size:12px; color:var(--text-faint); margin-top:8px; }
+  .cdp-cap{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-dim); font-weight:600; margin:14px 0 2px; }
+  .cdp-row{ all:unset; box-sizing:border-box; display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%;
+    padding:7px 0; border-top:1px solid var(--border); font-size:12.5px; cursor:pointer; color:var(--text); }
+  .cdp-row:hover .t{ color:var(--gold-bright); }
+  .cdp-row .l{ display:flex; flex-direction:column; min-width:0; }
+  .cdp-row .t{ display:flex; align-items:center; gap:7px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cdp-row .t.done{ text-decoration:line-through; color:var(--text-faint); }
+  .cdp-row .s{ font-size:11px; color:var(--text-faint); }
+  .cdp-row .amt{ flex:none; font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  .cdp-row .amt.out{ color:var(--pink); }
+  .cdp-row .amt.in{ color:var(--green); }
+  .cdp-row .amt.save{ color:var(--blue-bright); }
+  .cdp-row .dot{ flex:none; width:7px; height:7px; border-radius:50%; background:var(--ev-col, var(--ec-neutral)); }
+  .cdp-row.todo{ justify-content:flex-start; }
+  .cdp-row.todo input{ margin:0; accent-color:var(--gold); }
+  .cdp-empty{ font-size:12.5px; color:var(--text-faint); padding:12px 0 2px; }
+  .cdp-add{ display:flex; gap:6px; margin-top:12px; }
+  .cdp-add .btn{ flex:1; padding:6px 8px; font-size:12px; }
+
+  .todo-head{ display:flex; align-items:center; gap:8px; }
+  .todo-title{ font-size:15px; font-weight:600; }
+  .todo-head select{ margin-left:auto; min-width:0; max-width:65%; }
+  .todo-sub{ font-size:11.5px; color:var(--text-faint); margin:4px 0 10px; }
+  .todo-item .todo-edit{ opacity:0; color:var(--text-faint); }
+  .todo-item:hover .todo-edit, .todo-item:focus-within .todo-edit, .todo-edit:focus-visible{ opacity:1; }
+  .todo-edit:hover{ color:var(--gold-bright); }
+  @media (hover:none){ .todo-item .todo-edit{ opacity:1; } }
+
+  @media (max-width: 600px){
+    .cal-grid{ display:none; }
+    .cal-dayp{ display:none; }
+    .cal-headrow .cal-layers{ order:5; }
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -7520,6 +7695,8 @@ let todoActiveList = null;
    the point of this tab is seeing when money lands — so the layers can be muted
    individually rather than letting the cashflow signal get buried. */
 let calLayers = { money:true, events:true, todos:true };
+let calSelected = null;    // V4.16 — the day open in the day panel ('YYYY-MM-DD')
+let calChartRange = null;  // V4.16 — 'month' | '60'; null follows the month on screen
 
 /* ---------- Personal events ---------- */
 
@@ -7750,28 +7927,64 @@ function cashflowProjection(){
   return { opening, balances, min, startISO, endISO, horizonISO };
 }
 
+/* V4.16 — shape carries the meaning, colour only adds to it. Money is a tinted bar
+   with its amount pinned on the right, so a long name gets cut and the amount never
+   does. An event is a dot and a name with no fill, so a pink category can't pass for
+   money out. A to-do has a box. */
 function calEventHTML(ev, compact){
-  const cls = ev.type === 'money'
-    ? ({ expense:'out', income:'in', saving:'save' })[ev.kind]
-    : ev.type === 'rebalance' ? 'reb'
-    : ev.type === 'event' ? 'event' + (ev.part ? ' span-' + ev.part : '')
-    : 'todo' + (ev.done ? ' done' : '');
-  const amt = ev.type === 'money'
-    ? `<span class="amt">${ev.signed >= 0 ? '+' : '−'}${moneyWhole(Math.abs(ev.signed))}</span>`
-    : '';
-  const attr = ev.type === 'todo'  ? `data-caltodo="${ev.id}"`
-             : ev.type === 'money' ? `data-calbill="${ev.id}"`
-             : ev.type === 'event' ? `data-calevent="${ev.id}"`
-             : 'data-calreb="1"';
-  const label = (ev.seen ? '✓ ' : '') + escHTML(ev.name);
-  const time  = ev.type === 'event' && ev.time ? `<span class="tm">${ev.time}</span> ` : '';
-  const dot   = ev.type === 'event' ? `<span class="dot"></span>` : '';
-  // The colour key is validated on load and again here, so it can only ever name
-  // one of the ten swatches — never arbitrary text reaching a style attribute.
-  const key   = EVENT_COLOURS.includes(ev.colour) ? ev.colour : 'neutral';
-  const style = ev.type === 'event' ? ` style="--ev-col:var(--ec-${key})"` : '';
-  return `<button class="cev ${cls}"${style} ${attr} title="${label}">${dot}${time}${
-    compact ? `${label}${amt ? ' ' + amt : ''}` : `${label}${amt ? ' · ' + amt : ''}`}</button>`;
+  const KCLS = { expense:'out', income:'in', saving:'save' };
+  const amtHTML = v=> `<span class="amt">${v >= 0 ? '+' : '−'}${moneyWhole(Math.abs(v))}</span>`;
+  if(ev.type === 'group'){
+    const label = `${CAL_GROUP_NAME[ev.kind] || 'Items'} ×${ev.n}`;
+    return `<button class="cev ${KCLS[ev.kind] || 'out'} grp" data-calgroup="${ev.iso}" title="${label}: ${ev.signed >= 0 ? '+' : '−'}${moneyWhole(Math.abs(ev.signed))} — open the day to see each one"><span class="nm">${label}</span>${amtHTML(ev.signed)}</button>`;
+  }
+  if(ev.type === 'money'){
+    const label = (ev.seen ? '✓ ' : '') + escHTML(ev.name);
+    return `<button class="cev ${KCLS[ev.kind] || 'out'}${ev.seen ? ' seen' : ''}" data-calbill="${ev.id}" title="${label} ${ev.signed >= 0 ? '+' : '−'}${moneyWhole(Math.abs(ev.signed))}"><span class="nm">${label}</span>${amtHTML(ev.signed)}</button>`;
+  }
+  if(ev.type === 'rebalance'){
+    return `<button class="cev reb" data-calreb="1" title="Rebalance due"><span class="nm">Rebalance due</span></button>`;
+  }
+  const label = escHTML(ev.name);
+  if(ev.type === 'event'){
+    // The colour key is validated on load and again here, so it can only ever name
+    // one of the ten swatches — never arbitrary text reaching a style attribute.
+    const key = EVENT_COLOURS.includes(ev.colour) ? ev.colour : 'neutral';
+    return `<button class="cev event${ev.part ? ' span-' + ev.part : ''}" style="--ev-col:var(--ec-${key})" data-calevent="${ev.id}" title="${ev.time ? ev.time + ' ' : ''}${label}"><span class="dot"></span>${ev.time ? `<span class="tm">${ev.time}</span>` : ''}<span class="nm">${label}</span></button>`;
+  }
+  return `<button class="cev todo${ev.done ? ' done' : ''}" data-caltodo="${ev.id}" title="To-do: ${label}"><span class="box" aria-hidden="true"></span><span class="nm">${label}</span></button>`;
+}
+
+const CAL_GROUP_NAME = { saving:'Savings', expense:'Bills', income:'Income' };
+const CAL_KIND_ORDER = { income:0, expense:1, saving:2 };
+const calTimeKey = t=> String(t||'').padStart(5, '0');
+
+/* Money first, because it moves the balance; then events, timed ones in time
+   order; then to-dos, open ones first. */
+function calSortDay(list){
+  const money = list.filter(e=> e.type === 'money')
+    .sort((a,b)=> (CAL_KIND_ORDER[a.kind] ?? 3) - (CAL_KIND_ORDER[b.kind] ?? 3) || Math.abs(b.signed) - Math.abs(a.signed));
+  const reb   = list.filter(e=> e.type === 'rebalance');
+  const evs   = list.filter(e=> e.type === 'event')
+    .sort((a,b)=> (a.time ? 0 : 1) - (b.time ? 0 : 1) || calTimeKey(a.time).localeCompare(calTimeKey(b.time)) || String(a.name).localeCompare(String(b.name)));
+  const todos = list.filter(e=> e.type === 'todo').sort((a,b)=> (a.done ? 1 : 0) - (b.done ? 1 : 0));
+  return [...money, ...reb, ...evs, ...todos];
+}
+
+/* Three or more of one kind of money on a day fold into one line with their total —
+   four transfers to savings on payday read as one decision, not four. The day panel
+   still lists each one. */
+function calGroupDay(list, iso){
+  const out = [], done = {};
+  list.forEach(e=>{
+    if(e.type !== 'money'){ out.push(e); return; }
+    const same = list.filter(x=> x.type === 'money' && x.kind === e.kind);
+    if(same.length < 3){ out.push(e); return; }
+    if(done[e.kind]) return;
+    done[e.kind] = true;
+    out.push({ type:'group', kind:e.kind, iso, n: same.length, signed: same.reduce((t,x)=> t + x.signed, 0) });
+  });
+  return out;
 }
 
 /* ---------- V4.13.1 relative dates ----------
@@ -7822,12 +8035,16 @@ function moneyShort(v){
   return `${s}$${Math.round(a)}`;
 }
 let cashChartData = null;
-function cashChartHTML(proj, buffer){
-  const days = Object.keys(proj.balances).filter(iso=> iso >= proj.startISO && iso <= proj.horizonISO).sort();
+/* V4.16 — the chart draws any window of the forecast: the month on screen, or the
+   next 60 days. The lowest point is found inside the window being drawn. */
+function cashChartHTML(proj, buffer, win){
+  const w = win || { fromISO: proj.startISO, toISO: proj.horizonISO, range:'60' };
+  const days = Object.keys(proj.balances).filter(iso=> iso >= w.fromISO && iso <= w.toISO).sort();
   if(days.length < 2) return '';
   const vals = days.map(d=> proj.balances[d]);
+  const todayISO = isoDate(TODAY);
   // What moves the balance each day, for the dots and the tooltip.
-  const evs = calendarEvents(proj.startISO, proj.horizonISO, { layers:{ money:true, events:false, todos:false }, carryLate:true });
+  const evs = calendarEvents(days[0], days[days.length-1], { layers:{ money:true, events:false, todos:false }, carryLate:true });
   const dayEvents = days.map(d=> (evs[d]||[]).filter(e=> e.type==='money' && !e.seen && e.signed));
 
   let lo = Math.min(...vals, buffer > 0 ? buffer : Infinity), hi = Math.max(...vals, buffer > 0 ? buffer : -Infinity);
@@ -7838,7 +8055,7 @@ function cashChartHTML(proj, buffer){
   const n = days.length;
   const X = i=> (i / n) * 100;                    // day i occupies [X(i), X(i+1))
   const Y = v=> (1 - (v - lo)/(hi - lo)) * 100;   // % from the top
-  cashChartData = { days, vals, dayEvents, n, lo, hi };
+  cashChartData = { days, vals, dayEvents, n, lo, hi, range: w.range || '60' };
 
   // Step path in a 100×100 box.
   let path = `M0,${Y(vals[0]).toFixed(2)}`;
@@ -7850,35 +8067,42 @@ function cashChartHTML(proj, buffer){
   const grid = [];
   for(let v = lo; v <= hi + 0.001; v += step) grid.push(v);
 
-  const minI = days.indexOf(proj.min.date);
+  let minI = 0;
+  vals.forEach((v,i)=>{ if(v < vals[minI]) minI = i; });
+  const minBal = vals[minI];
+  const minTone = minBal < 0 ? 'neg' : (buffer > 0 && minBal < buffer ? 'low' : '');
   const lastI = n - 1;
-  const mondays = days.map((d,i)=> ({ d, i })).filter(x=> x.i > 2 && new Date(x.d+'T00:00:00').getDay() === 1);
+  const selI = w.selISO ? days.indexOf(w.selISO) : -1;
+  const firstLabel = days[0] === todayISO ? 'today' : shortIsoDate(days[0]);
+  const mondays = days.map((d,i)=> ({ d, i })).filter(x=> x.i > 2 && X(x.i) > 7 && new Date(x.d+'T00:00:00').getDay() === 1);
   const dots = dayEvents.map((list,i)=> list.length && i>0 ? `<span class="cc-dot ${list.some(e=>e.signed>0)?'in':'out'}" style="left:${X(i)}%; top:${Y(vals[i])}%;"></span>` : '').join('');
   const edgeCls = (i)=> X(i) > 80 ? ' right' : (X(i) < 12 ? ' left' : '');
+  const lowDay = d=> `${CAL_DOW[new Date(d+'T00:00:00').getDay()]} ${shortIsoDate(d)}`;
 
   return `
     <div class="cc" id="cashChart">
       <div class="cc-y">${grid.map(v=> `<span style="top:${Y(v)}%;">${moneyShort(v)}</span>`).join('')}</div>
       <div class="cc-plot" id="ccPlot" tabindex="0" role="img"
-        aria-label="Reachable cash over the next 60 days: ${moneyWhole(vals[0])} today, lowest ${moneyWhole(proj.min.balance)} on ${formatDateShort(proj.min.date)}, ${moneyWhole(vals[lastI])} on day 60. Use the arrow keys to read each day.">
+        aria-label="Reachable cash at the end of each day from ${calDateLabel(days[0])} to ${calDateLabel(days[lastI])}: ${moneyWhole(vals[0])} at the start, lowest ${moneyWhole(minBal)} on ${calDateLabel(days[minI])}, ${moneyWhole(vals[lastI])} at the end. Use the arrow keys to read each day and Enter to open it.">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           ${grid.map(v=> `<line x1="0" x2="100" y1="${Y(v).toFixed(2)}" y2="${Y(v).toFixed(2)}" class="cc-grid"></line>`).join('')}
+          ${selI >= 0 ? `<rect x="${X(selI).toFixed(3)}" y="0" width="${(X(selI+1)-X(selI)).toFixed(3)}" height="100" class="cc-sel"></rect>` : ''}
           <path d="${area}" class="cc-area"></path>
           ${shade}
           ${buffer > 0 ? `<line x1="0" x2="100" y1="${Y(buffer).toFixed(2)}" y2="${Y(buffer).toFixed(2)}" class="cc-buffer"></line>` : ''}
           <path d="${path}" class="cc-line"></path>
         </svg>
         ${dots}
-        <span class="cc-lbl start${minI===0 && vals[0] < buffer ? ' warn' : ''}" style="top:${Y(vals[0])}%;">${moneyWhole(vals[0])}${minI===0 ? ' · lowest' : ''}</span>
-        ${minI > 0 ? `<span class="cc-min ${proj.min.balance < buffer ? 'low':''}" style="left:${X(minI)}%; top:${Y(vals[minI])}%;"></span>
-          <span class="cc-lbl low${edgeCls(minI)}" style="left:${X(minI)}%; top:${Y(vals[minI])}%;">Low ${moneyWhole(proj.min.balance)} · ${shortIsoDate(proj.min.date)}</span>` : ''}
-        <span class="cc-lbl end" style="top:${Y(vals[lastI])}%;">${moneyWhole(vals[lastI])}</span>
-        ${buffer > 0 ? `<span class="cc-lbl buf" style="top:${Y(buffer)}%;">buffer ${moneyShort(buffer)}</span>` : ''}
+        <span class="cc-lbl start${minI===0 && minTone ? ' warn' : ''}${Y(vals[0]) < 18 ? ' below' : ''}" style="top:${Y(vals[0])}%;">${moneyWhole(vals[0])}${minI===0 ? ' · lowest' : ''}</span>
+        ${minI > 0 ? `<span class="cc-min ${minTone}" style="left:${X(minI)}%; top:${Y(minBal)}%;"></span>
+          <span class="cc-lbl low${edgeCls(minI)}" style="left:${X(minI)}%; top:${Y(minBal)}%;">Low ${moneyWhole(minBal)} · ${lowDay(days[minI])}</span>` : ''}
+        <span class="cc-lbl end${Y(vals[lastI]) < 18 ? ' below' : ''}" style="top:${Y(vals[lastI])}%;">${moneyWhole(vals[lastI])}</span>
+        ${buffer > 0 ? `<span class="cc-lbl buf${Math.abs(Y(vals[lastI]) - Y(buffer)) < 16 ? ' at-left' : ''}" style="top:${Y(buffer)}%;">buffer ${moneyShort(buffer)}</span>` : ''}
         <div class="cc-guide" id="ccGuide" hidden></div>
         <div class="cc-tip" id="ccTip" hidden></div>
       </div>
       <div class="cc-x">
-        <span style="left:0;" class="first">today</span>
+        <span style="left:0;" class="first">${firstLabel}</span>
         ${mondays.map(x=> `<span style="left:${X(x.i)}%;">${shortIsoDate(x.d)}</span>`).join('')}
       </div>
     </div>`;
@@ -7886,25 +8110,35 @@ function cashChartHTML(proj, buffer){
 function wireCashChart(){
   const plot = document.getElementById('ccPlot');
   if(!plot || !cashChartData) return;
-  const { days, vals, dayEvents, n } = cashChartData;
+  const { days, vals, dayEvents, n, range } = cashChartData;
   const tip = document.getElementById('ccTip'), guide = document.getElementById('ccGuide');
-  const DOWS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const todayISO = isoDate(TODAY);
   let cur = -1;
   const show = i=>{
     i = Math.max(0, Math.min(n-1, i)); cur = i;
     const d = days[i], x = (i + 0.5) / n * 100;
     guide.hidden = false; guide.style.left = x + '%';
     const lines = dayEvents[i].map(e=> `<div class="cc-tip-ev"><span>${escHTML(e.name)}</span><span class="${e.signed>0?'pos':'neg'}">${e.signed>0?'+':'−'}${moneyWhole(Math.abs(e.signed))}</span></div>`).join('');
-    tip.innerHTML = `<div class="cc-tip-h">${DOWS[new Date(d+'T00:00:00').getDay()]} ${shortIsoDate(d)}${i===0?' · today':''}</div>${lines}<div class="cc-tip-bal">${moneyWhole(vals[i])}</div>`;
+    tip.innerHTML = `<div class="cc-tip-h">${calDateLabel(d)}${d===todayISO?' · today':''}</div>${lines}<div class="cc-tip-bal">${moneyWhole(vals[i])}</div>`;
     tip.hidden = false;
     tip.style.left = x + '%';
     tip.classList.toggle('flip', x > 70);
   };
   const hide = ()=>{ tip.hidden = true; guide.hidden = true; cur = -1; };
+  // Picking a day opens it in the grid and the day panel. The chart keeps the range
+  // it was showing, even when the day sits in another month.
+  const pick = i=>{
+    const iso = days[Math.max(0, Math.min(n-1, i))];
+    calChartRange = range;
+    calSelected = iso;
+    calMonth = iso.slice(0,7) === currentMonthKey() ? null : iso.slice(0,7);
+    render();
+  };
   const at = e=>{ const r = plot.getBoundingClientRect(); return r.width ? Math.floor(((e.clientX - r.left) / r.width) * n) : 0; };
   plot.addEventListener('pointermove', e=> show(at(e)));
   plot.addEventListener('pointerdown', e=> show(at(e)));
   plot.addEventListener('pointerleave', e=>{ if(e.pointerType === 'mouse') hide(); });
+  plot.addEventListener('click', e=> pick(at(e)));
   plot.addEventListener('blur', hide);
   plot.addEventListener('keydown', e=>{
     if(e.key === 'ArrowRight' || e.key === 'ArrowLeft'){
@@ -7914,8 +8148,225 @@ function wireCashChart(){
       let i = cur < 0 ? 0 : cur + dir;
       while(i > 0 && i < n-1 && !dayEvents[i].length && Math.abs(i - cur) < n) i += dir;
       show(i);
-    } else if(e.key === 'Escape'){ hide(); }
+    } else if(e.key === 'Enter' && cur >= 0){ e.preventDefault(); pick(cur); }
+    else if(e.key === 'Escape'){ hide(); }
   });
+}
+
+/* ---------- V4.16 calendar helpers ---------- */
+const CAL_DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const CAL_DOW_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const CAL_MONTH_LONG = ['January','February','March','April','May','June','July',
+                        'August','September','October','November','December'];
+
+/* "Tue 20 Oct", with the year only when it isn't this year. */
+function calDateLabel(iso, opts){
+  const d = new Date(iso+'T00:00:00');
+  const yr = (!(opts && opts.noYear) && d.getFullYear() !== TODAY.getFullYear()) ? ' ' + d.getFullYear() : '';
+  return `${CAL_DOW[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}${yr}`;
+}
+/* "15–27 Feb", or "28 Jan – 3 Feb" across a month end. */
+function calRangeLabel(aISO, bISO){
+  const a = new Date(aISO+'T00:00:00'), b = new Date(bISO+'T00:00:00');
+  return a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
+    ? `${a.getDate()}–${b.getDate()} ${MONTHS[b.getMonth()]}`
+    : `${a.getDate()} ${MONTHS[a.getMonth()]} – ${b.getDate()} ${MONTHS[b.getMonth()]}`;
+}
+
+/* The day the panel shows: the one you picked if it's in the month on screen,
+   otherwise today if it's in view, otherwise the 1st. */
+function calSelectedISO(mb){
+  const t = isoDate(TODAY);
+  if(calSelected && calSelected >= mb.firstISO && calSelected <= mb.lastISO) return calSelected;
+  return (t >= mb.firstISO && t <= mb.lastISO) ? t : mb.firstISO;
+}
+
+/* Multi-day events, as whole runs rather than one copy per day. */
+function calSpans(fromISO, toISO){
+  if(calLayers.events === false) return [];
+  const out = [];
+  (state.events||[]).forEach(ev=> eventOccurrences(ev, fromISO, toISO).forEach(o=>{
+    if(o.span > 0) out.push({ id: ev.id, name: ev.title, colour: eventColourKey(ev), startISO: o.startISO, endISO: o.endISO });
+  }));
+  return out.sort((a,b)=> a.startISO.localeCompare(b.startISO) || b.endISO.localeCompare(a.endISO));
+}
+
+/* One week per row. Each row is its own grid: the day backgrounds fill every row
+   behind; the day numbers sit on top; multi-day events take a lane each across the
+   days they cover; single-day items stack underneath. */
+function calWeeksHTML(mb, events, spans, proj, buffer, selISO){
+  const todayISO = isoDate(TODAY);
+  const gridStart = mondayOf(mb.first);
+  const weeks = Math.ceil((dayDiff(gridStart, mb.last) + 1) / 7);
+  let html = '';
+  for(let w=0; w<weeks; w++){
+    const ws = addDays(gridStart, w*7);
+    const lo = isoDate(ws) > mb.firstISO ? isoDate(ws) : mb.firstISO;
+    const weISO = isoDate(addDays(ws, 6));
+    const hiISO = weISO < mb.lastISO ? weISO : mb.lastISO;
+    const segs = spans.map(s=>{
+      const a = s.startISO > lo ? s.startISO : lo, b = s.endISO < hiISO ? s.endISO : hiISO;
+      if(a > b) return null;
+      return { ...s, c0: dayDiff(ws, new Date(a+'T00:00:00')), c1: dayDiff(ws, new Date(b+'T00:00:00')),
+               contL: s.startISO < a, contR: s.endISO > b };
+    }).filter(Boolean).sort((x,y)=> x.c0 - y.c0 || (y.c1 - y.c0) - (x.c1 - x.c0));
+    const laneEnd = [];
+    segs.forEach(sg=>{
+      let l = laneEnd.findIndex(end=> end < sg.c0);
+      if(l < 0){ l = laneEnd.length; laneEnd.push(-1); }
+      laneEnd[l] = sg.c1; sg.lane = l;
+    });
+    const lanes = laneEnd.length, itemsRow = 2 + lanes;
+
+    let bg = '', tops = '', stacks = '';
+    for(let i=0; i<7; i++){
+      const d = addDays(ws, i), iso = isoDate(d);
+      const outside = d.getMonth() !== mb.m;
+      const bal = proj.balances[iso];
+      const list = outside ? [] : calSortDay((events[iso]||[]).filter(e=> !(e.type === 'event' && e.part)));
+      const showBal = !outside && bal !== undefined && (events[iso]||[]).some(e=> e.type === 'money');
+      const tone = bal === undefined || outside || iso < todayISO ? ''
+                 : bal < 0 ? ' lowneg' : (buffer > 0 && bal < buffer ? ' low' : '');
+      const we = d.getDay() === 0 || d.getDay() === 6;
+      const lbl = calDateLabel(iso);
+      bg += `<div class="cal-day${outside?' out':''}${we?' we':''}${iso===todayISO?' today':''}${iso===selISO?' sel':''}${tone}" data-calday="${iso}" style="grid-column:${i+1}; grid-row:1 / -1;" title="${lbl}${iso===todayISO?' · today':''}">
+          <button type="button" class="cd-add" data-caladdon="${iso}" aria-label="Add an event on ${lbl}">+</button>
+        </div>`;
+      const past = !outside && iso < todayISO ? ' past' : '';
+      tops += `<div class="cd-top${past}" style="grid-column:${i+1}; grid-row:1;">
+          <span class="cd-num${iso===todayISO?' today':''}${outside?' out':''}">${d.getDate()}</span>
+          ${showBal ? `<span class="cd-bal${tone.includes('neg') ? ' neg' : tone ? ' low' : ''}">${moneyWhole(bal)}</span>` : ''}
+        </div>`;
+      if(list.length) stacks += `<div class="cd-items${past}" style="grid-column:${i+1}; grid-row:${itemsRow};">${calGroupDay(list, iso).map(e=> calEventHTML(e, true)).join('')}</div>`;
+    }
+    const lanesHTML = segs.map(sg=> `<button type="button" class="cal-span${sg.contL?' cl':''}${sg.contR?' cr':''}" data-calevent="${sg.id}"
+        style="grid-column:${sg.c0+1} / ${sg.c1+2}; grid-row:${2+sg.lane}; --ev-col:var(--ec-${EVENT_COLOURS.includes(sg.colour) ? sg.colour : 'neutral'});"
+        title="${escHTML(sg.name)} · ${calRangeLabel(sg.startISO, sg.endISO)}">${sg.contL ? '<span class="cont" aria-hidden="true">←</span>' : ''}<span class="dot"></span><span class="nm">${escHTML(sg.name)}</span><span class="when">${calRangeLabel(sg.startISO, sg.endISO)}</span>${sg.contR ? '<span class="cont" aria-hidden="true">→</span>' : ''}</button>`).join('');
+    html += `<div class="cal-week" style="grid-template-rows:auto ${lanes ? `repeat(${lanes}, auto) ` : ''}1fr;">${bg}${tops}${lanesHTML}${stacks}</div>`;
+  }
+  return html;
+}
+
+/* The day you picked: what it starts and ends on, and everything on it. */
+function calDayPanelHTML(iso, events, spans, proj, buffer){
+  const d = new Date(iso+'T00:00:00');
+  const todayISO = isoDate(TODAY);
+  let list = calSortDay(events[iso]||[]);
+  // Today also carries linked bills that are late and not seen yet: the forecast
+  // takes them off today, so the panel lists them too.
+  if(iso === todayISO && calLayers.money !== false){
+    const carried = (calendarEvents(iso, iso, { layers:{ money:true, events:false, todos:false }, carryLate:true })[iso]||[]).filter(e=> e.carried);
+    list = calSortDay(list.concat(carried));
+  }
+  const money = list.filter(e=> e.type === 'money');
+  const reb   = list.filter(e=> e.type === 'rebalance');
+  const evs   = list.filter(e=> e.type === 'event');
+  const todos = list.filter(e=> e.type === 'todo');
+  const year  = d.getFullYear() !== TODAY.getFullYear() ? ' ' + d.getFullYear() : '';
+  const KCLS  = { expense:'out', income:'in', saving:'save' };
+
+  let balHTML;
+  const end = proj.balances[iso];
+  if(iso < todayISO){
+    balHTML = `<div class="cdp-note">A past day — the forecast starts today.</div>`;
+  } else if(end === undefined){
+    balHTML = '';
+  } else {
+    const start = iso === todayISO ? proj.opening : proj.balances[isoDate(addDays(d, -1))];
+    const tone = end < 0 ? 'neg' : (buffer > 0 && end < buffer ? 'warn' : '');
+    const vsBuf = buffer > 0
+      ? (end < buffer ? `${moneyWhole(buffer - end)} under your buffer` : `${moneyWhole(end - buffer)} above your buffer`) : '';
+    balHTML = `<div class="cdp-bal"><span class="from">${moneyWhole(start)}</span><span class="arr" aria-hidden="true">→</span><span class="to ${tone}">${moneyWhole(end)}</span></div>
+      <div class="cdp-sub">reachable cash at the end of the day${vsBuf ? ' · ' + vsBuf : ''}</div>`;
+  }
+
+  const moneyRows = money.map(e=>{
+    const bill = (state.bills||[]).find(b=> b.id === e.id);
+    const sub = [bill ? billFreqLabel(bill) : '', e.seen ? 'seen in Transactions' : '', e.carried ? 'late — not seen in Transactions yet' : ''].filter(Boolean).join(' · ');
+    return `<button type="button" class="cdp-row" data-calbill="${e.id}"><span class="l"><span class="t">${e.seen ? '✓ ' : ''}${escHTML(e.name)}</span>${sub ? `<span class="s">${sub}</span>` : ''}</span><span class="amt ${KCLS[e.kind]||'out'}">${e.signed >= 0 ? '+' : '−'}${moneyWhole(Math.abs(e.signed))}</span></button>`;
+  }).join('') + reb.map(()=> `<button type="button" class="cdp-row" data-calreb="1"><span class="l"><span class="t">Rebalance due</span><span class="s">every six months · Investments</span></span></button>`).join('');
+
+  const seenEv = new Set();
+  const eventRows = evs.filter(e=> !seenEv.has(e.id) && seenEv.add(e.id)).map(e=>{
+    const ev = (state.events||[]).find(x=> x.id === e.id);
+    const sp = e.part ? spans.find(s=> s.id === e.id && s.startISO <= iso && s.endISO >= iso) : null;
+    const when = sp ? calRangeLabel(sp.startISO, sp.endISO) : (ev && ev.startTime ? eventTimeLabel(ev) : 'all day');
+    const rep = ev ? repeatSummary(ev) : '';
+    const key = EVENT_COLOURS.includes(e.colour) ? e.colour : 'neutral';
+    return `<button type="button" class="cdp-row" data-calevent="${e.id}" style="--ev-col:var(--ec-${key});"><span class="l"><span class="t"><span class="dot"></span>${escHTML(e.name)}</span><span class="s">${when}${rep ? ' · ' + rep : ''}</span></span></button>`;
+  }).join('');
+
+  const todoRows = todos.map(t=> `<label class="cdp-row todo"><input type="checkbox" data-todocheck="${t.id}" ${t.done ? 'checked' : ''}><span class="t${t.done ? ' done' : ''}">${escHTML(t.name)}</span></label>`).join('');
+
+  const section = (cap, rows)=> rows ? `<div class="cdp-cap">${cap}</div>${rows}` : '';
+  const body = section('Money', moneyRows) + section('Events', eventRows) + section('To-dos', todoRows);
+
+  return `
+    <div class="card cal-dayp" id="calDayPanel">
+      <div class="cdp-h"><span class="cdp-title">${CAL_DOW_LONG[d.getDay()]} ${d.getDate()} ${CAL_MONTH_LONG[d.getMonth()]}${year}</span>
+        <span class="cdp-rel">${relFromToday(iso)}</span></div>
+      ${balHTML}
+      ${body || `<div class="cdp-empty">Nothing on this day.</div>`}
+      <div class="cdp-add">
+        <button type="button" class="btn secondary" data-caladd="event">+ Event</button>
+        <button type="button" class="btn secondary" data-caladd="todo">+ To-do</button>
+        <button type="button" class="btn secondary" data-caladd="bill">+ Bill</button>
+      </div>
+    </div>`;
+}
+
+/* A new to-do with its due date already set. Nothing is created until Save. */
+function openNewTodoModal(dateISO){
+  const lists = todoLists();
+  if(!lists.length){ toast('Make a list first, then add to-dos to it.'); openTodoListModal(); return; }
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="modal-backdrop" id="tnb">
+      <div class="modal" style="max-width:440px;">
+        <h2>New to-do</h2>
+        <div class="form-grid">
+          <label class="field">Item <input type="text" id="tnText" autocomplete="off"></label>
+          <label class="field">List
+            <select id="tnList">${lists.map(l=> `<option value="${l.id}" ${l.id===activeListId()?'selected':''}>${escHTML(l.name)}</option>`).join('')}</select>
+          </label>
+          <label class="field">Due date <input type="date" id="tnDue" value="${dateISO || ''}"></label>
+        </div>
+        <div class="form-actions">
+          <button class="btn secondary" id="tnCancel">Cancel</button>
+          <button class="btn" id="tnSave">Add to-do</button>
+        </div>
+      </div>
+    </div>`;
+  const close = ()=> root.innerHTML = '';
+  document.getElementById('tnCancel').onclick = close;
+  document.getElementById('tnb').addEventListener('click', e=>{ if(e.target.id==='tnb') close(); });
+  const textEl = document.getElementById('tnText');
+  textEl.focus();
+  const save = ()=>{
+    const text = textEl.value.trim();
+    if(!text){ toast('The to-do needs some text.'); return; }
+    todoItems().push({ id:uid(), listId: document.getElementById('tnList').value, text, done:false,
+                       dueDate: document.getElementById('tnDue').value || '', createdAt:new Date().toISOString(), doneAt:'' });
+    saveState(); close(); render();
+  };
+  document.getElementById('tnSave').onclick = save;
+  textEl.onkeydown = e=>{ if(e.key === 'Enter'){ e.preventDefault(); save(); } };
+}
+
+/* A new bill or income with its next-due date set to the day you picked. */
+function calOpenBillOn(dateISO){
+  openBillModal(null);
+  const due = document.getElementById('bDue');
+  if(due && dateISO){
+    due.value = dateISO;
+    due.dispatchEvent(new Event('input', { bubbles:true }));
+    due.dispatchEvent(new Event('change', { bubbles:true }));
+  }
+}
+
+function calCloseMenus(){
+  document.querySelectorAll('.cal-menu').forEach(m=> m.hidden = true);
+  document.querySelectorAll('[data-calmenu]').forEach(b=> b.setAttribute('aria-expanded', 'false'));
 }
 
 function renderCalendar(c){
@@ -7924,93 +8375,162 @@ function renderCalendar(c){
   const todayISO = isoDate(TODAY);
   const proj   = cashflowProjection();
   const events = calendarEvents(mb.firstISO, mb.lastISO);
+  const spans  = calSpans(mb.firstISO, mb.lastISO);
   const buffer = (liqSettings().limits||{}).bufferToday || 0;
+  const selISO = calSelectedISO(mb);
+  const isCurrent = key === currentMonthKey();
+  const monthPast = mb.lastISO < todayISO;
+  const monthName = CAL_MONTH_LONG[mb.m];
+  const tone = v=> v < 0 ? 'neg' : (buffer > 0 && v < buffer ? 'warn' : '');
 
-  // Same reasoning as the projection: the month's net is a fact about the month,
-  // not about what happens to be on screen.
-  let monthNet = 0;
+  // The month's money, split by kind. A fact about the month, so it counts what was
+  // already seen as well as what is still to come.
+  let mIn = 0, mOut = 0, mSave = 0;
   Object.values(calendarEvents(mb.firstISO, mb.lastISO,
     { layers:{ money:true, events:false, todos:false } }))
-    .forEach(list=> list.forEach(e=> { monthNet += e.signed; }));
+    .forEach(list=> list.forEach(e=>{
+      if(e.type !== 'money') return;
+      if(e.kind === 'income') mIn += e.signed;
+      else if(e.kind === 'saving') mSave += e.signed;
+      else mOut += e.signed;
+    }));
+  const monthNet = mIn + mOut + mSave;
+
+  // The month's low: forecast days only, so from today in this month.
+  let mLow = null, belowDays = 0;
+  if(!monthPast){
+    const from = mb.firstISO > todayISO ? mb.firstISO : todayISO;
+    for(let d = new Date(from+'T00:00:00'); isoDate(d) <= mb.lastISO; d = addDays(d, 1)){
+      const iso = isoDate(d), b = proj.balances[iso];
+      if(b === undefined) continue;
+      if(!mLow || b < mLow.balance) mLow = { date: iso, balance: b };
+      if(buffer > 0 && b < buffer) belowDays++;
+    }
+  }
+
+  // Cash today, and where it is once today's money and any late bills have gone.
+  const todayMoney = (calendarEvents(todayISO, todayISO,
+    { layers:{ money:true, events:false, todos:false }, carryLate:true })[todayISO]||[])
+    .filter(e=> e.type === 'money' && !e.seen && e.signed);
+  const nLate = todayMoney.filter(e=> e.carried).length, nToday = todayMoney.length - nLate;
+  const afterToday = proj.balances[proj.startISO];
+  const parts = [nToday ? (nToday === 1 ? "today's item" : `today's ${nToday} items`) : '',
+                 nLate ? `${nLate} late bill${nLate===1?'':'s'}` : ''].filter(Boolean);
+  const cashSub = parts.length && Math.abs(afterToday - proj.opening) >= 0.5
+    ? `${moneyWhole(afterToday)} after ${parts.join(' and ')}` : 'the "today" tier from Liquidity';
 
   const minDays = dayDiff(todayDate(), new Date(proj.min.date+'T00:00:00'));
   const noSchedule = !(state.bills||[]).some(b=> b.dueDate);
 
-  const cells = [];
-  const gridStart = mondayOf(mb.first);
-  const total = Math.ceil((dayDiff(gridStart, mb.last) + 1) / 7) * 7;
-  for(let i=0; i<total; i++){
-    const d   = addDays(gridStart, i);
-    const iso = isoDate(d);
-    const evs = events[iso] || [];
-    const outside = d.getMonth() !== mb.m;
-    const bal = proj.balances[iso];
-    const showBal = bal !== undefined && evs.some(e=> e.type === 'money');
-    cells.push(`
-      <div class="cal-day${outside?' out':''}${iso===todayISO?' today':''}" data-calday="${iso}" title="Add an event on ${formatDateShort(iso)}">
-        <div class="cd-top">
-          <span class="cd-num">${d.getDate()}</span>
-          ${showBal ? `<span class="cd-bal${bal < buffer ? ' low':''}">${moneyWhole(bal)}</span>` : ''}
-        </div>
-        ${evs.map(e=> calEventHTML(e, true)).join('')}
-      </div>`);
-  }
+  // The chart follows the month on screen; this month and past months default to the
+  // next 60 days. A choice you make sticks while you page through months.
+  let range = calChartRange || (isCurrent || monthPast ? '60' : 'month');
+  const pastNote = range === 'month' && monthPast;
+  if(pastNote) range = '60';
+  const win = range === 'month'
+    ? { fromISO: mb.firstISO > todayISO ? isoDate(addDays(mb.first, -1)) : todayISO, toISO: mb.lastISO }
+    : { fromISO: proj.startISO, toISO: proj.horizonISO };
+  win.selISO = selISO; win.range = range;
+  const chart = noSchedule ? '' : cashChartHTML(proj, buffer, win);
 
   const agendaDays = Object.keys(events).filter(iso=> iso >= mb.firstISO && iso <= mb.lastISO).sort();
-  const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const agenda = agendaDays.map(iso=>{
     const d = new Date(iso+'T00:00:00');
     const bal = proj.balances[iso];
-    const showBal = bal !== undefined && (events[iso]||[]).some(e=> e.type === 'money');
+    // A multi-day event is listed on the day it starts (or the 1st, if it began earlier).
+    const list = calSortDay((events[iso]||[]).filter(e=> !(e.type === 'event' && e.part && e.part !== 'start' && iso !== mb.firstISO)));
+    if(!list.length) return '';
+    const showBal = bal !== undefined && iso >= todayISO && list.some(e=> e.type === 'money');
+    const t = bal === undefined ? '' : bal < 0 ? ' neg' : (buffer > 0 && bal < buffer ? ' low' : '');
     return `
       <div class="cal-ag-day${iso===todayISO?' today':''}">
         <div class="cal-ag-date">
           <div class="d">${d.getDate()}</div>
-          <div class="w">${DOW[(d.getDay()+6)%7]}</div>
+          <div class="w">${CAL_DOW[d.getDay()]}</div>
         </div>
         <div class="cal-ag-evs">
-          ${events[iso].map(e=> calEventHTML(e, false)).join('')}
-          ${showBal ? `<div class="cal-ag-bal${bal < buffer ? ' low':''}">balance ${moneyWhole(bal)}</div>` : ''}
+          ${list.map(e=> calEventHTML(e, false)).join('')}
+          ${showBal ? `<div class="cal-ag-bal${t}">balance ${moneyWhole(bal)}</div>` : ''}
         </div>
       </div>`;
   }).join('');
 
-  // V4.11 — header row, summary strip, and the next 60 days of reachable cash as a line.
-  const openTodos = todoItems().filter(t=> !t.done);
-  const dueThisMonth = openTodos.filter(t=> t.dueDate && t.dueDate.slice(0,7) === currentMonthKey()).length;
+  const check = on=> on
+    ? `<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5l2.5 2.5L10 3.5" fill="none" stroke="var(--gold-bright)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+    : `<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" rx="2" fill="none" stroke="var(--text-faint)" stroke-width="1.3"/></svg>`;
+  const LAYERS = [['money','Money'], ['events','Events'], ['todos','To-dos']];
+  const selLabel = calDateLabel(selISO);
+
   c.innerHTML = `
-    <div class="dash-head">
+    <div class="dash-head cal-headrow">
       <h1 class="page-title">Calendar</h1>
       <span class="muted dash-head-sub">when money actually lands, not just how much</span>
       <div class="spacer"></div>
-      <div class="cal-layers" role="group" aria-label="Show on the calendar">
-        <button class="tchip${calLayers.money?' active':''}" data-callayer="money" aria-pressed="${!!calLayers.money}">Money</button>
-        <button class="tchip${calLayers.events?' active':''}" data-callayer="events" aria-pressed="${!!calLayers.events}">Events</button>
-        <button class="tchip${calLayers.todos?' active':''}" data-callayer="todos" aria-pressed="${!!calLayers.todos}">To dos</button>
+      <div class="cal-layers seg" role="group" aria-label="Show on the calendar">
+        ${LAYERS.map(([k,l])=> `<button type="button" class="${calLayers[k]?'on':''}" data-callayer="${k}" aria-pressed="${!!calLayers[k]}">${check(!!calLayers[k])}${l}</button>`).join('')}
       </div>
       <div class="dash-step">
         <button type="button" id="calPrev" aria-label="Previous month">‹</button>
         <span class="cal-title-lbl">${calMonthLabel(key)}</span>
         <button type="button" id="calNext" aria-label="Next month">›</button>
       </div>
-      ${key === currentMonthKey() ? '' : `<button class="btn secondary" id="calToday">Today</button>`}
-      <button class="btn secondary" id="calCats">Categories</button>
-      <button class="btn" id="calAddEvent">+ Event</button>
+      ${isCurrent ? '' : `<button class="btn secondary" id="calToday">Today</button>`}
+      <div class="cal-menu-wrap">
+        <button class="btn" id="calAdd" data-calmenu="calAddMenu" aria-haspopup="true" aria-expanded="false">+ Add</button>
+        <div class="cal-menu right" id="calAddMenu" hidden>
+          <div class="cal-menu-h">On ${selLabel}</div>
+          <button type="button" id="calAddEvent">Event</button>
+          <button type="button" id="calAddTodo">To-do</button>
+          <button type="button" id="calAddBill">Bill or income</button>
+        </div>
+      </div>
+      <div class="cal-menu-wrap">
+        <button class="btn secondary cal-more" id="calMore" data-calmenu="calMoreMenu" aria-haspopup="true" aria-expanded="false" aria-label="More calendar options">
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="3" cy="8" r="1.4" fill="currentColor"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><circle cx="13" cy="8" r="1.4" fill="currentColor"/></svg>
+        </button>
+        <div class="cal-menu right" id="calMoreMenu" hidden>
+          <button type="button" id="calCats">Event categories…</button>
+          <button type="button" id="calNewList">New to-do list…</button>
+        </div>
+      </div>
     </div>
 
-    <div class="dash-kpis cal-kpis">
-      <div class="dash-kpi"><div class="k-label">Cash you can reach today</div><div class="k-val">${moneyWhole(proj.opening)}</div><div class="k-sub">the "today" tier from Liquidity</div></div>
-      <div class="dash-kpi"><div class="k-label">Lowest point in 60 days</div><div class="k-val ${proj.min.balance < buffer ? 'neg' : ''}">${moneyWhole(proj.min.balance)}</div>
-        <div class="k-sub">${minDays === 0 ? 'today — nothing scheduled brings it lower' : `${formatDateShort(proj.min.date)}, in ${minDays} day${minDays===1?'':'s'}`}</div></div>
-      <div class="dash-kpi"><div class="k-label">Scheduled in ${calMonthLabel(key).split(' ')[0]}</div><div class="k-val ${monthNet>=0?'pos':'neg'}">${monthNet>=0?'+':'−'}${moneyWhole(Math.abs(monthNet))}</div><div class="k-sub">money in less money out and saved</div></div>
-      <div class="dash-kpi"><div class="k-label">Open to-dos</div><div class="k-val">${openTodos.length}</div><div class="k-sub">${dueThisMonth ? `${dueThisMonth} due this month` : 'none due this month'}</div></div>
+    <div class="cal-kpis cal-strip">
+      <div class="cal-grp">
+        <div class="cal-grp-h">From today · ${calDateLabel(todayISO)}</div>
+        <div class="cal-grp-row">
+          <div class="dash-kpi"><div class="k-label">Cash you can reach</div><div class="k-val">${moneyWhole(proj.opening)}</div><div class="k-sub">${cashSub}</div></div>
+          <div class="dash-kpi"><div class="k-label">Lowest in 60 days</div><div class="k-val ${tone(proj.min.balance)}">${moneyWhole(proj.min.balance)}</div>
+            <div class="k-sub">${minDays === 0 ? 'today — nothing scheduled brings it lower'
+              : `${calDateLabel(proj.min.date)} · ${relFromToday(proj.min.date)}${buffer > 0 && proj.min.balance < buffer ? ` · ${moneyWhole(buffer - proj.min.balance)} under buffer` : ''}`}</div></div>
+        </div>
+      </div>
+      <div class="cal-grp">
+        <div class="cal-grp-h">${calMonthLabel(key)} · ${isCurrent ? 'this month' : 'the month on screen'}</div>
+        <div class="cal-grp-row">
+          <div class="dash-kpi"><div class="k-label">Scheduled, net</div><div class="k-val ${monthNet>=0?'pos':'neg'}">${monthNet>=0?'+':'−'}${moneyWhole(Math.abs(monthNet))}</div>
+            <div class="k-sub">${[mIn ? `<span class="pos">in +${moneyWhole(mIn)}</span>` : '',
+                                  mOut ? `<span class="neg">out −${moneyWhole(Math.abs(mOut))}</span>` : '',
+                                  mSave ? `<span class="sav">saved −${moneyWhole(Math.abs(mSave))}</span>` : ''].filter(Boolean).join(' · ') || 'nothing scheduled'}</div></div>
+          <div class="dash-kpi"><div class="k-label">${isCurrent ? 'Low, rest of month' : 'Month low'}</div>
+            ${mLow ? `<div class="k-val ${tone(mLow.balance)}">${moneyWhole(mLow.balance)}</div>
+              <div class="k-sub">${calDateLabel(mLow.date, { noYear:true })}${buffer > 0 ? ` · ${belowDays ? `below buffer on ${belowDays} day${belowDays===1?'':'s'}` : 'stays above your buffer'}` : ''}</div>`
+            : `<div class="k-val muted">—</div><div class="k-sub">already past — the forecast starts today</div>`}</div>
+        </div>
+      </div>
     </div>
 
     ${noSchedule ? `<div class="liq-banner">Nothing on the calendar yet. Add your salary, your bills and your monthly transfer to savings on the Bills tab, each with a next-due date, and the projection above becomes real.</div>` : `
     <div class="card dash-card cl-card">
-      <div class="dash-card-head wrap"><span class="dash-card-title">Reachable cash, next 60 days</span>
-        <span class="muted">each step is money landing${buffer>0 ? ` · amber: below your ${moneyWhole(buffer)} buffer` : ''} · hover or tap a day</span></div>
-      ${cashChartHTML(proj, buffer)}
+      <div class="dash-card-head wrap"><span class="dash-card-title">Reachable cash</span>
+        <span class="muted">end of each day${buffer>0 ? ` · amber: below your ${moneyWhole(buffer)} buffer` : ''} · tap a day to open it</span>
+        <div class="spacer"></div>
+        <div class="seg" role="group" aria-label="Chart range">
+          <button type="button" data-calrange="month" class="${range==='month'?'on':''}" aria-pressed="${range==='month'}">${monthName}</button>
+          <button type="button" data-calrange="60" class="${range==='60'?'on':''}" aria-pressed="${range==='60'}">Next 60 days</button>
+        </div></div>
+      ${pastNote ? `<div class="cc-note">${monthName} is already past, so this shows the next 60 days.</div>` : ''}
+      ${chart || `<div class="cc-note">Not enough days left in ${monthName} to draw — switch to Next 60 days.</div>`}
     </div>`}
 
     <div class="cal-pane-tabs">
@@ -8020,42 +8540,90 @@ function renderCalendar(c){
 
     <div class="cal-wrap pane-${calPane}">
       <div class="cal-pane-cal">
-        <div class="cal-grid">
-          ${DOW.map(d=>`<div class="cal-dow">${d}</div>`).join('')}
-          ${cells.join('')}
-        </div>
-        <div class="cal-agenda">
-          ${agenda || `<div class="empty-state"><div class="glyph">·</div>Nothing scheduled in ${calMonthLabel(key)}.</div>`}
-        </div>
-        <div class="cal-legend">
-          <span><i style="background:var(--green);"></i>Money in</span>
-          <span><i style="background:var(--pink);"></i>Money out</span>
-          <span><i style="background:var(--blue-bright);"></i>To savings</span>
-          <span><i style="background:var(--gold);"></i>Rebalance</span>
-          <span><i style="background:var(--ec-neutral);"></i>Event</span>
-          <span><i style="background:var(--text-faint);"></i>To do</span>
-          <span class="muted">Click an empty part of a day to add an event there.</span>
+        <div class="card cal-gridcard">
+          <div class="cal-grid">
+            <div class="cal-dows">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}</div>
+            ${calWeeksHTML(mb, events, spans, proj, buffer, selISO)}
+          </div>
+          <div class="cal-agenda">
+            ${agenda || `<div class="empty-state"><div class="glyph">·</div>Nothing scheduled in ${calMonthLabel(key)}.</div>`}
+          </div>
+          <div class="cal-legend">
+            <span><i class="lg-chip in"></i>Money in</span>
+            <span><i class="lg-chip out"></i>Money out</span>
+            <span><i class="lg-chip save"></i>To savings</span>
+            <span><i class="lg-chip reb"></i>Rebalance</span>
+            <span><i class="lg-dot"></i>Event · dot is its category</span>
+            <span><i class="lg-box"></i>To-do</span>
+            ${buffer > 0 ? `<span><i class="lg-strip"></i>Day ends below buffer</span>` : ''}
+            <span class="muted">Click a day to open it · + or double-click to add</span>
+          </div>
         </div>
       </div>
-      <div class="cal-pane-todo">${todoPaneHTML()}</div>
+      <div class="cal-pane-todo">
+        ${calDayPanelHTML(selISO, events, spans, proj, buffer)}
+        ${todoPaneHTML(key)}
+      </div>
     </div>
   `;
 
   const bind = (id, fn)=>{ const el = document.getElementById(id); if(el) el.onclick = fn; };
   bind('calPrev',  ()=>{ calMonth = shiftMonthKey(key, -1); render(); });
   bind('calNext',  ()=>{ calMonth = shiftMonthKey(key,  1); render(); });
-  bind('calToday', ()=>{ calMonth = null; render(); });
+  bind('calToday', ()=>{ calMonth = null; calSelected = todayISO; render(); });
   c.querySelectorAll('[data-calpane]').forEach(b=>
     b.onclick = ()=>{ calPane = b.dataset.calpane; render(); });
   c.querySelectorAll('[data-callayer]').forEach(b=>
     b.onclick = ()=>{ const k = b.dataset.callayer; calLayers[k] = !calLayers[k]; render(); });
-  bind('calAddEvent', ()=> openEventModal(null, isoDate(TODAY)));
-  bind('calCats', ()=> openCategoryManager());
-  // Clicking the empty part of a day adds an event there. Chips sit on top and
-  // stop the click, so tapping one still opens the thing it points at.
-  c.querySelectorAll('[data-calday]').forEach(cell=>
-    cell.onclick = e=>{ if(e.target === cell || e.target.closest('.cd-top') === e.target.parentElement)
-      openEventModal(null, cell.dataset.calday); });
+  c.querySelectorAll('[data-calrange]').forEach(b=>
+    b.onclick = ()=>{ calChartRange = b.dataset.calrange; render(); });
+
+  // Menus: one open at a time; a click anywhere else or Escape closes them.
+  c.querySelectorAll('[data-calmenu]').forEach(b=> b.onclick = e=>{
+    e.stopPropagation();
+    const m = document.getElementById(b.dataset.calmenu);
+    const open = m.hidden;
+    calCloseMenus();
+    m.hidden = !open;
+    b.setAttribute('aria-expanded', String(open));
+    if(open){ const first = m.querySelector('button'); if(first) first.focus(); }
+  });
+  if(!window.__calMenuWired){
+    window.__calMenuWired = true;
+    document.addEventListener('click', e=>{ if(!e.target.closest || !e.target.closest('.cal-menu-wrap')) calCloseMenus(); });
+    document.addEventListener('keydown', e=>{ if(e.key === 'Escape') calCloseMenus(); });
+  }
+  const add = (kind, iso)=>{
+    calCloseMenus();
+    if(kind === 'event') openEventModal(null, iso);
+    else if(kind === 'todo') openNewTodoModal(iso);
+    else calOpenBillOn(iso);
+  };
+  bind('calAddEvent', ()=> add('event', selISO));
+  bind('calAddTodo',  ()=> add('todo', selISO));
+  bind('calAddBill',  ()=> add('bill', selISO));
+  bind('calCats',    ()=>{ calCloseMenus(); openCategoryManager(); });
+  bind('calNewList', ()=>{ calCloseMenus(); openTodoListModal(); });
+  c.querySelectorAll('[data-caladd]').forEach(b=> b.onclick = ()=> add(b.dataset.caladd, selISO));
+
+  // Clicking a day opens it in the panel; a day from the next or last month pages
+  // there. Double-click, or the + that shows on hover, adds an event on that day.
+  c.querySelectorAll('[data-calday]').forEach(cell=>{
+    cell.onclick = e=>{
+      if(e.target.closest('.cd-add')) return;
+      const iso = cell.dataset.calday;
+      calSelected = iso;
+      if(iso.slice(0,7) !== key) calMonth = iso.slice(0,7) === currentMonthKey() ? null : iso.slice(0,7);
+      render();
+    };
+    cell.ondblclick = e=>{ if(!e.target.closest('.cd-add')) openEventModal(null, cell.dataset.calday); };
+  });
+  c.querySelectorAll('[data-caladdon]').forEach(b=> b.onclick = e=>{
+    e.stopPropagation();
+    calSelected = b.dataset.caladdon;
+    openEventModal(null, b.dataset.caladdon);
+  });
+  c.querySelectorAll('[data-calgroup]').forEach(b=> b.onclick = e=>{ e.stopPropagation(); calSelected = b.dataset.calgroup; render(); });
   // A derived event is a view of something owned elsewhere, so tapping it goes to
   // where it is actually edited rather than opening a second editor for it here.
   c.querySelectorAll('[data-calbill]').forEach(b=> b.onclick = e=>{ e.stopPropagation(); goToTab('bills'); });
@@ -8088,7 +8656,7 @@ function todoDueBadge(t){
   return `<div class="tdue ${cls}">${text}</div>`;
 }
 
-function todoPaneHTML(){
+function todoPaneHTML(viewKey){
   const lists = todoLists();
   const listId = activeListId();
   const list = lists.find(l=> l.id === listId);
@@ -8102,22 +8670,32 @@ function todoPaneHTML(){
   const done = items.filter(t=> t.done)
     .sort((a,b)=> (b.doneAt||'').localeCompare(a.doneAt||''));
 
+  const mk = viewKey || calMonthKey();
+  const mName = CAL_MONTH_LONG[Number(mk.slice(5,7)) - 1];
+  const openAll = todoItems().filter(t=> !t.done);
+  const dueIn = openAll.filter(t=> t.dueDate && t.dueDate.slice(0,7) === mk).length;
+  const overdue = openAll.filter(t=> t.dueDate && t.dueDate < isoDate(TODAY)).length;
+  const dueLine = (dueIn ? `${dueIn} to-do${dueIn===1?'':'s'} due in ${mName}` : `No to-dos due in ${mName}`)
+                + (overdue ? ` · <span class="neg">${overdue} overdue</span>` : '');
+
   const row = t=> `
     <div class="todo-item${t.done?' done':''}">
       <input type="checkbox" data-todocheck="${t.id}" ${t.done?'checked':''}>
       <div class="tt">${escHTML(t.text)}${todoDueBadge(t)}</div>
-      <button class="icon-btn" style="color:var(--gold);" data-todoedit="${t.id}" title="Edit">✎</button>
+      <button class="icon-btn todo-edit" data-todoedit="${t.id}" title="Edit" aria-label="Edit ${escHTML(t.text)}">✎</button>
     </div>`;
 
   return `
     <div class="card">
-      <div class="todo-chips">
-        ${lists.map(l=>{
+      <div class="todo-head">
+        <label class="todo-title" for="todoListPick">Lists</label>
+        ${lists.length ? `<select id="todoListPick">${lists.map(l=>{
           const n = todoItems().filter(t=> t.listId === l.id && !t.done).length;
-          return `<button class="tchip${l.id===listId?' active':''}" data-todolist="${l.id}">${escHTML(l.name)}${n?`<span class="c">${n}</span>`:''}</button>`;
-        }).join('')}
-        <button class="tchip add" id="todoAddList" title="New list">＋</button>
+          return `<option value="${l.id}" ${l.id===listId?'selected':''}>${escHTML(l.name)}${n ? ` · ${n}` : ''}</option>`;
+        }).join('')}</select>` : ''}
+        <button type="button" class="icon-btn" id="todoAddList" title="New list" aria-label="New list">＋</button>
       </div>
+      <div class="todo-sub">${dueLine}</div>
       ${!list ? `<div class="muted" style="font-size:12.5px;">No lists yet.</div>` : `
       <div class="todo-add">
         <input type="text" id="todoNew" placeholder="Add to ${escHTML(list.name)}" autocomplete="off">
@@ -8138,8 +8716,8 @@ function todoPaneHTML(){
 
 function wireTodoPane(c){
   const bind = (id, fn)=>{ const el = document.getElementById(id); if(el) el.onclick = fn; };
-  c.querySelectorAll('[data-todolist]').forEach(b=>
-    b.onclick = ()=>{ todoActiveList = b.dataset.todolist; render(); });
+  const pick = document.getElementById('todoListPick');
+  if(pick) pick.onchange = ()=>{ todoActiveList = pick.value; render(); };
   c.querySelectorAll('[data-todocheck]').forEach(cb=> cb.onchange = ()=>{
     const t = todoItems().find(x=> x.id === cb.dataset.todocheck);
     if(!t) return;
@@ -9719,7 +10297,23 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.15', name: 'Record sale', date: 'Sep 2026', current: true,
+    no: 'V4.16', name: 'Calendar: clearer money, one day at a time', date: 'Oct 2026', current: true,
+    items: [
+      'The summary strip is two groups that say what time they are about: From today (cash you can reach and the 60-day low) and the month on screen (scheduled in, out and saved, and that month\'s low). Before, "this month" in one box meant October while the box beside it meant the month you were looking at.',
+      'Cash you can reach says what the chart starts on, and why: the figure after today\'s scheduled money and any late bills that haven\'t shown up in Transactions.',
+      'The cash chart follows the month on screen, starting from the day before the 1st so the first day\'s drop shows. Next 60 days is one tap away, and is still the default for this month. Click a day on the chart to open it.',
+      'Money and events look different: money is a tinted bar with its amount pinned on the right, events are a coloured dot and a name, to-dos have a box. A pink event category no longer passes for money out, and a long name is cut instead of the amount.',
+      'Multi-day events are drawn once, as a bar across the days they cover, with their dates. Overlapping ones stack.',
+      'Within a day: money first, then events in time order, then to-dos. Three or more of one kind of money on a day fold into one line with the total, such as 4 to savings.',
+      'A thin amber line along the bottom of a day means it ends below your cash buffer, and the day\'s balance turns amber, not red. Red is kept for below zero.',
+      'The open to-dos count leaves the strip. It counted shopping and watch lists. The lists card says how many to-dos fall due in the month on screen, and how many are overdue.',
+      'A day panel beside the grid: click a day for its starting and closing balance, every item on it, and + Event, + To-do or + Bill for that date. Lists sit underneath, picked from a dropdown instead of a row of pills, with the edit pencil showing on hover.',
+      'Header: Money, Events and To-dos are on/off switches with a tick. + Add offers an event, a to-do or a bill on the selected day. Event categories move into the ⋯ menu.',
+      'Weekends are shaded, days get a + on hover (or double-click), dates read "Tue 20 Oct", and the chart\'s low label sits above the line instead of on top of the dates.'
+    ]
+  },
+  {
+    no: 'V4.15', name: 'Record sale', date: 'Sep 2026', current: false,
     items: [
       'Investments has a Record sale button beside Record purchase: the date, then shares sold and executed price for each holding. Proceeds and the realised gain or loss show as you type, and you can\'t sell more shares than you hold.',
       'Sales use average cost. The cost that leaves with the sold shares is the average cost per share on the day of the sale; the rest of the proceeds is realised. Cost basis and units drop accordingly, so unrealised profit stays right instead of showing a false loss.',
