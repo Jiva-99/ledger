@@ -1322,6 +1322,260 @@
     .cal-dayp{ display:none; }
     .cal-headrow .cal-layers{ order:5; }
   }
+
+  /* V4.17 — native date and time pickers follow the theme, so the calendar icon is
+     light on dark instead of a black glyph you can barely see. */
+  body{ color-scheme:dark; }
+  body[data-theme="light"]{ color-scheme:light; }
+  .sr-only{ position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+  /* Calendar: pick a month and year */
+  .cal-pick{ all:unset; cursor:pointer; padding:4px 6px; border-radius:4px; }
+  .cal-pick:hover, .cal-pick:focus-visible{ color:var(--gold-bright); }
+  .cal-pick .car{ font-size:10px; color:var(--text-faint); margin-left:4px; }
+  .cal-pick-menu{ left:50%; transform:translateX(-50%); min-width:240px; padding:8px; }
+  .cp-year{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .cal-menu .cp-year button{ width:auto; padding:6px 12px; font-size:15px; color:var(--text-dim); }
+  .cp-year span{ font-size:14px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .cp-months{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:4px; }
+  .cal-menu .cp-months button{ text-align:center; padding:9px 0; font-size:13px; border-radius:6px; }
+  .cal-menu .cp-months button.on{ background:var(--gold); color:#181305; font-weight:600; }
+  .cal-menu .cp-months button.now{ box-shadow:inset 0 0 0 1px var(--gold); }
+  .cal-menu #cpThis{ text-align:center; margin-top:6px; color:var(--gold-bright); }
+
+  /* Restore points */
+  table.rp tr.rp-warn td:nth-child(2){ color:var(--amber); }
+  .rp-live{ font-size:10.5px; padding:1px 7px; border-radius:9px; background:rgba(201,162,39,0.16); color:var(--gold-bright); margin-left:4px; white-space:nowrap; }
+
+  /* Quick add — a centred sheet on wide screens, a bottom sheet on a phone */
+  .qa-sheet{ background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:10px 18px 18px; width:440px; max-width:94vw; max-height:92vh; overflow-y:auto; }
+  .sheet-grip{ width:40px; height:5px; border-radius:3px; background:var(--border); margin:0 auto 8px; }
+  .qa-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .qa-head h2{ margin:0; font-size:18px; font-weight:500; }
+  .qa-x{ all:unset; cursor:pointer; width:44px; height:44px; display:flex; align-items:center; justify-content:center; color:var(--text-dim); border-radius:10px; }
+  .qa-x:focus-visible{ box-shadow:0 0 0 2px var(--gold); }
+  .seg.qa-type{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); width:100%; border-radius:12px; }
+  .seg.qa-type button{ justify-content:center; height:44px; font-size:14px; }
+  .qa-lbl{ display:block; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-dim); margin:16px 0 8px; font-weight:600; }
+  .qa-amt{ display:flex; align-items:center; gap:10px; border-bottom:2px solid var(--k, var(--pink)); padding-bottom:4px; }
+  .qa-sheet[data-kind="Income"]{ --k:var(--green); }
+  .qa-sheet[data-kind="Savings"]{ --k:var(--blue-bright); }
+  .qa-sheet[data-kind="Expenses"]{ --k:var(--pink); }
+  .qa-cur-sign{ font-size:30px; color:var(--text-faint); }
+  #qaAmt{ flex:1; min-width:0; background:none; border:0; outline:none; font-size:36px; font-weight:500; color:var(--k, var(--text)); font-variant-numeric:tabular-nums; padding:0; }
+  #qaCur{ width:auto; }
+  .qa-cats, .qa-dates{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .qa-all{ padding:0 4px 0 0; border-style:dashed; color:var(--gold-bright); }
+  .qa-all select{ background:transparent; border:0; color:inherit; font:inherit; height:38px; padding:0 8px; max-width:170px; }
+  #qaDet{ width:100%; height:46px; }
+  #qaDate{ height:40px; width:auto; }
+  .qa-foot{ display:flex; gap:10px; margin-top:20px; }
+  .qa-foot .btn{ flex:1; height:50px; font-size:15px; border-radius:12px; }
+  .qa-foot #qaSave{ flex:1.4; }
+
+  /* Chips shared by the phone screens */
+  .chip{ all:unset; box-sizing:border-box; display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 14px; border-radius:19px; flex:none;
+    border:1px solid var(--border); background:var(--surface-raised); color:var(--text-dim); font-size:13.5px; cursor:pointer; white-space:nowrap; }
+  .chip.on{ background:rgba(201,162,39,0.16); border-color:var(--gold); color:var(--gold-bright); }
+  .chip:focus-visible{ box-shadow:0 0 0 2px var(--gold); }
+  .chip.ph-select{ padding:0 4px 0 0; color:var(--text); }
+  .chip.ph-select select{ background:transparent; border:0; color:inherit; font:inherit; height:36px; padding:0 10px; }
+
+  /* Phone screens */
+  .ph-top{ display:flex; align-items:center; gap:10px; margin:2px 0 12px; }
+  .ph-top .page-title{ flex:1; margin:0; font-size:24px; }
+  .ph-ib{ all:unset; box-sizing:border-box; width:44px; height:44px; border-radius:12px; border:1px solid var(--border); background:var(--surface);
+    display:flex; align-items:center; justify-content:center; color:var(--text-dim); cursor:pointer; flex:none; }
+  .ph-ib.gold{ background:var(--gold); border-color:var(--gold); color:#181305; }
+  .ph-ib[aria-pressed="true"]{ color:var(--gold-bright); border-color:var(--gold); }
+  .ph-ib:focus-visible{ box-shadow:0 0 0 2px var(--gold); }
+  .ph-chips{ display:flex; gap:8px; overflow-x:auto; margin:0 -14px 12px; padding:0 14px 2px; scrollbar-width:none; }
+  .ph-chips::-webkit-scrollbar{ display:none; }
+  .ph-sum{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; padding:12px 14px; border:1px solid var(--border); border-radius:14px; background:var(--surface); margin-bottom:6px; }
+  .ph-sum .k{ display:block; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-dim); font-weight:600; }
+  .ph-sum .v{ font-family:var(--mono); font-size:17px; font-variant-numeric:tabular-nums; }
+  .ph-sum-cap{ grid-column:1 / -1; font-size:11.5px; color:var(--text-faint); }
+  .sav{ color:var(--blue-bright); }
+  .ptx-search{ display:block; margin-bottom:10px; }
+  .ptx-search input{ width:100%; height:46px; }
+
+  .ptx-list{ margin:0 -14px; }
+  .ptx-day{ display:flex; justify-content:space-between; padding:14px 16px 6px; font-size:12px; color:var(--text-faint); }
+  .ptx-month{ padding:20px 16px 0; font-size:14px; font-weight:600; }
+  .ptx-wrap{ position:relative; overflow:hidden; border-top:1px solid var(--border); }
+  .ptx-acts{ position:absolute; top:0; right:0; bottom:0; display:flex; }
+  .ptx-acts button{ all:unset; cursor:pointer; width:74px; display:flex; align-items:center; justify-content:center; font-size:13px; background:var(--surface-raised); color:var(--text); }
+  .ptx-acts button.del{ background:var(--red); color:#fff; }
+  .ptx{ all:unset; box-sizing:border-box; position:relative; display:flex; align-items:center; gap:12px; width:100%; min-height:62px; padding:8px 16px;
+    background:var(--bg); cursor:pointer; touch-action:pan-y; }
+  .ptx:focus-visible{ box-shadow:inset 0 0 0 2px var(--gold); }
+  .ptx-ico{ flex:none; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; }
+  .ptx-ico.out{ background:rgba(236,72,153,0.14); color:var(--pink); }
+  .ptx-ico.in{ background:rgba(34,197,94,0.14); color:var(--green); }
+  .ptx-ico.save{ background:rgba(59,130,246,0.16); color:var(--blue-bright); }
+  .ptx-t{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .ptx-t b{ font-weight:500; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ptx-t span{ font-size:12.5px; color:var(--text-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ptx-amt{ flex:none; font-family:var(--mono); font-size:14.5px; font-variant-numeric:tabular-nums; text-align:right; display:flex; flex-direction:column; align-items:flex-end; }
+  .ptx-amt small{ font-size:11px; color:var(--text-faint); }
+  .ptx-amt.out{ color:var(--pink); } .ptx-amt.in{ color:var(--green); } .ptx-amt.save{ color:var(--blue-bright); }
+  .ptx-fold{ all:unset; box-sizing:border-box; display:flex; justify-content:space-between; align-items:center; gap:10px; width:calc(100% - 28px); margin:10px 14px 0;
+    min-height:52px; padding:0 14px; border:1px solid var(--border); border-radius:14px; background:var(--surface); cursor:pointer; font-size:14px; }
+
+  .pbl-sum{ margin-bottom:10px; }
+  .pbl-sum-h{ display:flex; justify-content:space-between; align-items:baseline; font-size:13px; }
+  .pbl-sum-h .k{ font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-dim); font-weight:600; }
+  .pbl-bar{ display:flex; gap:2px; height:10px; border-radius:5px; overflow:hidden; margin:10px 0 8px; background:var(--surface-raised); }
+  .pbl-bar .out{ background:var(--pink); } .pbl-bar .save{ background:var(--blue-bright); } .pbl-bar .in{ background:var(--green); }
+  .pbl-sum-row{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); font-size:12px; color:var(--text-faint); }
+  .pbl-sum-row b{ display:block; font-size:16px; font-weight:500; }
+  .pbl-week{ display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:14px; margin-bottom:12px;
+    background:rgba(217,139,61,0.10); border:1px solid rgba(217,139,61,0.35); font-size:13.5px; }
+  .pbl-week > b{ font-size:22px; color:var(--amber); font-weight:500; }
+  .pbl-list{ margin:0 -14px; }
+  .pbl-grp{ display:flex; align-items:center; gap:8px; padding:16px 16px 6px; font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; font-weight:600; }
+  .pbl-grp .sw{ width:8px; height:8px; border-radius:2px; }
+  .pbl-grp .muted{ text-transform:none; letter-spacing:0; font-weight:400; }
+  .pbl-grp.out{ color:var(--pink); } .pbl-grp.out .sw{ background:var(--pink); }
+  .pbl-grp.in{ color:var(--green); } .pbl-grp.in .sw{ background:var(--green); }
+  .pbl-grp.save{ color:var(--blue-bright); } .pbl-grp.save .sw{ background:var(--blue-bright); }
+  .pbl{ all:unset; box-sizing:border-box; display:flex; align-items:center; gap:12px; width:100%; min-height:62px; padding:8px 16px; border-top:1px solid var(--border); cursor:pointer; }
+  .pbl:focus-visible{ box-shadow:inset 0 0 0 2px var(--gold); }
+  .pbl-l{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .pbl-l b{ font-weight:500; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pbl-l span, .pbl-r > span{ font-size:12.5px; color:var(--text-faint); }
+  .pbl-r{ flex:none; display:flex; flex-direction:column; align-items:flex-end; }
+  .pbl-r b{ font-family:var(--mono); font-weight:500; font-size:15px; }
+  .pbl-r b.out{ color:var(--text); } .pbl-r b.in{ color:var(--green); } .pbl-r b.save{ color:var(--blue-bright); }
+  .pbl-pill{ font-size:11.5px; padding:1px 8px; border-radius:10px; }
+  .pbl-pill.today{ background:rgba(217,139,61,0.18); color:var(--amber) !important; }
+  .pbl-pill.late{ background:rgba(217,105,95,0.18); color:var(--red) !important; }
+
+  .ph-hero{ padding:16px; margin-bottom:12px; }
+  .ph-hero-h{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; font-size:12px; }
+  .ph-hero-h .k{ font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-dim); font-weight:600; }
+  .ph-hero-v{ display:flex; align-items:baseline; gap:8px; margin-top:4px; }
+  .ph-hero-v b{ font-size:32px; font-weight:500; }
+  .ph-hero-v span{ font-size:14px; }
+  .ph-track{ position:relative; height:10px; border-radius:5px; background:var(--surface-raised); margin-top:12px; }
+  .ph-track .fill{ position:absolute; left:0; top:0; bottom:0; border-radius:5px; background:var(--pink); }
+  .ph-track .fill.over{ background:var(--red); }
+  .ph-track .pace{ position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--gold-bright); }
+  .ph-hero-line{ display:flex; justify-content:space-between; gap:10px; margin-top:10px; font-size:13px; }
+  .ph-three{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); font-size:12px; color:var(--text-faint); }
+  .ph-three b{ display:block; font-size:14.5px; font-weight:500; color:var(--text); }
+  .ph-three b.pos{ color:var(--green); } .ph-three b.neg{ color:var(--red); }
+  .ph-list{ padding-bottom:4px; margin-bottom:12px; }
+  .ph-list-h{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .ph-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--border); }
+  .ph-row .l{ display:flex; flex-direction:column; min-width:0; }
+  .ph-row .l b{ font-weight:500; font-size:14px; }
+  .ph-row .l span{ font-size:12px; color:var(--text-faint); }
+
+  .nw-mix{ display:flex; gap:2px; height:12px; border-radius:6px; overflow:hidden; margin-top:14px; }
+  .nw-mix-key{ display:flex; flex-wrap:wrap; gap:6px 18px; margin-top:8px; font-size:12px; color:var(--text-faint); }
+  .nw-mix-key b{ display:block; font-size:14px; font-weight:500; }
+  .nw-ph-line{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; font-size:12.5px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+  .nwp-grp{ display:flex; justify-content:space-between; padding:14px 0 4px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-dim); font-weight:600; }
+  .nwp-parent{ display:flex; justify-content:space-between; padding:10px 0 2px; border-top:1px solid var(--border); font-size:14.5px; }
+  .nwp-row{ display:flex; align-items:center; gap:8px; border-top:1px solid var(--border); }
+  .nwp-main{ all:unset; box-sizing:border-box; flex:1; min-width:0; padding:10px 0; cursor:pointer; }
+  .nwp-main:focus-visible{ box-shadow:inset 0 0 0 2px var(--gold); }
+  .nwp-a, .nwp-b{ display:flex; justify-content:space-between; gap:10px; }
+  .nwp-a{ font-size:15px; } .nwp-a b{ font-weight:500; }
+  .nwp-b{ font-size:12px; color:var(--text-faint); margin-top:2px; }
+  .nwp-bar{ display:block; height:5px; border-radius:3px; background:var(--surface-raised); margin-top:7px; overflow:hidden; }
+  .nwp-bar span{ display:block; height:100%; }
+  .nwp-adj{ all:unset; cursor:pointer; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--gold-bright); flex:none; }
+  .nwp-adj:focus-visible{ box-shadow:0 0 0 2px var(--gold); }
+
+  .inv-acts{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+  .inv-acts button{ all:unset; box-sizing:border-box; cursor:pointer; height:62px; border-radius:14px; border:1px solid var(--border); background:var(--surface);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:12.5px; color:var(--text); }
+  .inv-acts button svg{ color:var(--gold-bright); }
+  .inv-acts button:focus-visible{ box-shadow:0 0 0 2px var(--gold); }
+  .invp{ all:unset; box-sizing:border-box; display:block; width:100%; padding:11px 0; border-top:1px solid var(--border); cursor:pointer; }
+  .invp:focus-visible{ box-shadow:inset 0 0 0 2px var(--gold); }
+  .invp-a, .invp-b{ display:flex; justify-content:space-between; gap:10px; }
+  .invp-a{ font-size:15px; } .invp-a b{ font-weight:500; }
+  .invp-a i{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:8px; vertical-align:middle; }
+  .invp-a .muted{ font-size:12px; }
+  .invp-b{ font-size:12.5px; color:var(--text-faint); margin-top:2px; }
+  .invp-bar{ position:relative; display:block; height:6px; border-radius:3px; background:var(--surface-raised); margin-top:8px; }
+  .invp-bar > span:first-child{ position:absolute; left:0; top:0; bottom:0; border-radius:3px; }
+  .invp-bar .tick{ position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--text); }
+  .inv-chart-pick{ display:none; }
+
+  /* Bottom bar and More sheet */
+  #mobileTabBar .mtb-ico{ display:block; width:24px; height:24px; }
+  #mtbAdd .fab{ width:54px; height:54px; border-radius:27px; background:var(--gold); color:#181305; display:flex; align-items:center; justify-content:center;
+    margin-top:-20px; border:4px solid var(--bg); box-shadow:0 6px 16px rgba(201,162,39,0.28); }
+  #mtbSheet .mtb-tiles{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; padding:4px 16px 8px; }
+  #mtbSheet .sheet button.mtb-tile{ flex-direction:column; align-items:flex-start; justify-content:space-between; gap:10px; height:96px; padding:12px;
+    border-radius:14px; background:var(--surface-raised); border:1px solid var(--border); font-size:14px; }
+  #mtbSheet .sheet button.mtb-tile svg{ color:var(--gold-bright); }
+  #mtbSheet .sheet button.mtb-tile small{ display:block; font-size:11.5px; color:var(--text-faint); margin-top:1px; min-height:14px; }
+  #mtbSheet .sheet button.mtb-tile.active{ border-color:var(--gold); }
+  #mtbSheet .mtb-device{ padding:6px 16px 0; display:flex; flex-direction:column; gap:10px; }
+  #mtbSheet .mtb-device .profile-switcher{ margin:0; }
+  #mtbSheet .mtb-device .cloud-status{ margin:0; padding:0; }
+  #mtbSheet .mtb-device .sidebar-foot{ display:flex; flex-wrap:wrap; gap:6px 16px; padding:8px 0 0; border-top:1px solid var(--border); margin:0; position:static; }
+  #mtbSheet .sheet .mtb-device .sidebar-foot button{ width:auto; padding:10px 0; font-size:14px; color:var(--gold-bright); }
+  #mtbSheet .sheet button.mtb-ver{ font-size:13px; color:var(--text-faint); padding:12px 16px; }
+  #mtbSheet .mtb-device .profile-switcher{ display:flex; gap:8px; width:100%; }
+  #mtbSheet .mtb-device .profile-switcher select{ flex:1; min-width:0; height:44px; font-size:16px; padding:0 10px; }
+  #mtbSheet .sheet .mtb-device .profile-switcher button{ flex:none; width:44px; height:44px; padding:0; justify-content:center; border:1px solid var(--border); border-radius:10px; }
+
+  @media (max-width: 600px){
+    .mobile-topbar{ display:none !important; }
+    .ticker{ display:none; }
+    .main{ padding-bottom:96px; }
+    .content{ padding:12px 14px; }
+    input, select, textarea{ font-size:16px; }               /* stops iOS zooming in on focus */
+    .dash-head .dash-head-sub{ display:none; }
+    .dash-head .page-title{ font-size:24px; }
+    .toast{ left:14px; right:14px; bottom:100px; }
+
+    #mobileTabBar{ padding:4px 0 max(10px, env(safe-area-inset-bottom)); align-items:flex-start; }
+    #mobileTabBar button{ font-size:11px; gap:3px; padding:7px 0 2px; color:var(--text-faint); }
+    #mobileTabBar button#mtbAdd{ padding-top:0; overflow:visible; }
+    #mobileTabBar button.active{ color:var(--gold-bright); }
+    #mtbSheet{ z-index:85; }
+    #mtbSheet .sheet{ max-height:calc(100vh - 40px); overflow-y:auto; padding-bottom:calc(96px + env(safe-area-inset-bottom)); }
+
+    /* Dialogs sit above the bottom bar */
+    .modal-backdrop{ z-index:95 !important; }
+
+    /* Every dialog becomes a sheet from the bottom of the screen */
+    .modal-backdrop{ align-items:flex-end; }
+    .modal, .qa-sheet{ width:100%; max-width:100%; border-radius:18px 18px 0 0; border-bottom:none; max-height:92vh; padding-bottom:calc(18px + env(safe-area-inset-bottom)); }
+    .modal .form-actions .btn{ min-height:44px; }
+
+    /* Home */
+    .dash-progress{ display:none; }
+    .dash-pace .dash-pace-side{ display:none; }
+    .dash-pace .dash-pace-main svg{ min-height:150px; }
+    .dash-main-kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+    .dash-main-kpis .dash-kpi:nth-child(2), .dash-main-kpis .dash-kpi:nth-child(4){ display:none; }
+
+    /* Net Worth: one column */
+    .nw-grid{ grid-template-columns:minmax(0,1fr) !important; }
+
+    /* Investments: one chart at a time */
+    .inv-chart-pick{ display:flex; }
+    .inv-charts{ grid-template-columns:minmax(0,1fr) !important; }
+    .inv-charts[data-show="1"] .inv-chart:not(:nth-child(1)),
+    .inv-charts[data-show="2"] .inv-chart:not(:nth-child(2)),
+    .inv-charts[data-show="3"] .inv-chart:not(:nth-child(3)),
+    .inv-charts[data-show="4"] .inv-chart:not(:nth-child(4)),
+    .inv-charts[data-show="5"] .inv-chart:not(:nth-child(5)),
+    .inv-charts[data-show="6"] .inv-chart:not(:nth-child(6)){ display:none; }
+    .inv-two{ grid-template-columns:minmax(0,1fr) !important; }
+    .inv-status{ flex-wrap:wrap; }
+
+    /* Calendar: the picker opens under the label without running off screen */
+    .cal-pick-menu{ position:fixed; left:14px; right:14px; top:120px; transform:none; min-width:0; }
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -1445,24 +1699,28 @@
     <div class="content" id="content"></div>
   </div>
 
-  <div id="mtbSheet" role="dialog" aria-label="More tabs">
+  <div id="mtbSheet" role="dialog" aria-label="More">
     <div class="sheet-back"></div>
     <div class="sheet">
-      <h4>More</h4>
-      <button data-tab="bills"><span class="n">05</span>Bills</button>
-      <button data-tab="investments"><span class="n">07</span>Investments</button>
-      <button data-tab="liquidity"><span class="n">08</span>Liquidity</button>
-      <button data-tab="settings"><span class="n">09</span>Settings</button>
-      <button data-tab="versions"><span class="n">10</span>Versions</button>
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <div class="mtb-tiles">
+        <button class="mtb-tile" data-tab="planning"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11M15 9v11"/></svg><span>Planning<small id="mtbHint-planning"></small></span></button>
+        <button class="mtb-tile" data-tab="networth"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M21 19H3"/></svg><span>Net Worth<small id="mtbHint-networth"></small></span></button>
+        <button class="mtb-tile" data-tab="bills"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>Bills<small id="mtbHint-bills"></small></span></button>
+        <button class="mtb-tile" data-tab="investments"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span>Investments<small id="mtbHint-investments"></small></span></button>
+        <button class="mtb-tile" data-tab="liquidity"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg><span>Liquidity<small id="mtbHint-liquidity"></small></span></button>
+        <button class="mtb-tile" data-tab="settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span>Settings<small id="mtbHint-settings"></small></span></button>
+      </div>
+      <div class="mtb-device" id="mtbDevice"></div>
+      <button class="mtb-ver" data-tab="versions">Versions · what's new</button>
     </div>
   </div>
-  <nav id="mobileTabBar">
-    <button data-tab="dashboard" class="active"><span class="mtb-num">01</span><span>Home</span></button>
-    <button data-tab="transactions"><span class="mtb-num">02</span><span>Trans</span></button>
-    <button data-tab="planning"><span class="mtb-num">03</span><span>Plan</span></button>
-    <button data-tab="networth"><span class="mtb-num">04</span><span>Worth</span></button>
-    <button data-tab="calendar"><span class="mtb-num">06</span><span>Cal</span></button>
-    <button id="mtbMore"><span class="mtb-num">···</span><span>More</span></button>
+  <nav id="mobileTabBar" aria-label="Main">
+    <button data-tab="dashboard" class="active"><svg class="mtb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
+    <button data-tab="transactions"><svg class="mtb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg><span>Activity</span></button>
+    <button id="mtbAdd" aria-label="Add a transaction"><span class="fab"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span></button>
+    <button data-tab="calendar"><svg class="mtb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Calendar</span></button>
+    <button id="mtbMore" aria-haspopup="dialog" aria-expanded="false"><svg class="mtb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg><span>More</span></button>
   </nav>
 </div>
 
@@ -1479,53 +1737,137 @@ const DATA_PREFIX = 'ledgerApp_data_v1_';
 const RESTORE_PREFIX = 'ledgerApp_restore_v1_';
 
 /* ---- Restore points --------------------------------------------------------
-   Cloud sync is last-write-wins with no history: one bad write on one device and
-   the good copy is gone. These are local, per profile, and deliberately dumb —
-   a handful of whole-state copies with a timestamp and a reason.
+   Cloud sync is last-write-wins with no history, so these are local, per-profile
+   copies kept outside state: never pushed, and out of reach of a bad sync.
 
-   Captured when the app opens, at most once an hour while it's in use, and always
-   immediately before cloud data overwrites what's on this device, which is the
-   moment things actually get lost. Stored separately from state, so they're never
-   pushed to Firestore and can't be destroyed by the same bad sync. */
-const RESTORE_MAX = 6;
-const RESTORE_MIN_GAP_MS = 60*60*1000;
+   V4.17 — when a copy is kept:
+   · Your edits: one slot per hour of editing. Each time you stop changing things
+     for a minute, the slot is brought up to date; an hour after the slot was
+     started, the next stop starts a new one. A session of twenty new records is
+     one copy, not twenty.
+   · Before another device's copy replaces this one, if the two differ — and the
+     reason says so when this device had edits that never reached the cloud.
+   · Before anything destructive here (restoring, deleting an account, resetting
+     a plan or the investment record), and when you press Save one now.
+   An empty book is never kept: there is nothing in it to get back. Navigation and
+   view settings don't count as changes. */
+const RESTORE_MAX = 8;
 const RESTORE_MAX_BYTES = 2_000_000;
+const RESTORE_EDIT_IDLE_MS = 60*1000;      // a minute without changes ends a burst of edits
+const RESTORE_EDIT_SLOT_MS = 60*60*1000;   // one slot covers an hour of editing
+const UNSYNCED_PREFIX = 'ledgerApp_unsynced_v1_';
 
 function loadRestorePoints(profileId){
   try{
     const raw = localStorage.getItem(RESTORE_PREFIX + profileId);
     const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
+    if(!Array.isArray(arr)) return [];
+    // Copies of an empty book (kept by V4.16 and earlier) protect nothing.
+    const kept = arr.filter(p=> !restoreCountsEmpty(p.counts));
+    if(kept.length !== arr.length){ try{ localStorage.setItem(RESTORE_PREFIX + profileId, JSON.stringify(kept)); }catch(e){} }
+    return kept;
   }catch(e){ return []; }
 }
+function restoreCountsEmpty(c){
+  return !!c && !(c.transactions||0) && !(c.accounts||0) && !(c.bills||0);
+}
 
-function captureRestorePoint(reason, force){
+/* A short fingerprint of the book itself, leaving out view settings (ui), so
+   switching tabs or months never looks like an edit. */
+function stateSig(st){
+  const s = JSON.stringify(st, (k, v)=> k === 'ui' ? undefined : v) || '';
+  let h = 5381;
+  for(let i=0; i<s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36) + ':' + s.length;
+}
+
+function writeRestorePoint(profileId, st, reason, extra){
   try{
-    const id = profiles.activeId;
-    const points = loadRestorePoints(id);
-    const last = points[points.length-1];
-    if(!force && last && (Date.now() - new Date(last.at).getTime()) < RESTORE_MIN_GAP_MS) return false;
-
-    const payload = JSON.stringify(state);
-    if(payload.length > RESTORE_MAX_BYTES) return false;   // too big to keep six of
-
-    // Skip a duplicate: no point stacking six identical copies of an untouched file.
-    if(last && last.data === payload && !force) return false;
-
-    points.push({
+    if(stateLooksEmpty(st)) return false;
+    const payload = JSON.stringify(st);
+    if(payload.length > RESTORE_MAX_BYTES) return false;
+    const points = loadRestorePoints(profileId);
+    const sig = stateSig(st);
+    const point = Object.assign({
       at: new Date().toISOString(),
       reason: reason || 'Automatic',
       counts: {
-        transactions: (state.transactions||[]).length,
-        accounts: (state.accounts||[]).length,
-        bills: (state.bills||[]).length
+        transactions: (st.transactions||[]).length,
+        accounts: (st.accounts||[]).length,
+        bills: (st.bills||[]).length
       },
-      data: payload
-    });
+      sig, data: payload
+    }, extra || {});
+    if(extra && extra.replaceLast) { delete point.replaceLast; points[points.length-1] = point; }
+    else points.push(point);
     while(points.length > RESTORE_MAX) points.shift();
-    localStorage.setItem(RESTORE_PREFIX + id, JSON.stringify(points));
+    localStorage.setItem(RESTORE_PREFIX + profileId, JSON.stringify(points));
     return true;
   }catch(e){ console.error('Could not save a restore point', e); return false; }
+}
+
+/* Forced copies: before something destructive, or on request. A copy identical to
+   the newest one already kept is skipped. */
+function captureRestorePoint(reason, force){
+  const id = profiles.activeId;
+  const points = loadRestorePoints(id);
+  const last = points[points.length-1];
+  if(last && last.sig && last.sig === stateSig(state)) return false;
+  return writeRestorePoint(id, state, reason);
+}
+
+/* ---- Your edits: one rolling slot per hour ---- */
+let restoreSig = {};          // profileId -> fingerprint of the book as last seen
+let editBurst = null;         // { profileId, since } while edits are waiting to be kept
+let editTimer = null;
+
+function restoreBaseline(){ restoreSig[profiles.activeId] = stateSig(state); }
+
+function noteEditForRestore(){
+  const id = profiles.activeId;
+  const sig = stateSig(state);
+  if(restoreSig[id] === undefined){ restoreSig[id] = sig; return; }
+  if(restoreSig[id] === sig) return;              // only the view changed
+  restoreSig[id] = sig;
+  try{ if(cloudUser) markUnsynced(id); }catch(e){}  // cleared once the push lands
+  if(!editBurst || editBurst.profileId !== id) editBurst = { profileId: id, since: new Date().toISOString() };
+  clearTimeout(editTimer);
+  editTimer = setTimeout(flushEditPoint, RESTORE_EDIT_IDLE_MS);
+}
+
+function flushEditPoint(){
+  clearTimeout(editTimer); editTimer = null;
+  if(!editBurst) return false;
+  const burst = editBurst; editBurst = null;
+  if(burst.profileId !== profiles.activeId) return false;
+  const points = loadRestorePoints(burst.profileId);
+  const last = points[points.length-1];
+  const fmtT = iso=> new Date(iso).toLocaleTimeString('en-AU', { hour:'numeric', minute:'2-digit' });
+  const open = last && last.kind === 'edits' && last.since
+            && (Date.now() - new Date(last.since).getTime()) < RESTORE_EDIT_SLOT_MS;
+  const since = open ? last.since : burst.since;
+  const now = new Date().toISOString();
+  const reason = `Your edits, ${fmtT(since)}–${fmtT(now)}`;
+  return writeRestorePoint(burst.profileId, state, reason, { kind:'edits', since, replaceLast: !!open });
+}
+
+/* ---- Another device's copy is about to replace this one ---- */
+function markUnsynced(profileId){ try{ localStorage.setItem(UNSYNCED_PREFIX + profileId, new Date().toISOString()); }catch(e){} }
+function clearUnsynced(profileId){ try{ localStorage.removeItem(UNSYNCED_PREFIX + profileId); }catch(e){} }
+function hasUnsynced(profileId){ try{ return !!localStorage.getItem(UNSYNCED_PREFIX + profileId); }catch(e){ return false; } }
+
+function protectBeforeReplace(profileId, localState, incoming){
+  if(!incoming || stateLooksEmpty(localState)) return false;
+  // Both sides through the same normalising step, so field order or a default
+  // filled in on one side can't make identical books look different.
+  const norm = st=>{ try{ return mergeWithDefaults(JSON.parse(JSON.stringify(st))); }catch(e){ return st; } };
+  if(stateSig(norm(localState)) === stateSig(norm(incoming))) return false;   // nothing would be lost
+  const unsynced = hasUnsynced(profileId);
+  const ok = writeRestorePoint(profileId, localState,
+    unsynced ? "Before another device's copy replaced this one — it had edits that hadn't synced"
+             : "Before another device's copy replaced this one", { kind:'replaced', unsynced });
+  clearUnsynced(profileId);
+  return ok;
 }
 
 /* Restoring is itself undoable — the state being replaced is captured first. */
@@ -1534,14 +1876,585 @@ function restoreFromPoint(index){
   const points = loadRestorePoints(id);
   const p = points[index];
   if(!p) return false;
-  captureRestorePoint('Before restoring', true);
+  writeRestorePoint(id, state, 'Before restoring');
   try{
     state = mergeWithDefaults(JSON.parse(p.data));
+    restoreSig[id] = stateSig(state);            // a restore is not a new edit to keep
     saveState();
     render();
     return true;
   }catch(e){ console.error(e); toast('That restore point could not be read.'); return false; }
 }
+
+/* ---------- V4.17 phone shell ----------
+   At phone width the app is a bottom bar (Home · Activity · + · Calendar · More)
+   and a More sheet. The sidebar's profile switcher, sync status and backup buttons
+   move into the sheet; on a wider screen they move back. They are the same
+   elements, moved, so everything wired to them keeps working. */
+const PHONE_MQ = (typeof window.matchMedia === 'function') ? window.matchMedia('(max-width: 600px)') : null;
+function isPhone(){ return !!(PHONE_MQ && PHONE_MQ.matches); }
+
+let shellAnchors = null;
+function placeShellParts(){
+  const dev = document.getElementById('mtbDevice');
+  const sw = document.querySelector('.profile-switcher');
+  const cs = document.getElementById('cloudStatusArea');
+  const foot = document.querySelector('.sidebar-foot');
+  if(!dev || !sw || !cs || !foot) return;
+  if(!shellAnchors){
+    shellAnchors = { sw: document.createComment('profile switcher'), cs: document.createComment('cloud status'), foot: document.createComment('sidebar foot') };
+    sw.parentNode.insertBefore(shellAnchors.sw, sw);
+    cs.parentNode.insertBefore(shellAnchors.cs, cs);
+    foot.parentNode.insertBefore(shellAnchors.foot, foot);
+  }
+  if(isPhone()){
+    if(sw.parentNode !== dev){ dev.appendChild(sw); dev.appendChild(cs); dev.appendChild(foot); }
+  } else if(sw.parentNode === dev){
+    [['sw', sw], ['cs', cs], ['foot', foot]].forEach(([k, el])=>
+      shellAnchors[k].parentNode.insertBefore(el, shellAnchors[k].nextSibling));
+  }
+}
+
+/* One line under each tile, so the sheet says something before you open the tab. */
+function fillMoreHints(){
+  const set = (k, t)=>{ const el = document.getElementById('mtbHint-' + k); if(el) el.textContent = t || ''; };
+  try{ set('planning', `${state.ui.planYear || TODAY.getFullYear()} budget`); }catch(e){}
+  try{ set('networth', moneyWhole(netWorthAUD())); }catch(e){}
+  try{
+    const t = isoDate(TODAY), in7 = isoDate(addDays(todayDate(), 7));
+    const n = (state.bills||[]).reduce((a,b)=> a + billOccurrences(b, t, in7).filter(d=> !(billIsLinked(b) && billFindMatch(b, d))).length, 0);
+    set('bills', n ? `${n} due in 7 days` : 'nothing due this week');
+  }catch(e){}
+  try{ const r = investmentRows(); set('investments', r.rows.length ? investMoney(r.totalValue) : 'no holdings yet'); }catch(e){}
+  set('liquidity', 'cash you can reach');
+  set('settings', 'categories, data');
+}
+
+/* Popover menus (.cal-menu): one open at a time; a click elsewhere or Escape closes. */
+function wireMenusOnce(){
+  if(window.__calMenuWired) return;
+  window.__calMenuWired = true;
+  document.addEventListener('click', e=>{ if(!e.target.closest || !e.target.closest('.cal-menu-wrap')) calCloseMenus(); });
+  document.addEventListener('keydown', e=>{ if(e.key === 'Escape') calCloseMenus(); });
+}
+function wireMenuButtons(c){
+  wireMenusOnce();
+  c.querySelectorAll('[data-calmenu]').forEach(b=> b.onclick = e=>{
+    e.stopPropagation();
+    const m = document.getElementById(b.dataset.calmenu);
+    if(!m) return;
+    const open = m.hidden;
+    calCloseMenus();
+    m.hidden = !open;
+    b.setAttribute('aria-expanded', String(open));
+    if(open){ const first = m.querySelector('button, select, input'); if(first) first.focus(); }
+  });
+}
+
+/* ---------- V4.17 quick add ----------
+   The phone's + button, and tapping a row on Activity. Amount first, on the phone's
+   own number pad; your most-used categories one tap away; today by default. On a
+   wider screen the full form (openTxModal) is still what + Add transaction opens. */
+const QA_TYPES = [['Expenses','Expense'], ['Income','Income'], ['Savings','Saving']];
+
+/* "Food & Dining - Groceries" reads as "Groceries" on a chip; the full name is
+   the chip's title and what gets saved. */
+function catShort(cat){
+  const s = String(cat||'');
+  const i = s.lastIndexOf(' - ');
+  return i > 0 ? s.slice(i + 3) : s;
+}
+function catPretty(cat){ return String(cat||'').replace(/ - /g, ' · '); }
+
+/* The categories you use most for a type, over the last four months, topped up
+   from the category list so there are always a few to pick from. */
+function topCategories(type, n){
+  const since = isoDate(addDays(todayDate(), -120));
+  const counts = {};
+  (state.transactions||[]).forEach(t=>{
+    if(t.type === type && t.date >= since) counts[t.category] = (counts[t.category]||0) + 1;
+  });
+  const valid = state.categories[type] || [];
+  const ranked = Object.keys(counts).filter(c=> valid.includes(c)).sort((a,b)=> counts[b] - counts[a]);
+  valid.forEach(c=>{ if(!ranked.includes(c)) ranked.push(c); });
+  return ranked.slice(0, n || 5);
+}
+
+function openQuickAdd(editId){
+  const root = document.getElementById('modalRoot');
+  const existing = editId ? (state.transactions||[]).find(t=> t.id === editId) : null;
+  const todayISO = isoDate(TODAY), yISO = isoDate(addDays(todayDate(), -1));
+  const qa = {
+    type: existing ? existing.type : (state.ui.qaLastType || 'Expenses'),
+    cat:  existing ? existing.category : null,
+    date: existing ? existing.date : todayISO
+  };
+  if(!qa.cat) qa.cat = topCategories(qa.type, 1)[0] || '';
+
+  root.innerHTML = `
+    <div class="modal-backdrop qa-back" id="qab">
+      <div class="qa-sheet" role="dialog" aria-label="${existing ? 'Edit transaction' : 'New transaction'}">
+        <div class="sheet-grip" aria-hidden="true"></div>
+        <div class="qa-head"><h2>${existing ? 'Edit transaction' : 'New transaction'}</h2>
+          <button type="button" class="qa-x" id="qaClose" aria-label="Close">✕</button></div>
+        <div class="seg qa-type" role="group" aria-label="Type">
+          ${QA_TYPES.map(([k,l])=> `<button type="button" data-qatype="${k}">${l}</button>`).join('')}
+        </div>
+        <label class="qa-lbl" for="qaAmt">Amount</label>
+        <div class="qa-amt">
+          <span class="qa-cur-sign" aria-hidden="true">$</span>
+          <input id="qaAmt" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${existing ? existing.amount : ''}">
+          <label class="sr-only" for="qaCur">Currency</label>
+          <select id="qaCur">${NET_WORTH_CURRENCIES.map(c=> `<option ${(existing ? (existing.currency||'AUD') : 'AUD') === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
+        </div>
+        <div class="qa-lbl">Category</div>
+        <div class="qa-cats" id="qaCats"></div>
+        <label class="qa-lbl" for="qaDet">Details</label>
+        <input id="qaDet" type="text" autocomplete="off" placeholder="What was it? (optional)" value="${existing ? escHTML(existing.details||'') : ''}">
+        <div class="qa-lbl">Date</div>
+        <div class="qa-dates">
+          <button type="button" class="chip" data-qadate="${todayISO}">Today</button>
+          <button type="button" class="chip" data-qadate="${yISO}">Yesterday</button>
+          <label class="sr-only" for="qaDate">Pick a date</label>
+          <input type="date" id="qaDate" min="1970-01-01" max="2200-12-31" value="${qa.date}">
+        </div>
+        <div class="qa-foot">
+          ${existing ? `<button type="button" class="btn danger" id="qaDel">Delete</button>` : `<button type="button" class="btn secondary" id="qaAgain">Save + another</button>`}
+          <button type="button" class="btn" id="qaSave">Save</button>
+        </div>
+      </div>
+    </div>`;
+
+  const $ = id=> document.getElementById(id);
+  const close = ()=> root.innerHTML = '';
+  const paint = ()=>{
+    root.querySelectorAll('[data-qatype]').forEach(b=>{
+      const on = b.dataset.qatype === qa.type;
+      b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
+    });
+    root.querySelector('.qa-sheet').dataset.kind = qa.type;
+    const top = topCategories(qa.type, 5);
+    if(qa.cat && !top.includes(qa.cat)) top.unshift(qa.cat);
+    const all = state.categories[qa.type] || [];
+    $('qaCats').innerHTML = top.map(c=> `<button type="button" class="chip${c === qa.cat ? ' on' : ''}" data-qacat="${escHTML(c)}" title="${escHTML(c)}" aria-pressed="${c === qa.cat}">${escHTML(catShort(c))}</button>`).join('')
+      + `<label class="chip qa-all"><span class="sr-only">All categories</span><select id="qaCatAll">
+           <option value="">All categories…</option>${all.map(c=> `<option value="${escHTML(c)}">${escHTML(c)}</option>`).join('')}</select></label>`;
+    $('qaCats').querySelectorAll('[data-qacat]').forEach(b=> b.onclick = ()=>{ qa.cat = b.dataset.qacat; paint(); });
+    $('qaCatAll').onchange = e=>{ if(e.target.value){ qa.cat = e.target.value; paint(); } };
+    root.querySelectorAll('[data-qadate]').forEach(b=> b.classList.toggle('on', b.dataset.qadate === qa.date));
+    $('qaDate').value = qa.date;
+  };
+  root.querySelectorAll('[data-qatype]').forEach(b=> b.onclick = ()=>{
+    if(qa.type === b.dataset.qatype) return;
+    qa.type = b.dataset.qatype;
+    qa.cat = topCategories(qa.type, 1)[0] || '';
+    paint();
+  });
+  root.querySelectorAll('[data-qadate]').forEach(b=> b.onclick = ()=>{ qa.date = b.dataset.qadate; paint(); });
+  $('qaDate').onchange = e=>{ if(e.target.value){ qa.date = e.target.value; paint(); } };
+  $('qaClose').onclick = close;
+  $('qab').addEventListener('click', e=>{ if(e.target.id === 'qab') close(); });
+  paint();
+  if(!existing) setTimeout(()=>{ const a = $('qaAmt'); if(a) a.focus(); }, 30);
+
+  const save = again=>{
+    const amt = Number(String($('qaAmt').value).replace(/[^0-9.]/g, ''));
+    if(!amt || amt <= 0){ toast('Enter an amount greater than 0.'); return; }
+    if(!qa.cat){ toast('Pick a category.'); return; }
+    if(!qa.date || !isSaneYear(Number(qa.date.slice(0,4)))){ toast("That date doesn't look right."); return; }
+    const rec = { date: qa.date, type: qa.type, category: qa.cat, amount: amt, currency: $('qaCur').value, details: $('qaDet').value.trim() };
+    state.ui.qaLastType = qa.type;
+    if(existing){ Object.assign(existing, rec); toast('Transaction updated.'); }
+    else { state.transactions.push(Object.assign({ id: uid() }, rec)); toast(`${qa.type === 'Income' ? '+' : '−'}${moneyCur(amt, rec.currency, 2)} ${catShort(qa.cat)} saved.`); }
+    saveState(); render();
+    if(again){
+      // The sheet stays open for the next one: same type and date, fresh amount.
+      $('qaAmt').value = ''; $('qaDet').value = '';
+      $('qaAmt').focus();
+    } else close();
+  };
+  $('qaSave').onclick = ()=> save(false);
+  if($('qaAgain')) $('qaAgain').onclick = ()=> save(true);
+  if($('qaDel')) $('qaDel').onclick = ()=>{
+    if(!confirm('Delete this transaction?')) return;
+    state.transactions = state.transactions.filter(t=> t.id !== existing.id);
+    saveState(); close(); render(); toast('Transaction deleted.');
+  };
+  $('qaAmt').onkeydown = e=>{ if(e.key === 'Enter'){ e.preventDefault(); save(false); } };
+}
+
+/* ---------- V4.17 Activity on a phone ----------
+   Rows instead of a seven-column table: what it was and its category on the left,
+   the amount on the right, grouped by day. The latest month is open; earlier ones
+   fold to one line each. Tap a row to edit it; swipe it left for Edit and Delete. */
+let ptxOpenMonths = new Set();
+let ptxSearchOpen = false;
+
+function renderTransactionsPhone(c, v){
+  const { rows, filterType, filterMonth, search, monthsPresent, monthTitle, monthSums, allTimeBalance, totalRecords } = v;
+  const groups = [];
+  rows.forEach(r=>{
+    const k = r.date.slice(0,7);
+    if(!groups.length || groups[groups.length-1].key !== k) groups.push({ key:k, rows:[] });
+    groups[groups.length-1].rows.push(r);
+  });
+  const focusKey = filterMonth !== 'All' ? filterMonth : isoDate(TODAY).slice(0,7);
+  const sum = monthSums(state.transactions.filter(t=> t.date.slice(0,7) === focusKey && (filterType === 'All' || t.type === filterType)));
+  const KCLS = { Expenses:'out', Income:'in', Savings:'save' };
+  const sign = r=> r.type === 'Income' ? '+' : '−';
+  const searching = !!search || ptxSearchOpen;
+  const isOpen = (g, i)=> !!search || filterMonth !== 'All' || i === 0 || ptxOpenMonths.has(g.key);
+
+  const rowHTML = r=>{
+    const cur = r.currency || 'AUD';
+    const title = r.details ? escHTML(r.details) : escHTML(catShort(r.category));
+    const sub = r.details ? escHTML(catPretty(r.category)) : r.type;
+    return `
+      <div class="ptx-wrap" data-ptxwrap="${r.id}">
+        <div class="ptx-acts" aria-hidden="true">
+          <button type="button" tabindex="-1" data-ptxedit="${r.id}">Edit</button>
+          <button type="button" tabindex="-1" class="del" data-ptxdel="${r.id}">Delete</button>
+        </div>
+        <button type="button" class="ptx" data-ptx="${r.id}" aria-label="${title}, ${sign(r)}${moneyCur(r.amount, cur, 2)}, ${shortIsoDate(r.date)}. Tap to edit.">
+          <span class="ptx-ico ${KCLS[r.type]||'out'}" aria-hidden="true">${escHTML(catShort(r.category).charAt(0).toUpperCase())}</span>
+          <span class="ptx-t"><b>${title}</b><span>${sub}</span></span>
+          <span class="ptx-amt ${KCLS[r.type]||'out'}">${sign(r)}${moneyCur(r.amount, cur, 2)}${cur !== 'AUD' ? `<small>≈ ${moneyWhole(txAmountAUD(r))}</small>` : ''}</span>
+        </button>
+      </div>`;
+  };
+  const dayGroups = list=>{
+    const out = [];
+    list.forEach(r=>{
+      if(!out.length || out[out.length-1].date !== r.date) out.push({ date:r.date, rows:[] });
+      out[out.length-1].rows.push(r);
+    });
+    return out.map(d=>{
+      const net = d.rows.reduce((t,r)=> t + (r.type === 'Income' ? 1 : -1) * txAmountAUD(r), 0);
+      return `<div class="ptx-day"><span>${calDateLabel(d.date)}</span><span class="num-font">${net >= 0 ? '+' : '−'}${moneyWhole(Math.abs(net))}</span></div>${d.rows.map(rowHTML).join('')}`;
+    }).join('');
+  };
+  const body = groups.map((g, i)=>{
+    const s = monthSums(g.rows);
+    if(isOpen(g, i)) return `${i > 0 || filterMonth === 'All' ? `<div class="ptx-month">${monthTitle(g.key)} <span class="muted">· ${s.n} record${s.n===1?'':'s'}</span></div>` : ''}${dayGroups(g.rows)}`;
+    return `<button type="button" class="ptx-fold" data-ptxmonth="${g.key}" aria-expanded="false">
+      <span>${monthTitle(g.key)} <span class="muted">· ${s.n} record${s.n===1?'':'s'}</span></span>
+      <span class="num-font">${s.inc ? `<span class="pos">+${moneyWhole(s.inc)}</span> ` : ''}${s.exp ? `<span class="neg">−${moneyWhole(s.exp)}</span>` : ''}</span></button>`;
+  }).join('');
+
+  c.innerHTML = `
+    <div class="ph-top">
+      <h1 class="page-title">Activity</h1>
+      <button type="button" class="ph-ib" id="ptxSearchBtn" aria-label="Search" aria-pressed="${searching}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg></button>
+      <div class="cal-menu-wrap">
+        <button type="button" class="ph-ib" data-calmenu="ptxMenu" aria-haspopup="true" aria-expanded="false" aria-label="More">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></button>
+        <div class="cal-menu right" id="ptxMenu" hidden>
+          <div class="cal-menu-h">${totalRecords.toLocaleString('en-AU')} records · lifetime balance <span class="${allTimeBalance<0?'neg':'pos'}">${allTimeBalance<0?'−':''}${moneyWhole(Math.abs(allTimeBalance))}</span></div>
+          <button type="button" id="exportCsvBtn">Export CSV</button>
+          <button type="button" id="addTxBtn">Full form…</button>
+        </div>
+      </div>
+    </div>
+    ${searching ? `<label class="ptx-search"><span class="sr-only">Search</span>
+      <input type="search" id="txSearch" placeholder="Search details or category…" value="${escHTML(search)}" autocomplete="off"></label>` : ''}
+    <div class="ph-chips">
+      <label class="chip ph-select"><span class="sr-only">Month</span>
+        <select id="txMonth">
+          <option value="All" ${filterMonth==='All'?'selected':''}>All months</option>
+          ${monthsPresent.map(mo=>`<option value="${mo}" ${filterMonth===mo?'selected':''}>${monthTitle(mo)}</option>`).join('')}
+        </select></label>
+      ${[['All','All'], ['Expenses','Out'], ['Income','In'], ['Savings','Saved']].map(([k,l])=> `<button type="button" class="chip${filterType===k?' on':''}" data-txtype="${k}" aria-pressed="${filterType===k}">${l}</button>`).join('')}
+    </div>
+    <div class="ph-sum">
+      <div><span class="k">In</span><span class="v pos">${moneyWhole(sum.inc)}</span></div>
+      <div><span class="k">Out</span><span class="v neg">${moneyWhole(sum.exp)}</span></div>
+      <div><span class="k">Saved</span><span class="v sav">${moneyWhole(sum.sav)}</span></div>
+      <div class="ph-sum-cap">${monthTitle(focusKey)}</div>
+    </div>
+    ${rows.length === 0 ? `<div class="empty-state"><div class="glyph">·</div>${state.transactions.length ? 'No transactions match these filters.' : 'No transactions yet. Tap + to add one.'}</div>`
+      : `<div class="ptx-list">${body}</div>`}
+  `;
+
+  wireMenuButtons(c);
+  const bind = (id, fn)=>{ const el = document.getElementById(id); if(el) el.onclick = fn; };
+  bind('ptxSearchBtn', ()=>{
+    ptxSearchOpen = !(ptxSearchOpen || search);
+    if(!ptxSearchOpen){ state.ui.txSearch = ''; saveState(); }
+    render();
+    const box = document.getElementById('txSearch'); if(box) box.focus();
+  });
+  c.querySelectorAll('[data-ptxmonth]').forEach(b=> b.onclick = ()=>{ ptxOpenMonths.add(b.dataset.ptxmonth); render(); });
+  c.querySelectorAll('[data-ptxdel]').forEach(b=> b.onclick = e=>{
+    e.stopPropagation();
+    if(confirm('Delete this transaction?')){
+      state.transactions = state.transactions.filter(t=> t.id !== b.dataset.ptxdel);
+      saveState(); render();
+    }
+  });
+  c.querySelectorAll('[data-ptxedit]').forEach(b=> b.onclick = e=>{ e.stopPropagation(); openQuickAdd(b.dataset.ptxedit); });
+  wirePtxSwipe(c);
+}
+
+/* Swipe a row left to show Edit and Delete; a tap edits; a tap on an open row
+   closes it. Only one row is open at a time. */
+function wirePtxSwipe(c){
+  const OPEN = -148;
+  let openRow = null;
+  const setX = (el, x, anim)=>{ el.style.transition = anim ? 'transform .18s ease' : 'none'; el.style.transform = x ? `translateX(${x}px)` : ''; };
+  c.querySelectorAll('.ptx').forEach(row=>{
+    let x0 = null, y0 = 0, dx = 0, moved = false, base = 0;
+    row.addEventListener('pointerdown', e=>{
+      if(e.pointerType === 'mouse') return;
+      x0 = e.clientX; y0 = e.clientY; dx = 0; moved = false; base = row === openRow ? OPEN : 0;
+    });
+    row.addEventListener('pointermove', e=>{
+      if(x0 === null) return;
+      const ddx = e.clientX - x0, ddy = e.clientY - y0;
+      if(!moved && Math.abs(ddy) > Math.abs(ddx)) { x0 = null; return; }   // scrolling, not swiping
+      if(Math.abs(ddx) > 6) moved = true;
+      if(moved){ dx = ddx; setX(row, Math.min(0, Math.max(OPEN - 30, base + dx)), false); }
+    });
+    const end = ()=>{
+      if(x0 === null) return;
+      x0 = null;
+      if(!moved) return;
+      const shouldOpen = base + dx < OPEN / 2;
+      if(openRow && openRow !== row) setX(openRow, 0, true);
+      setX(row, shouldOpen ? OPEN : 0, true);
+      openRow = shouldOpen ? row : (openRow === row ? null : openRow);
+      row.dataset.swiped = '1';
+    };
+    row.addEventListener('pointerup', end);
+    row.addEventListener('pointercancel', end);
+    row.addEventListener('click', ()=>{
+      if(row.dataset.swiped){ delete row.dataset.swiped; return; }
+      if(openRow === row){ setX(row, 0, true); openRow = null; return; }
+      if(openRow){ setX(openRow, 0, true); openRow = null; }
+      openQuickAdd(row.dataset.ptx);
+    });
+  });
+}
+
+/* ---------- V4.17 Bills on a phone ----------
+   One card for the month, what's due this week, then each entry as a row: name and
+   cycle on the left, amount and next due on the right, soonest first within each
+   kind. Every entry stays its own row. Tap one to edit it. */
+function billsPhoneHTML(v){
+  const { outM, inM, saveM, netM, week, weekSum, filter, stat, KIND_ORDER } = v;
+  const todayISO = isoDate(TODAY);
+  const total = Math.max(1, outM + saveM + Math.max(0, netM));
+  const kinds = KIND_ORDER.filter(([k])=> filter === 'all' || filter === k);
+  const KCLS = { expense:'out', income:'in', saving:'save' };
+  const nextOf = b=>{
+    const s = stat.get(b.id);
+    if(s && s.next) return s.next;
+    return billOccurrences(b, todayISO, isoDate(addDays(todayDate(), 800)))[0] || null;
+  };
+  const dueHTML = b=>{
+    const s = stat.get(b.id) || {};
+    const n = nextOf(b);
+    if(s.state === 'late') return `<span class="pbl-pill late">not seen yet</span>`;
+    if(!n) return `<span>no date</span>`;
+    if(n === todayISO) return `<span class="pbl-pill today">today</span>`;
+    return `<span>${calDateLabel(n)} · ${relFromToday(n).replace(/^in /, '')}</span>`;
+  };
+  const groupHTML = ([k, label])=>{
+    const items = state.bills.filter(b=> b.kind === k)
+      .sort((a,b)=> (nextOf(a) || '9999').localeCompare(nextOf(b) || '9999'));
+    if(!items.length) return '';
+    return `
+      <div class="pbl-grp ${KCLS[k]}"><span class="sw"></span>${label}<span class="muted">· ${items.length} · ${moneyWhole(items.reduce((s,b)=> s + billMonthlyAUD(b), 0))} a month</span></div>
+      ${items.map(b=> `
+        <button type="button" class="pbl" data-editbill="${b.id}">
+          <span class="pbl-l"><b>${escHTML(b.name)}</b><span>${billFreqLabel(b)}${billIsLinked(b) ? ' · checks Transactions' : ''}</span></span>
+          <span class="pbl-r"><b class="${KCLS[k]}">${k === 'income' ? '+' : ''}${moneyCur(b.amount, b.currency||'AUD')}</b>${dueHTML(b)}</span>
+        </button>`).join('')}`;
+  };
+  return `
+    <div class="ph-top">
+      <h1 class="page-title">Bills</h1>
+      <button type="button" class="ph-ib gold" id="addBillBtn" aria-label="Add a bill or income">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div>
+    <div class="card pbl-sum">
+      <div class="pbl-sum-h"><span class="k">A month, AUD</span><span class="${netM >= 0 ? 'pos' : 'neg'} num-font">${netM >= 0 ? '+' : '−'}${moneyWhole(Math.abs(netM))} left over</span></div>
+      <div class="pbl-bar" aria-hidden="true">
+        <span class="out" style="width:${(outM/total*100).toFixed(1)}%"></span><span class="save" style="width:${(saveM/total*100).toFixed(1)}%"></span>${netM > 0 ? `<span class="in" style="width:${(netM/total*100).toFixed(1)}%"></span>` : ''}
+      </div>
+      <div class="pbl-sum-row">
+        <span><b class="pos num-font">${moneyWhole(inM)}</b>in</span>
+        <span><b class="neg num-font">${moneyWhole(outM)}</b>out</span>
+        <span><b class="sav num-font">${moneyWhole(saveM)}</b>to savings</span>
+      </div>
+    </div>
+    ${week.length ? `<div class="pbl-week"><b class="num-font">${week.length}</b><span>due in 7 days · <span class="num-font">${moneyWhole(weekSum)}</span><br><span class="muted">${week.slice(0,3).map(x=> `${escHTML(x.b.name)} ${x.d === todayISO ? 'today' : CAL_DOW[new Date(x.d+'T00:00:00').getDay()]}`).join(' · ')}</span></span></div>` : ''}
+    <div class="ph-chips">
+      ${[['all','All'], ['expense','Out'], ['income','In'], ['saving','Savings']].map(([k,l])=>{
+        const n = k === 'all' ? state.bills.length : state.bills.filter(b=> b.kind === k).length;
+        return `<button type="button" class="chip${filter===k?' on':''}" data-billfilter="${k}" aria-pressed="${filter===k}">${l} ${n}</button>`;
+      }).join('')}
+    </div>
+    ${state.bills.length === 0 ? `<div class="empty-state"><div class="glyph">·</div>Nothing scheduled yet. Tap + to add a bill, your salary, or a monthly transfer to savings.</div>`
+      : `<div class="pbl-list">${kinds.map(groupHTML).join('')}</div>`}`;
+}
+
+/* ---------- V4.17 phone views: Home, Net Worth, Investments ---------- */
+
+/* Home: one card that says what you've spent against the budget and whether
+   you're ahead of or behind the pace — the three pace figures, in one place. */
+function phoneHeroHTML(y, m, viewMode, memo){
+  const isYear = viewMode === 'year';
+  const d = isYear ? paceYearData(y, memo) : paceMonthData(y, m);
+  const name = isYear ? String(y) : MONTHS_LONG[m];
+  const label = d.state === 'future' ? `${name} budget` : d.state === 'past' ? `Spent in ${name}` : (isYear ? 'Spent this year' : 'Spent this month');
+  const hasBudget = d.budget > 0;
+  const fill = hasBudget ? Math.min(100, d.spentNow / d.budget * 100) : 0;
+  const paceAt = hasBudget && d.state === 'current' ? Math.min(100, d.paceNow / d.budget * 100) : null;
+  const when = d.state === 'current'
+    ? (isYear ? `${Math.round(d.fracNow*100)}% of the year` : `Day ${d.upTo} of ${d.days}`)
+    : d.state === 'past' ? (isYear ? 'year complete' : 'month complete') : 'not started';
+  let line = '';
+  if(!hasBudget) line = `<span class="muted">No expense budget yet — add one in Planning.</span>`;
+  else if(d.state === 'current'){
+    const diff = d.spentNow - d.paceNow;
+    line = `<span class="${diff > 0 ? 'neg' : 'pos'}">${moneyWhole(Math.abs(diff))} ${diff > 0 ? 'over' : 'under'} pace</span><span class="muted">pace today ${moneyWhole(d.paceNow)}</span>`;
+  } else if(d.state === 'past'){
+    const diff = d.spentNow - d.budget;
+    line = `<span class="${diff > 0 ? 'neg' : 'pos'}">${moneyWhole(Math.abs(diff))} ${diff > 0 ? 'over' : 'under'} budget</span>`;
+  } else line = `<span class="muted">Nothing spent yet.</span>`;
+  const over = hasBudget && (d.state === 'current' ? d.spentNow > d.paceNow : d.spentNow > d.budget);
+  return `
+    <div class="card ph-hero" id="phHero">
+      <div class="ph-hero-h"><span class="k">${label}</span><span class="muted">${when}</span></div>
+      <div class="ph-hero-v"><b class="num-font">${moneyWhole(d.state === 'future' ? d.budget : d.spentNow)}</b>${hasBudget && d.state !== 'future' ? `<span class="muted num-font">of ${moneyWhole(d.budget)}</span>` : ''}</div>
+      ${hasBudget && d.state !== 'future' ? `<div class="ph-track" role="img" aria-label="${Math.round(fill)}% of the budget spent${paceAt !== null ? `, pace line at ${Math.round(paceAt)}%` : ''}">
+        <span class="fill${over ? ' over' : ''}" style="width:${fill.toFixed(1)}%"></span>
+        ${paceAt !== null ? `<span class="pace" style="left:${paceAt.toFixed(1)}%"></span>` : ''}</div>` : ''}
+      <div class="ph-hero-line">${line}</div>
+    </div>`;
+}
+
+/* The next few dated items from Bills, linked ones already seen left out. */
+function comingUpHTML(){
+  const t = isoDate(TODAY), to = isoDate(addDays(todayDate(), 21));
+  const list = [];
+  (state.bills||[]).forEach(b=> billOccurrences(b, t, to).forEach(d=>{
+    if(billIsLinked(b) && billFindMatch(b, d)) return;
+    list.push({ b, d });
+  }));
+  list.sort((a,b)=> a.d.localeCompare(b.d));
+  if(!list.length) return '';
+  return `
+    <div class="card ph-list" id="phComing">
+      <div class="ph-list-h"><span class="dash-card-title">Coming up</span><button type="button" class="dash-link" data-phgoto="bills">Bills ›</button></div>
+      ${list.slice(0, 4).map(x=> `
+        <div class="ph-row"><span class="l"><b>${escHTML(x.b.name)}</b><span>${calDateLabel(x.d)} · ${relFromToday(x.d)}</span></span>
+          <span class="num-font ${x.b.kind === 'income' ? 'pos' : x.b.kind === 'saving' ? 'sav' : 'neg'}">${x.b.kind === 'income' ? '+' : '−'}${moneyCur(x.b.amount, x.b.currency||'AUD')}</span></div>`).join('')}
+    </div>`;
+}
+
+/* Net Worth: the total, the month's change and the mix in one card. */
+function nwPhoneSummaryHTML(v){
+  const { total, change, prevTotal, prevMonthEnd, groups, pt, ptPct, totalInTargetCur, fx, fxCount } = v;
+  const GCOL = ['var(--green)', 'var(--blue-bright)', 'var(--gold)', 'var(--violet)', 'var(--amber)', 'var(--pink)'];
+  const parts = Object.entries(groups).map(([g, accs], i)=> ({ g, v: accs.reduce((s,a)=> s + accountBalanceAUD(a), 0), col: GCOL[i % GCOL.length] }));
+  const pos = Math.max(1, parts.reduce((s,p)=> s + Math.max(0, p.v), 0));
+  return `
+    <div class="card ph-hero nw-ph">
+      <div class="ph-hero-h"><span class="k">Total, AUD</span>${prevTotal > 0 ? `<span class="${change >= 0 ? 'pos' : 'neg'} num-font">${change >= 0 ? '+' : '−'}${moneyWhole(Math.abs(change))} since ${shortIsoDate(isoDate(prevMonthEnd))}</span>` : ''}</div>
+      <div class="ph-hero-v"><b class="num-font" style="color:var(--gold-bright);">${moneyWhole(total)}</b></div>
+      ${parts.length ? `<div class="nw-mix" aria-hidden="true">${parts.map(p=> `<span style="width:${(Math.max(0,p.v)/pos*100).toFixed(1)}%; background:${p.col};"></span>`).join('')}</div>
+      <div class="nw-mix-key">${parts.map(p=> `<span><b class="num-font" style="color:${p.col};">${Math.round(Math.max(0,p.v)/pos*100)}%</b>${escHTML(p.g)}</span>`).join('')}</div>` : ''}
+      <div class="nw-ph-line">${pt.amount
+        ? `<span>Target ${Math.round(ptPct)}% · ${moneyCur(totalInTargetCur, pt.currency)} of ${moneyCur(pt.amount, pt.currency)}</span><button type="button" class="dash-link" id="editPortfolioTargetBtn">Edit</button>`
+        : `<span class="muted">No overall target</span><button type="button" class="dash-link" id="editPortfolioTargetBtn">Set one</button>`}</div>
+      <div class="nw-ph-line"><span class="muted">${fx.fetchedAt ? `฿${fx.THB ? fx.THB.toFixed(2) : '—'} · US$${fx.USD ? fx.USD.toFixed(3) : '—'} per A$1` : 'Rates not loaded'}</span>
+        <span><button type="button" class="dash-link" id="refreshFxBtn">Refresh</button> · <button type="button" class="dash-link" id="manualFxBtn">Enter</button> · <button type="button" class="dash-link" id="fxHistBtn">History (${fxCount})</button></span></div>
+    </div>`;
+}
+
+/* Net Worth accounts as rows: balance on the right, the account's own currency
+   under it, a target bar where one is set. Tap for history; ± to adjust. */
+function nwPhoneAccountsHTML(groups, total){
+  const row = (o)=> `
+    <div class="nwp-row">
+      <button type="button" class="nwp-main" ${o.hist}>
+        <span class="nwp-a"><span>${o.name}</span><b class="num-font">${o.main}</b></span>
+        <span class="nwp-b"><span>${o.sub}</span><span class="num-font">${o.side || ''}</span></span>
+        ${o.bar !== null ? `<span class="nwp-bar"><span style="width:${o.bar.toFixed(1)}%; background:${o.bar >= 100 ? 'var(--green)' : 'var(--gold)'};"></span></span>` : ''}
+      </button>
+      <button type="button" class="nwp-adj" ${o.adj} aria-label="Adjust ${o.label}">±</button>
+    </div>`;
+  return Object.entries(groups).map(([g, accs])=>{
+    const gt = accs.reduce((s,a)=> s + accountBalanceAUD(a), 0);
+    return `<div class="nwp-grp"><span>${escHTML(g)}</span><span class="num-font">${moneyWhole(gt)}${total > 0 ? ` · ${Math.round(gt/total*100)}%` : ''}</span></div>` +
+      accs.map(a=>{
+        const subs = a.subCategories || [];
+        const speed = accountSpeed(a) ? SPEED_LABELS[accountSpeed(a)].toLowerCase() : 'speed not set';
+        if(!subs.length){
+          const bal = computeAccountBalance(a);
+          const native = a.currency !== 'AUD';
+          const pct = a.target > 0 ? Math.max(0, Math.min(100, bal / a.target * 100)) : null;
+          return row({ name: escHTML(a.name), label: escHTML(a.name), hist: `data-hist="${a.id}"`, adj: `data-adj="${a.id}"`,
+            main: native ? moneyCur(bal, a.currency) : moneyWhole(bal),
+            sub: pct !== null ? `${Math.round(pct)}% of ${moneyCur(a.target, a.currency)}` : `${a.currency} · ${speed}`,
+            side: native ? `≈ ${moneyWhole(accountBalanceAUD(a))}` : (pct !== null ? `${moneyCur(Math.max(0, a.target - bal), a.currency)} to go` : ''),
+            bar: pct });
+        }
+        return `<div class="nwp-parent"><span>${escHTML(a.name)}</span><span class="num-font">${moneyWhole(accountBalanceAUD(a))}</span></div>` +
+          subs.map(sub=>{
+            const cur = sub.currency || a.currency;
+            const bal = unitBalanceAsOf(sub, isoDate(TODAY));
+            const pct = sub.target > 0 ? Math.max(0, Math.min(100, bal / sub.target * 100)) : null;
+            const key = `${a.id}|||${sub.id}`;
+            return row({ name: `<span class="muted">↳</span> ${escHTML(sub.name)}`, label: escHTML(sub.name), hist: `data-histsub="${key}"`, adj: `data-adjsub="${key}"`,
+              main: cur !== 'AUD' ? moneyCur(bal, cur) : moneyWhole(bal),
+              sub: pct !== null ? `${Math.round(pct)}% of ${moneyCur(sub.target, cur)}` : (isPriced(sub) ? `${Number(sub.units).toLocaleString('en-AU', { maximumFractionDigits:4 })} @ ${moneyCur(sub.price, cur, 2)}` : cur),
+              side: cur !== 'AUD' ? `≈ ${moneyWhole(toAUD(bal, cur))}` : '', bar: pct });
+          }).join('');
+      }).join('');
+  }).join('');
+}
+
+const invSign = v=> (v>=0?'+':'') + investMoney(v);
+const invPct = v=> v===null ? '—' : (v>=0?'+':'') + v.toFixed(1) + '%';
+
+/* Investments: worth, return, and the split, in one card. */
+function invPhoneHeroHTML(v){
+  const { totalCost, totalValue, totalUnrealised, totalRealised, totalPnl, rows } = v;
+  const ret = totalUnrealised + totalRealised;
+  return `
+    <div class="card ph-hero inv-ph">
+      <div class="ph-hero-h"><span class="k">Worth today</span><span class="muted">${rows.length} holding${rows.length === 1 ? '' : 's'}</span></div>
+      <div class="ph-hero-v"><b class="num-font" style="color:var(--gold-bright);">${investMoney(totalValue)}</b></div>
+      <div class="${ret >= 0 ? 'pos' : 'neg'} num-font" style="font-size:14px;">${invSign(ret)} · ${invPct(totalPnl)} on what you put in</div>
+      <div class="ph-three">
+        <span><b class="num-font">${investMoney(totalCost)}</b>invested</span>
+        <span><b class="num-font ${totalUnrealised >= 0 ? 'pos' : 'neg'}">${invSign(totalUnrealised)}</b>unrealised</span>
+        <span><b class="num-font ${totalRealised >= 0 ? 'pos' : 'neg'}">${invSign(totalRealised)}</b>realised</span>
+      </div>
+    </div>`;
+}
+
+function invPhoneHoldingsHTML(rows){
+  const target = {};
+  try{ targetWeights().forEach(t=>{ const u = t.unit; target[u.subId ? `${u.acc.id}|||${u.subId}` : u.acc.id] = t.weight * 100; }); }catch(e){}
+  if(!rows.length) return `<div class="card"><div class="muted" style="font-size:13px;">No holdings yet. Tap Buy to record your first purchase.</div></div>`;
+  return `
+    <div class="card ph-list">
+      <div class="ph-list-h"><span class="dash-card-title">Holdings</span><span class="muted" style="font-size:12px;">bar: share now · tick: target</span></div>
+      ${rows.map(r=>{
+        const t = target[r.key];
+        return `
+        <button type="button" class="invp" data-ledger="${r.key}">
+          <span class="invp-a"><span><i style="background:${r.colour};"></i>${escHTML(r.name)} <span class="muted">${sleeveLabel(r.sleeve)}</span></span><b class="num-font">${investMoney(r.value)}</b></span>
+          <span class="invp-b"><span>${r.marketPct.toFixed(0)}%${t !== undefined ? ` · target ${t.toFixed(0)}%` : ''}</span><span class="num-font ${r.totalReturn >= 0 ? 'pos' : 'neg'}">${invSign(r.totalReturn)}${r.pnlPct !== null ? ` · ${invPct(r.pnlPct)}` : ''}</span></span>
+          <span class="invp-bar"><span style="width:${Math.min(100, r.marketPct).toFixed(1)}%; background:${r.colour};"></span>${t !== undefined ? `<span class="tick" style="left:${Math.min(100, t).toFixed(1)}%;"></span>` : ''}</span>
+        </button>`;}).join('')}
+    </div>`;
+}
+
 const THEME_KEY = 'ledgerApp_theme_v1';
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const TYPES = ['Income','Expenses','Savings'];
@@ -1709,11 +2622,13 @@ async function switchProfile(id){
   if(id === profiles.activeId) return;
   const meta = profiles.list.find(p=>p.id===id);
   if(!meta) return;
+  flushEditPoint();
   profiles.activeId = id;
   saveProfiles();
   if(cloudUser){
     try{
       const cloudData = await window.LedgerCloud.pullProfile(cloudUser.uid, id);
+      if(cloudData) protectBeforeReplace(id, loadState(id), cloudData);
       state = cloudData ? mergeWithDefaults(cloudData) : loadState(id);
     }catch(e){ console.error('Cloud pull on switch failed', e); state = loadState(id); }
   } else {
@@ -1721,6 +2636,7 @@ async function switchProfile(id){
   }
   autoSaveHandle = null;
   if(state.settings) state.settings.autoSaveEnabled = false;
+  restoreBaseline();
   renderProfileSwitcher();
   render();
   refreshFxRates(false);
@@ -1957,6 +2873,7 @@ function loadState(profileId){
 function saveState(){
   try{ localStorage.setItem(DATA_PREFIX + profiles.activeId, JSON.stringify(state)); }
   catch(e){ toast('Could not save — storage may be full.'); console.error(e); }
+  noteEditForRestore();
   scheduleAutoSave();
   scheduleCloudPush();
 }
@@ -2084,6 +3001,8 @@ async function pullFromCloudOrSeed(){
   }
 
   if(cloudMeta && Array.isArray(cloudMeta.list) && cloudMeta.list.length){
+    const prevActive = profiles.activeId, prevState = state;
+    flushEditPoint();
     profiles = cloudMeta;
     try{ localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles)); }catch(e){}
     let cloudProfileData = null;
@@ -2097,10 +3016,13 @@ async function pullFromCloudOrSeed(){
       toast("Couldn't read this profile from the cloud. Nothing has been uploaded.");
       return;
     }
-    // The cloud copy is about to replace what's on this device. If the two have
-    // diverged, this is the exact moment local work disappears — so keep a copy.
-    captureRestorePoint('Before cloud sync replaced local data', true);
+    // The cloud copy is about to replace what's on this device. If the two differ,
+    // this is the exact moment local work disappears — so keep a copy of the local
+    // one, filed under the profile it belongs to.
+    const localCopy = profiles.activeId === prevActive ? prevState : loadState(profiles.activeId);
+    if(cloudProfileData) protectBeforeReplace(profiles.activeId, localCopy, cloudProfileData);
     state = cloudProfileData ? mergeWithDefaults(cloudProfileData) : loadState(profiles.activeId);
+    restoreBaseline();
     try{ localStorage.setItem(DATA_PREFIX + profiles.activeId, JSON.stringify(state)); }catch(e){}
   } else {
     // Genuinely nothing up there yet: seed it, but only from profiles that hold
@@ -2135,6 +3057,7 @@ function scheduleCloudPush(){
     try{
       await window.LedgerCloud.pushProfile(cloudUser.uid, profiles.activeId, state);
       await window.LedgerCloud.pushMeta(cloudUser.uid, profiles);
+      clearUnsynced(profiles.activeId);
       cloudStatus = 'synced';
     }catch(e){
       console.error('Cloud push failed', e);
@@ -2429,11 +3352,14 @@ function handleNavClick(e){
 document.getElementById('navTabs').addEventListener('click', handleNavClick);
 document.getElementById('mobileTabBar').addEventListener('click', handleNavClick);
 
-const MORE_TABS = ['bills','investments','liquidity','settings','versions'];
+const MORE_TABS = ['planning','networth','bills','investments','liquidity','settings','versions'];
 
 function openMoreSheet(open){
   const sheet = document.getElementById('mtbSheet');
   if(sheet) sheet.classList.toggle('open', !!open);
+  const btn = document.getElementById('mtbMore');
+  if(btn) btn.setAttribute('aria-expanded', String(!!open));
+  if(open) fillMoreHints();
 }
 
 function wireMoreSheet(){
@@ -2441,6 +3367,8 @@ function wireMoreSheet(){
   const sheet = document.getElementById('mtbSheet');
   if(!btn || !sheet) return;
   btn.onclick = ()=> openMoreSheet(!sheet.classList.contains('open'));
+  const add = document.getElementById('mtbAdd');
+  if(add) add.onclick = ()=>{ openMoreSheet(false); openQuickAdd(); };
   sheet.querySelector('.sheet-back').onclick = ()=> openMoreSheet(false);
   sheet.querySelectorAll('[data-tab]').forEach(b=>{
     b.onclick = ()=>{ openMoreSheet(false); goToTab(b.dataset.tab); };
@@ -2454,21 +3382,14 @@ function goToTab(tab){
 }
 
 function setActiveNav(){
-  const moreBtn = document.getElementById('mtbMore');
-  if(moreBtn){
-    const inMore = MORE_TABS.includes(state.ui.activeTab);
-    moreBtn.classList.toggle('active', inMore);
-    const label = moreBtn.querySelector('span:last-child');
-    if(label) label.textContent = inMore
-      ? ({bills:'Bills', investments:'Invest', liquidity:'Liquid', settings:'Set', versions:'Ver'})[state.ui.activeTab]
-      : 'More';
-  }
   const sheet = document.getElementById('mtbSheet');
   if(sheet) sheet.querySelectorAll('[data-tab]').forEach(b=>
     b.classList.toggle('active', b.dataset.tab === state.ui.activeTab));
-  document.querySelectorAll('#navTabs button, #mobileTabBar button').forEach(b=>{
+  document.querySelectorAll('#navTabs button, #mobileTabBar button[data-tab]').forEach(b=>{
     b.classList.toggle('active', b.dataset.tab===state.ui.activeTab);
   });
+  const moreBtn = document.getElementById('mtbMore');
+  if(moreBtn) moreBtn.classList.toggle('active', MORE_TABS.includes(state.ui.activeTab));
 }
 
 document.getElementById('profileSelect').addEventListener('change', e=> switchProfile(e.target.value));
@@ -3083,7 +4004,8 @@ function paceYearData(y, memo){
 }
 
 function paceSVG(d, ticks){
-  const W = 900, H = 132, pl = 40, pr = 8, pt = 8, pb = 18;
+  const ph = isPhone();
+  const W = ph ? 360 : 900, H = ph ? 190 : 132, pl = ph ? 34 : 40, pr = 8, pt = 8, pb = 18;
   const all = [...d.pace, ...d.spent, ...d.ghosts.flat()].map(p=> p[1]);
   const mx = niceCeil(Math.max(1, ...all) * 1.05);
   const X = f=> pl + f*(W-pl-pr), Y = v=> H-pb - (v/mx)*(H-pb-pt);
@@ -3388,7 +4310,7 @@ function renderDashboard(c){
     </div>
     ${paceCardHTML(y, m, viewMode, memo)}
 
-    <div class="dash-kpis">
+    <div class="dash-kpis dash-main-kpis">
       <div class="dash-kpi"><div class="k-label">Income</div><div class="k-val pos">${moneyWhole(sumType(totals.Income))}</div><div class="k-sub">${periodChangeHTML('Income')}</div></div>
       <div class="dash-kpi"><div class="k-label">Expenses</div><div class="k-val neg">${moneyWhole(sumType(totals.Expenses))}</div><div class="k-sub">${periodChangeHTML('Expenses')}</div></div>
       <div class="dash-kpi"><div class="k-label">Savings</div><div class="k-val" style="color:var(--blue-bright)">${moneyWhole(sumType(totals.Savings))}</div><div class="k-sub">${periodChangeHTML('Savings')}</div></div>
@@ -3447,6 +4369,20 @@ function renderDashboard(c){
     </div>
     ${heatmapCardHTML(y, m, viewMode, memo)}
   `;
+
+  // V4.17 — on a phone: the spend-vs-budget card first, the four figures under it,
+  // then the pace chart and what's coming up from Bills.
+  if(isPhone()){
+    const prog = c.querySelector('.dash-progress');
+    if(prog){
+      prog.insertAdjacentHTML('afterend', phoneHeroHTML(y, m, viewMode, memo));
+      const hero = c.querySelector('#phHero'), kpis = c.querySelector('.dash-main-kpis');
+      if(hero && kpis) hero.after(kpis);
+    }
+    const pace = c.querySelector('#dashPace'), up = comingUpHTML();
+    if(pace && up) pace.insertAdjacentHTML('afterend', up);
+    c.querySelectorAll('[data-phgoto]').forEach(b=> b.onclick = ()=> goToTab(b.dataset.phgoto));
+  }
 
   const go = (yy, mm)=>{ state.ui.dashYear = yy; if(mm!==undefined) state.ui.dashMonth = mm; saveState(); render(); };
   document.getElementById('dashModeMonth').onclick = ()=>{ if(viewMode!=='month'){ state.ui.dashViewMode = 'month'; saveState(); render(); } };
@@ -3613,7 +4549,8 @@ function renderTransactions(c){
       ${g.rows.map(rowHTML).join('')}`;
   }).join('');
 
-  c.innerHTML = `
+  if(isPhone()) renderTransactionsPhone(c, { rows, filterType, filterMonth, search, monthsPresent, monthTitle, monthSums, allTimeBalance, totalRecords });
+  else c.innerHTML = `
     <div class="dash-head">
       <h1 class="page-title">Transactions</h1>
       <span class="muted dash-head-sub">the source of truth for the dashboard</span>
@@ -3659,7 +4596,8 @@ function renderTransactions(c){
   document.getElementById('txMonth').onchange = e=>{ state.ui.txFilterMonth=e.target.value; saveState(); render(); };
   // Searching re-renders the list, so put the cursor back where it was — before V4.10
   // every keystroke dropped focus from the box.
-  document.getElementById('txSearch').oninput = e=>{
+  const txSearchBox = document.getElementById('txSearch');
+  if(txSearchBox) txSearchBox.oninput = e=>{
     const pos = e.target.selectionStart;
     state.ui.txSearch = e.target.value; saveState(); render();
     const box = document.getElementById('txSearch');
@@ -4842,6 +5780,7 @@ function renderNetWorth(c){
       ${nwEditing() ? `<button class="btn" id="addAccBtn">+ Add account</button>` : ''}
     </div>
 
+    ${isPhone() ? nwPhoneSummaryHTML({ total, change, prevTotal, prevMonthEnd, groups, pt, ptPct, totalInTargetCur, fx, fxCount }) : `
     <div class="dash-kpis nw-kpis">
       <div class="dash-kpi"><div class="k-label">Total net worth</div>
         <div class="k-val" style="color:var(--gold-bright)">${moneyWhole(total)}</div>
@@ -4864,7 +5803,7 @@ function renderNetWorth(c){
           <button type="button" class="dash-link" id="fxHistBtn">History (${fxCount})</button>
         </div>
       </div>
-    </div>
+    </div>`}
 
     <div class="nw-grid">
       <div class="dash-col">
@@ -4875,13 +5814,13 @@ function renderNetWorth(c){
             <label class="dash-chip"><input type="checkbox" id="nwShowTargets" ${showTargets?'checked':''}><span class="dash-sw" style="background:var(--gold);"></span>Show targets</label>
           </div>
           ${state.accounts.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No accounts yet — press Edit setup, then + Add account for your emergency fund, super, or investment buckets.</div>` : `
-          <div class="plan-table-wrap">
+          ${isPhone() && !nwEditing() ? `<div class="nwp-list">${nwPhoneAccountsHTML(groups, total)}</div>` : `<div class="plan-table-wrap">
             <table class="data nwt-table">
               <thead><tr><th>Account</th>${withTargets?'<th>Target</th>':''}<th class="num">Native</th><th class="num">AUD</th><th></th></tr></thead>
               <tbody>${accountsBody}</tbody>
             </table>
-          </div>
-          ${withTargets ? `<div class="nwt-foot muted">
+          </div>`}
+          ${withTargets && !(isPhone() && !nwEditing()) ? `<div class="nwt-foot muted">
             <span>${nwEditing() ? 'Set target or ✎ to set or change one.' : 'Hover or tap a bar for what is left to go. Targets are in each account’s own currency; change them in Edit setup.'}</span><span class="spacer"></span>
             <span>${targetUnits.length} target${targetUnits.length===1?'':'s'} set${avgTargetPct===null?'':` · avg ${Math.round(avgTargetPct)}%`}</span>
           </div>` : ''}`}
@@ -5227,9 +6166,27 @@ async function fetchQuote(ticker){
 function renderRestorePoints(){
   const host = document.getElementById('restoreCard');
   if(!host) return;
-  const points = loadRestorePoints(profiles.activeId).slice().reverse();
+  const stored = loadRestorePoints(profiles.activeId);
+  const points = stored.slice().reverse();
+  const when = iso=>{
+    const d = new Date(iso);
+    return `${CAL_DOW[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}${d.getFullYear() !== TODAY.getFullYear() ? ' ' + d.getFullYear() : ''}`;
+  };
+  const time = iso=> new Date(iso).toLocaleTimeString('en-AU', { hour:'numeric', minute:'2-digit' });
+  const contents = c=> `${c.transactions||0} txns · ${c.accounts||0} accounts · ${c.bills||0} bills`;
+  // What changed against the copy before it, so you can tell copies apart at a glance.
+  const delta = (p, older)=>{
+    if(!older) return 'first copy';
+    const c = p.counts || {}, o = older.counts || {};
+    const parts = [['transactions','txn'], ['accounts','account'], ['bills','bill']].map(([k, w])=>{
+      const d = (c[k]||0) - (o[k]||0);
+      return d ? `${d > 0 ? '+' : '−'}${Math.abs(d)} ${w}${Math.abs(d) === 1 ? '' : 's'}` : '';
+    }).filter(Boolean);
+    return parts.length ? parts.join(' · ') : 'same counts, edits within';
+  };
+  const openSlot = p=> p.kind === 'edits' && p.since && (Date.now() - new Date(p.since).getTime()) < RESTORE_EDIT_SLOT_MS;
   if(!points.length){
-    host.innerHTML = `<div class="muted" style="font-size:12.5px;">No restore points yet. One is saved the next time the app opens.</div>
+    host.innerHTML = `<div class="muted" style="font-size:12.5px;">Nothing kept yet. A copy is kept a minute after your first edits.</div>
       <div class="toolbar" style="margin:12px 0 0 0;"><button class="btn secondary" id="rpNow">Save one now</button></div>`;
   } else {
     host.innerHTML = `
@@ -5238,12 +6195,11 @@ function renderRestorePoints(){
         <tbody>
           ${points.map((p,i)=>{
             const idx = points.length - 1 - i;     // index back into stored order
-            const d = new Date(p.at);
             const c = p.counts || {};
-            return `<tr>
-              <td>${formatDateShort(isoDate(d))}<div class="sub">${d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})}</div></td>
-              <td class="muted">${p.reason||'Automatic'}</td>
-              <td class="r muted">${c.transactions||0} txns · ${c.accounts||0} accounts</td>
+            return `<tr class="${p.unsynced ? 'rp-warn' : ''}">
+              <td>${when(p.at)}<div class="sub">${time(p.at)}</div></td>
+              <td>${escHTML(p.reason || 'Automatic')}${openSlot(p) ? ' <span class="rp-live">updating this hour</span>' : ''}</td>
+              <td class="r muted">${contents(c)}<div class="sub">${delta(p, stored[idx-1])}</div></td>
               <td class="r"><button class="btn secondary" data-restore="${idx}">Restore</button></td>
             </tr>`;
           }).join('')}
@@ -5253,9 +6209,11 @@ function renderRestorePoints(){
   }
   const now = document.getElementById('rpNow');
   if(now) now.onclick = ()=>{
-    captureRestorePoint('Saved manually', true);
+    if(stateLooksEmpty(state)){ toast('Nothing to keep yet — this profile is empty.'); return; }
+    flushEditPoint();
+    if(captureRestorePoint('Saved manually', true)) toast('Restore point saved.');
+    else toast('Already kept — nothing has changed since the last copy.');
     renderRestorePoints();
-    toast('Restore point saved.');
   };
   host.querySelectorAll('[data-restore]').forEach(b=>{
     b.onclick = ()=>{
@@ -5265,9 +6223,9 @@ function renderRestorePoints(){
       const c = p.counts || {};
       confirmDestructive({
         title: 'Restore this copy',
-        what: `${formatDateShort(isoDate(new Date(p.at)))} — ${p.reason||'Automatic'}`,
+        what: `${when(p.at)} ${time(p.at)} — ${escHTML(p.reason||'Automatic')}`,
         lines: [
-          `Replaces everything in this profile with ${c.transactions||0} transactions and ${c.accounts||0} accounts`,
+          `Replaces everything in this profile with ${c.transactions||0} transactions, ${c.accounts||0} accounts and ${c.bills||0} bills`,
           'Your current data is saved as a new restore point first, so this is reversible'
         ],
         confirmLabel: 'Restore',
@@ -6029,6 +6987,11 @@ function renderInvestments(c){
       : `<span class="inv-warn">Net Worth carries ${investMoney(tie.netWorth)} but units × price come to ${investMoney(tie.table)} — ${investMoney(Math.abs(tie.diff))} apart. A manual adjustment is likely the cause.</span>`;
 
   c.innerHTML = `
+    ${isPhone() ? `<div class="ph-top"><h1 class="page-title">Investments</h1>
+      <div class="dash-seg" role="group" aria-label="Show amounts in">
+        ${['USD','AUD','THB'].map(x=>`<button type="button" data-invcur="${x}" class="${cur===x?'on':''}" aria-pressed="${cur===x}">${x}</button>`).join('')}
+      </div></div>
+    <div class="inv-acts"><button type="button" id="invBuyBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Buy</button><button type="button" id="invSellBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>Sell</button><button type="button" id="invDivBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8"/></svg>Dividend</button><button type="button" id="invPriceBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg>Prices</button></div>` : `
     <div class="dash-head">
       <h1 class="page-title">Investments</h1>
       <span class="muted dash-head-sub">cost basis from your order records</span>
@@ -6040,7 +7003,7 @@ function renderInvestments(c){
       <button class="btn secondary" id="invSellBtn">Record sale</button>
       <button class="btn secondary" id="invDivBtn">Record dividend</button>
       <button class="btn secondary" id="invPriceBtn">Update prices</button>
-    </div>
+    </div>`}
     <div class="inv-status">
       <span>${sold.n ? `Realised return is dividends plus ${sign(sold.gain)} from ${sold.n} sale${sold.n===1?'':'s'}, at average cost.` : 'Realised return is dividends only — no holdings have been sold.'}</span>
       ${tieHTML}
@@ -6051,20 +7014,25 @@ function renderInvestments(c){
       ${stale.slice(0,3).map(x=> `${x.name} (${x.days===null?'never priced':x.days+'d'})`).join(', ')}${stale.length>3?` and ${stale.length-3} more`:''}.
       Values, drift and your runway are all based on these — Update prices above.</div>` : ''}
 
+    ${isPhone() ? invPhoneHeroHTML({ totalCost, totalValue, totalUnrealised, totalRealised, totalPnl, rows }) : `
     <div class="dash-kpis inv-kpis">
       <div class="dash-kpi"><div class="k-label">Invested</div><div class="k-val">${investMoney(totalCost)}</div><div class="k-sub">across ${rows.length} holding${rows.length===1?'':'s'}</div></div>
       <div class="dash-kpi"><div class="k-label">Current value</div><div class="k-val" style="color:var(--gold-bright)">${investMoney(totalValue)}</div><div class="k-sub">${cur}</div></div>
       <div class="dash-kpi"><div class="k-label">Total return</div><div class="k-val ${(totalUnrealised+totalRealised)>=0?'pos':'neg'}">${sign(totalUnrealised+totalRealised)}</div><div class="k-sub">${pct(totalPnl)} on what you invested</div></div>
       <div class="dash-kpi"><div class="k-label">Unrealised / realised</div><div class="k-val">${investMoney(totalUnrealised)} <span class="muted">/</span> ${investMoney(totalRealised)}</div><div class="k-sub">${sold.n ? 'price movement vs dividends and sales' : 'price movement vs dividends'}</div></div>
-    </div>
+    </div>`}
 
+    ${isPhone() ? invPhoneHoldingsHTML(rows) : `
     <div class="card dash-card inv-scroll">
       <div class="dash-card-head"><span class="dash-card-title">Holdings</span><span class="muted">${rows.length} holding${rows.length===1?'':'s'} · Alloc % is your cost base, Market % is today's value</span></div>
       ${table}
-    </div>
+    </div>`}
 
     <div class="inv-section-head"><span class="dash-card-title">Charts</span></div>
-    <div class="chart-grid inv-charts">
+    <div class="ph-chips inv-chart-pick" role="group" aria-label="Which chart">
+      ${[[1,'Return'],[2,'Monthly in'],[3,'Monthly mix'],[4,'Total invested'],[5,'Invested mix'],[6,'P/L by month']].map(([n,l])=> `<button type="button" class="chip${(Number(state.ui.invPhoneChart)||2)===n?' on':''}" data-invchart="${n}" aria-pressed="${(Number(state.ui.invPhoneChart)||2)===n}">${l}</button>`).join('')}
+    </div>
+    <div class="chart-grid inv-charts" data-show="${Number(state.ui.invPhoneChart)||2}">
     ${chart(1,'Return by holding','What each holding has made or lost, price movement plus dividends.',
       investBarChart(rows.map(r=>({ label:r.name, value:r.totalReturn, colour:r.totalReturn>=0?r.colour:'var(--red)' })),
         { fmt, aria:'Return by holding' }))}
@@ -6084,6 +7052,13 @@ function renderInvestments(c){
     ${investingSectionHTML()}
   `;
 
+  // Phone: one chart at a time, switched without redrawing the page.
+  c.querySelectorAll('[data-invchart]').forEach(b=> b.onclick = ()=>{
+    state.ui.invPhoneChart = Number(b.dataset.invchart);
+    const grid = c.querySelector('.inv-charts'); if(grid) grid.dataset.show = String(state.ui.invPhoneChart);
+    c.querySelectorAll('[data-invchart]').forEach(x=>{ const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); });
+    saveState();
+  });
   c.querySelectorAll('[data-invcur]').forEach(b=>{
     b.onclick = ()=>{ if(state.ui.investCur !== b.dataset.invcur){ state.ui.investCur = b.dataset.invcur; saveState(); render(); } };
   });
@@ -7482,7 +8457,8 @@ function renderBills(c){
   };
   const kindCls = k=> k==='income' ? 'pos' : (k==='saving' ? 'tx-sav' : 'neg');
 
-  c.innerHTML = `
+  if(isPhone()) c.innerHTML = billsPhoneHTML({ outM, inM, saveM, netM, week, weekSum, filter, stat, KIND_ORDER });
+  else c.innerHTML = `
     <div class="dash-head">
       <h1 class="page-title">Bills &amp; Scheduled Money</h1>
       <span class="muted dash-head-sub">everything that lands on a date — the Calendar projects these forward</span>
@@ -7601,6 +8577,7 @@ function openBillModal(editId){
         </div>
 
         <div class="form-actions">
+          ${existing ? `<button class="btn danger" id="bDel" style="margin-right:auto;">Delete</button>` : ''}
           <button class="btn secondary" id="fCancel">Cancel</button>
           <button class="btn" id="fSave">${existing ? 'Save changes' : 'Save'}</button>
         </div>
@@ -7634,6 +8611,11 @@ function openBillModal(editId){
   $('bMatchOn').addEventListener('change', ()=>{ $('bMatchFields').hidden = !$('bMatchOn').checked; });
   hint();
 
+  if(existing && $('bDel')) $('bDel').onclick = ()=>{
+    if(!confirm(`Delete ${existing.name}?`)) return;
+    state.bills = state.bills.filter(x=> x.id !== existing.id);
+    saveState(); root.innerHTML=''; render(); toast('Deleted.');
+  };
   $('fCancel').onclick = ()=> root.innerHTML='';
   $('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
   $('fSave').onclick = ()=>{
@@ -8471,7 +9453,14 @@ function renderCalendar(c){
       </div>
       <div class="dash-step">
         <button type="button" id="calPrev" aria-label="Previous month">‹</button>
-        <span class="cal-title-lbl">${calMonthLabel(key)}</span>
+        <div class="cal-menu-wrap">
+          <button type="button" class="cal-title-lbl cal-pick" id="calMonthPick" data-calmenu="calPickMenu" aria-haspopup="true" aria-expanded="false" aria-label="Choose month and year, now ${calMonthLabel(key)}">${calMonthLabel(key)}<span class="car" aria-hidden="true">▾</span></button>
+          <div class="cal-menu cal-pick-menu" id="calPickMenu" hidden>
+            <div class="cp-year"><button type="button" data-cpyear="-1" aria-label="Previous year">‹</button><span id="cpYear">${mb.y}</span><button type="button" data-cpyear="1" aria-label="Next year">›</button></div>
+            <div class="cp-months">${CAL_MONTH_LONG.map((n,i)=> `<button type="button" data-cpmonth="${i}" aria-label="${n}">${n.slice(0,3)}</button>`).join('')}</div>
+            <button type="button" id="cpThis">This month</button>
+          </div>
+        </div>
         <button type="button" id="calNext" aria-label="Next month">›</button>
       </div>
       ${isCurrent ? '' : `<button class="btn secondary" id="calToday">Today</button>`}
@@ -8578,21 +9567,25 @@ function renderCalendar(c){
   c.querySelectorAll('[data-calrange]').forEach(b=>
     b.onclick = ()=>{ calChartRange = b.dataset.calrange; render(); });
 
-  // Menus: one open at a time; a click anywhere else or Escape closes them.
-  c.querySelectorAll('[data-calmenu]').forEach(b=> b.onclick = e=>{
-    e.stopPropagation();
-    const m = document.getElementById(b.dataset.calmenu);
-    const open = m.hidden;
-    calCloseMenus();
-    m.hidden = !open;
-    b.setAttribute('aria-expanded', String(open));
-    if(open){ const first = m.querySelector('button'); if(first) first.focus(); }
+  wireMenuButtons(c);
+  // Month and year picker: the year steps inside the menu; picking a month goes there.
+  let cpY = mb.y;
+  const cpPaint = ()=>{
+    const yl = document.getElementById('cpYear'); if(yl) yl.textContent = cpY;
+    c.querySelectorAll('[data-cpmonth]').forEach(b=>{
+      const i = Number(b.dataset.cpmonth), on = cpY === mb.y && i === mb.m;
+      b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
+      b.classList.toggle('now', cpY === TODAY.getFullYear() && i === TODAY.getMonth());
+    });
+  };
+  cpPaint();
+  c.querySelectorAll('[data-cpyear]').forEach(b=> b.onclick = ()=>{ cpY = Math.max(1970, Math.min(2200, cpY + Number(b.dataset.cpyear))); cpPaint(); });
+  c.querySelectorAll('[data-cpmonth]').forEach(b=> b.onclick = ()=>{
+    const k = `${cpY}-${String(Number(b.dataset.cpmonth)+1).padStart(2,'0')}`;
+    calMonth = k === currentMonthKey() ? null : k;
+    calCloseMenus(); render();
   });
-  if(!window.__calMenuWired){
-    window.__calMenuWired = true;
-    document.addEventListener('click', e=>{ if(!e.target.closest || !e.target.closest('.cal-menu-wrap')) calCloseMenus(); });
-    document.addEventListener('keydown', e=>{ if(e.key === 'Escape') calCloseMenus(); });
-  }
+  bind('cpThis', ()=>{ calMonth = null; calSelected = todayISO; calCloseMenus(); render(); });
   const add = (kind, iso)=>{
     calCloseMenus();
     if(kind === 'event') openEventModal(null, iso);
@@ -9303,7 +10296,7 @@ function renderSettings(c){
 
         <section class="card dash-card" id="set-restore">
           <div class="dash-card-head"><span class="dash-card-title">Restore points</span><span class="muted">this device only</span></div>
-          <div class="muted set-note">Cloud sync keeps no history — the most recent write wins everywhere. These are local copies of this profile, so a bad sync can't take them with it. One is saved when the app opens, at most one an hour while you use it, and always just before cloud data replaces what's here.</div>
+          <div class="muted set-note">Cloud sync keeps no history — the most recent write wins everywhere. These are local copies of this profile, so a bad sync can't take them with it. A copy is kept a minute after you stop editing — one per hour of editing, updated as you go — and before another device's copy replaces this one, saying so when this device had edits that hadn't synced. Empty copies are never kept.</div>
           <div id="restoreCard"></div>
         </section>
 
@@ -10297,7 +11290,25 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.16', name: 'Calendar: clearer money, one day at a time', date: 'Oct 2026', current: true,
+    no: 'V4.17', name: 'Phone layout, quieter restore points', date: 'Oct 2026', current: true,
+    items: [
+      'Phone: a new bottom bar — Home, Activity, a + in the middle, Calendar and More. Planning moves into More with Net Worth, Bills, Investments, Liquidity and Settings, each with a line of what is in it. The profile switcher, sync status and backups move from the side drawer into More too, and the strip of month totals at the top is gone.',
+      'Phone: + opens a quick-add sheet. The amount comes first on the phone\'s number pad, your most-used categories for that type are one tap each (All categories for the rest), and the date is Today, Yesterday or a picked day. Save + another keeps the sheet open for the next one.',
+      'Phone — Activity: rows instead of a seven-column table, grouped by day with each day\'s net. The latest month is open and earlier months fold to one line with their in and out. Tap a row to edit it in the same sheet; swipe it left for Edit and Delete. Export CSV and the lifetime balance are under ⋯.',
+      'Phone — Bills: one card for the month (in, out, to savings, left over), what is due in the next 7 days, then each entry as a row with its cycle and next due, soonest first. Every entry keeps its own row. Bills can now be deleted from inside the edit dialog, on any screen.',
+      'Phone — Home: the spend-vs-budget card leads, with a bar, the pace marker and how far over or under pace you are; then income, savings, this week and unallocated; the pace chart full width; and the next few items from Bills.',
+      'Phone — Net Worth: one column. Total, the change since last month-end and the cash / savings / investment mix in one card, then accounts as rows with their target bars; tap one for its history, ± to adjust. Edit setup still shows the full table. On a phone the two columns no longer squeeze side by side.',
+      'Phone — Investments: Buy, Sell, Dividend and Prices as one row of buttons; holdings as rows with value, return, and a bar of their share against target; the six charts one at a time with a switcher.',
+      'Phone: dialogs open as sheets from the bottom of the screen, text boxes no longer make iOS zoom in, and toasts sit above the bottom bar.',
+      'Restore points: a copy is kept a minute after you stop editing. One slot covers an hour of editing and is updated each time you stop, so a session of new records is one copy, not one per change. Switching tabs or months doesn\'t count as a change.',
+      'Restore points: before another device\'s copy replaces this one, a copy is kept only if the two differ — and the reason says so when this device had edits that never reached the cloud. The copy is now filed under the right profile when the cloud switches you to another one.',
+      'Restore points: no copy on opening any more, an empty book is never kept, and the empty copies from earlier versions are cleared out. Each copy shows what changed since the one before it, and up to eight are kept.',
+      'Calendar: click the month name to pick any month and year, instead of stepping with the arrows.',
+      'Date and time boxes follow the theme, so the calendar icon in them is light in dark mode instead of black.'
+    ]
+  },
+  {
+    no: 'V4.16', name: 'Calendar: clearer money, one day at a time', date: 'Oct 2026', current: false,
     items: [
       'The summary strip is two groups that say what time they are about: From today (cash you can reach and the 60-day low) and the month on screen (scheduled in, out and saved, and that month\'s low). Before, "this month" in one box meant October while the box beside it meant the month you were looking at.',
       'Cash you can reach says what the chart starts on, and why: the figure after today\'s scheduled money and any late bills that haven\'t shown up in Transactions.',
@@ -10984,14 +11995,22 @@ function toggleNav(){ applyNavCollapsed(!document.body.classList.contains('nav-c
     e.preventDefault(); toggleNav();
   });
 })();
+restoreBaseline();
+placeShellParts();
+if(PHONE_MQ){
+  const onPhoneChange = ()=>{ placeShellParts(); openMoreSheet(false); render(); };
+  if(PHONE_MQ.addEventListener) PHONE_MQ.addEventListener('change', onPhoneChange);
+  else if(PHONE_MQ.addListener) PHONE_MQ.addListener(onPhoneChange);
+}
 renderProfileSwitcher();
 renderCloudStatus();
 wireMoreSheet();
 render();
 refreshFxRates(false);
-// A copy of whatever we opened with, before this session can change anything.
-// Rate limited internally, so reopening the app repeatedly doesn't churn the list.
-captureRestorePoint('App opened', false);
+// V4.17 — no copy on opening any more (it was usually identical, or empty). A burst
+// of edits is kept when the app is put away, so the last minute isn't lost.
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) flushEditPoint(); });
+window.addEventListener('pagehide', ()=> flushEditPoint());
 </script>
 </body>
 </html>
