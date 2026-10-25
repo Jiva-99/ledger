@@ -2447,6 +2447,83 @@
   @media (min-width: 821px){
     body[data-skin="phosphor"].nav-collapsed .sidebar-foot button{ letter-spacing:0; font-size-adjust:none; }
   }
+
+  /* =====================================================================
+     V4.21 — weekly spending grid (dashboard) and the week filter (Transactions)
+     ===================================================================== */
+  :root{ --wk0:rgba(255,255,255,0.07); --wk1:rgba(224,178,58,0.28); --wk2:rgba(224,178,58,0.55); --wk3:#e0b23a; --wk4:#ff6961; --wk5:#c4302b; --wkdot:rgba(255,255,255,0.92); --wkr:5px; }
+  body[data-theme="light"]{ --wk0:rgba(0,0,0,0.07); --wk1:rgba(154,107,6,0.22); --wk2:rgba(154,107,6,0.45); --wk3:#b8860b; --wk4:#e0443b; --wk5:#9e1620; --wkdot:#ffffff; }
+  body[data-skin="brutal"]{ --wk0:#2b2b2b; --wk1:#fff1b8; --wk2:#ffe066; --wk3:#ffd23f; --wk4:#ff4f7b; --wk5:#c4174a; --wkdot:#111111; --wkr:0px; }
+  body[data-skin="brutal"][data-theme="light"]{ --wk0:#f4efe3; }
+  body[data-skin="tonal"]{ --wk0:#282c25; --wk1:#2f4a26; --wk2:#4f7d39; --wk3:#b8862f; --wk4:#ffb4ab; --wk5:#ff7a6b; --wkdot:#11140f; --wkr:9px; }
+  body[data-skin="tonal"][data-theme="light"]{ --wk0:#dde6d6; --wk1:#cfe8bc; --wk2:#9fd67f; --wk3:#e0a84a; --wk4:#ba1a1a; --wk5:#7d0d0d; --wkdot:#ffffff; }
+  body[data-skin="phosphor"]{ --wk0:color-mix(in srgb, var(--text) 8%, transparent); --wk1:color-mix(in srgb, var(--text) 28%, transparent); --wk2:color-mix(in srgb, var(--text) 52%, transparent);
+    --wk3:color-mix(in srgb, var(--text) 80%, transparent); --wk4:var(--red); --wk5:var(--pink); --wkdot:var(--bg); --wkr:0px; }
+  body[data-skin="phosphor"][data-theme="light"]{ --wk4:var(--text); --wk5:var(--text); }
+
+  .wk-sub{ font-size:12px; }
+  .wk-legend{ display:inline-flex; align-items:center; gap:3px; font-size:11.5px; color:var(--text-dim); }
+  .wk-legend .wk{ width:12px; height:12px; border-radius:min(3px, var(--wkr)); cursor:default; }
+  .wk-legend .wk-4::after, .wk-legend .wk-5::after{ width:3px; height:3px; margin:-1.5px 0 0 -1.5px; }
+  .wk-body{ display:flex; gap:28px; align-items:flex-start; flex-wrap:wrap; margin-top:12px; }
+  .wk-wrap{ position:relative; flex:none; max-width:100%; }
+  .wk-grid{ --wk-size:30px; display:grid; grid-template-columns:24px repeat(var(--wk-cols), var(--wk-size)); gap:5px; align-items:center; }
+  .wk-q{ font-size:11px; color:var(--text-dim); }
+  .wk{ all:unset; box-sizing:border-box; display:block; position:relative; width:var(--wk-size, 30px); aspect-ratio:1 / 1; border-radius:var(--wkr); background:var(--wk0); cursor:pointer; }
+  .wk-0{ background:var(--wk0); } .wk-1{ background:var(--wk1); } .wk-2{ background:var(--wk2); } .wk-3{ background:var(--wk3); } .wk-4{ background:var(--wk4); } .wk-5{ background:var(--wk5); }
+  .wk-4::after, .wk-5::after{ content:""; position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px 0 0 -3px; border-radius:min(3px, var(--wkr)); background:var(--wkdot); }
+  .wk-fut{ background:transparent; box-shadow:inset 0 0 0 1px var(--border); cursor:default; }
+  .wk.now{ box-shadow:0 0 0 2px var(--surface), 0 0 0 3.5px var(--text); }
+  .wk.span{ outline:1.5px dashed var(--text-faint); outline-offset:2px; }
+  .wk.dim{ opacity:0.5; }
+  .wk.hot{ transform:scale(1.15); z-index:2; }
+  .wk.sel{ box-shadow:0 0 0 2px var(--surface), 0 0 0 3.5px var(--gold); }
+  .wk:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+  .wk-pad{ display:block; }
+  .wk-stats{ flex:1; min-width:240px; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px 22px; border-left:1px solid var(--border); padding-left:22px; }
+  .wk-stats b{ display:block; font-size:18px; font-weight:600; }
+  .wk-stats span{ font-size:11.5px; color:var(--text-dim); }
+  .wk-tip{ position:absolute; z-index:30; width:244px; transform:translate(-50%, -100%); background:var(--surface-raised); color:var(--text); border:1px solid var(--border);
+    border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,0.35); padding:10px 12px; pointer-events:none; font-size:12px; }
+  .wk-tip[hidden]{ display:none; }
+  .wk-tip-h{ display:flex; justify-content:space-between; gap:10px; color:var(--text-dim); font-size:11.5px; }
+  .wk-tip-d{ font-weight:600; font-size:12.5px; margin-top:1px; }
+  .wk-tip-a{ display:flex; align-items:baseline; gap:6px; margin-top:4px; }
+  .wk-tip-a b{ font-size:20px; font-weight:600; }
+  .wk-tip-a span{ color:var(--text-dim); }
+  .wk-tip-bar{ position:relative; height:6px; border-radius:3px; background:var(--surface); margin:6px 0 4px; }
+  .wk-tip-bar i{ position:absolute; left:0; top:0; bottom:0; border-radius:3px; display:block; }
+  .wk-tip-bar u{ position:absolute; left:66.7%; top:-3px; width:2px; height:12px; background:var(--text); display:block; }
+  .wk-tip-r{ display:flex; justify-content:space-between; gap:10px; line-height:1.6; }
+  .wk-tip-r span:first-child{ color:var(--text-dim); }
+  .wk-tip-n{ font-size:11px; color:var(--text-faint); margin-top:4px; }
+  .wk-detail{ margin-top:12px; padding-top:12px; border-top:1px solid var(--border); font-size:13px; }
+  .wk-detail .wk-tip-bar{ background:var(--surface-raised); }
+  .wk-open{ all:unset; box-sizing:border-box; display:flex; justify-content:space-between; align-items:center; width:100%; min-height:44px; margin-top:4px; color:var(--gold-bright); font-size:15px; cursor:pointer; }
+  .wk-open:focus-visible{ outline:2px solid var(--gold); }
+  .tx-weekbar{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:8px 12px; margin:0 0 12px; background:var(--sel); border-radius:8px; font-size:13px; }
+  @media (max-width: 600px){
+    .wk-wrap{ flex:1 1 100%; }
+    .wk-grid{ grid-template-columns:20px repeat(var(--wk-cols), minmax(0,1fr)); gap:4px; }
+    .wk-grid .wk{ width:100%; }
+    .wk-legend{ order:5; flex-basis:100%; justify-content:flex-end; margin-top:2px; }
+    .wk-sub{ display:none; }
+    .wk-stats{ border-left:none; padding-left:0; border-top:1px solid var(--border); padding-top:12px; gap:10px 16px; min-width:0; flex-basis:100%; }
+    .wk-stats b{ font-size:17px; }
+  }
+  /* Themes */
+  body[data-skin="brutal"] .wk:not(.wk-fut){ box-shadow:inset 0 0 0 2px var(--edge); }
+  body[data-skin="brutal"] .wk.now{ box-shadow:inset 0 0 0 2px var(--edge), 3px 3px 0 var(--hard); }
+  body[data-skin="brutal"] .wk.sel{ box-shadow:inset 0 0 0 3px var(--edge), 3px 3px 0 var(--hard); }
+  body[data-skin="brutal"] .wk-tip{ border:3px solid var(--edge); border-radius:0; box-shadow:5px 5px 0 var(--hard); background:var(--surface); }
+  body[data-skin="brutal"] .tx-weekbar{ border:3px solid var(--edge); border-radius:0; background:var(--fill); color:#111111; font-weight:700; }
+  body[data-skin="brutal"] .tx-weekbar .dash-link{ color:#111111; }
+  body[data-skin="tonal"] .wk-tip{ border:none; border-radius:16px; }
+  body[data-skin="tonal"] .tx-weekbar{ border-radius:16px; color:var(--seltext); }
+  body[data-skin="phosphor"] .wk-tip{ border:2px solid var(--edge); border-radius:0; box-shadow:4px 4px 0 var(--shadow); background:var(--surface); }
+  body[data-skin="phosphor"] .wk-tip-bar, body[data-skin="phosphor"] .wk-tip-bar i{ border-radius:0; }
+  body[data-skin="phosphor"] .tx-weekbar{ border:2px solid var(--edge); border-radius:0; background:var(--sel); color:var(--seltext); text-shadow:none; }
+  body[data-skin="phosphor"] .tx-weekbar .dash-link{ color:var(--seltext); }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -2979,7 +3056,7 @@ function renderTransactionsPhone(c, v){
   const KCLS = { Expenses:'out', Income:'in', Savings:'save' };
   const sign = r=> r.type === 'Income' ? '+' : '−';
   const searching = !!search || ptxSearchOpen;
-  const isOpen = (g, i)=> !!search || filterMonth !== 'All' || i === 0 || ptxOpenMonths.has(g.key);
+  const isOpen = (g, i)=> !!search || filterMonth !== 'All' || !!state.ui.txWeek || i === 0 || ptxOpenMonths.has(g.key);
 
   const rowHTML = r=>{
     const cur = r.currency || 'AUD';
@@ -3034,6 +3111,7 @@ function renderTransactionsPhone(c, v){
     </div>
     ${searching ? `<label class="ptx-search"><span class="sr-only">Search</span>
       <input type="search" id="txSearch" placeholder="Search details or category…" value="${escHTML(search)}" autocomplete="off"></label>` : ''}
+    ${txWeekBarHTML()}
     <div class="ph-chips">
       <label class="chip ph-select"><span class="sr-only">Month</span>
         <select id="txMonth">
@@ -4799,12 +4877,8 @@ function lastNWeeks(n){
 /* Total Expenses in a Mon-Sun window, excluding whichever categories are configured to be left out */
 function weekExpenseTotal(start, end){
   const s = isoDate(start), e = isoDate(end);
-  const manualExcluded = state.settings.weeklyExcludedCategories || [];
-  const specialExcluded = new Set(state.settings.excludedFromSummary || []);
   return state.transactions
-    .filter(t=> t.type==='Expenses' && t.date>=s && t.date<=e
-      && !manualExcluded.includes(t.category)
-      && !specialExcluded.has(t.type+'|||'+t.category))
+    .filter(t=> t.date>=s && t.date<=e && weekTxCounts(t))
     .reduce((sum,t)=> sum+txAmountAUD(t), 0);
 }
 
@@ -5413,6 +5487,213 @@ function heatmapCardHTML(y, m, viewMode, memo){
     </div>`;
 }
 
+
+/* ---------- V4.21 weekly spending grid ----------
+   Every Mon–Sun week that touches the year, as square blocks in four rows of 13
+   (the 53rd/54th land at the end of the last row). A week that crosses New Year
+   shows in both years, with the whole week's total. Totals are the same as the
+   Weekly expenses card: Expenses only, without the categories ticked there,
+   Special (☆) categories or off-balance categories. Colour = share of the
+   weekly threshold. Hover or focus a block for its details; click it to see
+   those seven days in Transactions. On a phone, tap a block to see its details
+   under the grid. */
+function weekTxCounts(t){
+  if(t.type !== 'Expenses') return false;
+  if((state.settings.weeklyExcludedCategories || []).includes(t.category)) return false;
+  if((state.settings.excludedFromSummary || []).includes(t.type + '|||' + t.category)) return false;
+  if(isBalanceExcluded(t)) return false;
+  return true;
+}
+function wkFmt(d){ return `${d.getDate()} ${MONTHS[d.getMonth()]}`; }
+function weekGridData(y){
+  const first = mondayOf(new Date(y, 0, 1)), lastMon = mondayOf(new Date(y, 11, 31));
+  const weeks = [];
+  for(let d = new Date(first); d <= lastMon; d = addDays(d, 7)) weeks.push({ start: new Date(d), end: addDays(d, 6) });
+  const from = isoDate(addDays(first, -28)), to = isoDate(addDays(lastMon, 6));
+  const bucket = new Map();
+  (state.transactions || []).forEach(t=>{
+    if(!t.date || t.date < from || t.date > to || !weekTxCounts(t)) return;
+    const k = isoDate(mondayOf(new Date(t.date + 'T00:00:00')));
+    const b = bucket.get(k) || { total:0, cats:{} };
+    const a = txAmountAUD(t);
+    b.total += a; b.cats[t.category] = (b.cats[t.category] || 0) + a;
+    bucket.set(k, b);
+  });
+  const T = Number(state.settings.weeklyThreshold) || 300;
+  const todayISO = isoDate(TODAY);
+  const totalAt = d=> (bucket.get(isoDate(d)) || { total:0 }).total;
+  const out = weeks.map((w, i)=>{
+    const key = isoDate(w.start), endISO = isoDate(w.end);
+    const b = bucket.get(key) || { total:0, cats:{} };
+    const future = key > todayISO, current = key <= todayISO && endISO >= todayISO;
+    const prev4 = [1,2,3,4].map(n=> totalAt(addDays(w.start, -7*n)));
+    const avg4 = prev4.reduce((s,v)=> s+v, 0) / 4;
+    const top = Object.entries(b.cats).sort((a,c)=> c[1]-a[1])[0] || null;
+    const r = b.total / T;
+    const level = future ? 'fut' : b.total <= 0 ? 0 : r <= 0.5 ? 1 : r <= 0.8 ? 2 : r <= 1 ? 3 : r <= 1.5 ? 4 : 5;
+    return { i, key, endISO, start:w.start, end:w.end, total:b.total, top, avg4, future, current, level,
+      spansPrev: w.start.getFullYear() < y, spansNext: w.end.getFullYear() > y };
+  });
+  const done = out.filter(w=> !w.future && !w.current);
+  const avg = done.length ? done.reduce((s,w)=> s+w.total, 0) / done.length : 0;
+  const max = done.reduce((m,w)=> (!m || w.total > m.total) ? w : m, null);
+  let streak = 0;
+  for(let i = done.length - 1; i >= 0 && done[i].total <= T; i--) streak++;
+  return { y, T, weeks: out, avg, over: done.filter(w=> w.total > T).length, max, streak, doneCount: done.length };
+}
+
+let wkGridCache = null;      // the data behind the grid on screen, for its tooltips
+let wkPhoneSel = null;       // the week whose details show under the grid on a phone
+
+function wkLabel(w, T){
+  const range = `${wkFmt(w.start)} to ${wkFmt(w.end)}`;
+  if(w.future) return `Week ${w.i+1}, ${range}, still to come`;
+  return `Week ${w.i+1}, ${range}, ${moneyWhole(w.total)} spent, ${Math.round(w.total / T * 100)}% of the ${moneyWhole(T)} threshold${w.current ? ', this week so far' : ''}`;
+}
+function wkInfoHTML(w, T, y){
+  const state_ = w.future ? 'still to come' : w.total <= 0 ? 'no spending' : w.total > T ? 'over threshold' : w.total > T * 0.8 ? 'close to threshold' : 'under threshold';
+  const col = w.future ? 'var(--text-dim)' : w.total > T ? 'var(--red)' : w.total > T * 0.8 ? 'var(--amber)' : 'var(--text)';
+  const vs = (w.future || w.avg4 <= 0) ? '—' : `${w.total >= w.avg4 ? '+' : '−'}${Math.abs(Math.round((w.total - w.avg4) / w.avg4 * 100))}% (avg ${moneyWhole(w.avg4)})`;
+  const span = w.spansPrev ? `Crosses into ${y} from ${y-1}: also shown in ${y-1}.` : w.spansNext ? `Crosses into ${y+1}: also shown in ${y+1}.` : '';
+  return `
+    <div class="wk-tip-h"><span>Week ${w.i+1}${w.current ? ' · this week' : ''}</span><span>${state_}</span></div>
+    <div class="wk-tip-d">Mon ${wkFmt(w.start)} – Sun ${wkFmt(w.end)}${w.spansPrev || w.spansNext ? ` ${w.end.getFullYear()}` : ''}</div>
+    <div class="wk-tip-a"><b class="num-font" style="color:${col}">${w.future ? '—' : moneyWhole(w.total)}</b><span>${w.future ? '' : `${Math.round(w.total / T * 100)}% of ${moneyWhole(T)}${w.current ? ' so far' : ''}`}</span></div>
+    <div class="wk-tip-bar" aria-hidden="true"><i style="width:${w.future ? 0 : Math.min(100, w.total / (T * 1.5) * 100)}%; background:${col};"></i><u></u></div>
+    <div class="wk-tip-r"><span>vs 4-week avg</span><span class="num-font">${vs}</span></div>
+    <div class="wk-tip-r"><span>Biggest</span><span>${w.top ? `${escHTML(w.top[0])} ${moneyWhole(w.top[1])}` : '—'}</span></div>
+    ${span ? `<div class="wk-tip-n">${span}</div>` : ''}`;
+}
+
+function weekGridCardHTML(y, m, viewMode){
+  const D = weekGridData(y);
+  wkGridCache = D;
+  const T = D.T, phone = isPhone();
+  const cols = Math.max(13, D.weeks.length - 39);
+  const rows = [0,1,2,3].map(r=> D.weeks.slice(r*13, r === 3 ? undefined : r*13 + 13));
+  const inView = w=> viewMode !== 'month' || (w.start.getFullYear() === y && w.start.getMonth() === m) || (w.end.getFullYear() === y && w.end.getMonth() === m);
+  if(phone && (!wkPhoneSel || !D.weeks.some(w=> w.key === wkPhoneSel))){
+    const cur = D.weeks.find(w=> w.current) || [...D.weeks].reverse().find(w=> !w.future) || D.weeks[0];
+    wkPhoneSel = cur.key;
+  }
+  const focusKey = (D.weeks.find(w=> w.current) || D.weeks.find(w=> !w.future) || D.weeks[0]).key;
+  const cell = w=> `<button type="button" class="wk wk-${w.level}${w.current ? ' now' : ''}${(w.spansPrev || w.spansNext) ? ' span' : ''}${inView(w) ? '' : ' dim'}${phone && w.key === wkPhoneSel ? ' sel' : ''}"
+      data-wk="${w.key}" tabindex="${w.key === focusKey ? 0 : -1}" aria-label="${wkLabel(w, T)}"${w.future ? ' aria-disabled="true"' : ''}${phone ? ` aria-pressed="${w.key === wkPhoneSel}"` : ''}></button>`;
+  const legend = `<span class="wk-legend" aria-hidden="true">None <i class="wk wk-0"></i><i class="wk wk-1"></i><i class="wk wk-2"></i><i class="wk wk-3"></i> ${moneyWhole(T)} <i class="wk wk-4"></i><i class="wk wk-5"></i> 1.5×</span>`;
+  const sel = phone ? D.weeks.find(w=> w.key === wkPhoneSel) : null;
+  return `
+    <section class="card dash-card wk-card" id="wkCard" aria-labelledby="wkTitle">
+      <div class="dash-card-head wrap">
+        <span class="dash-card-title" id="wkTitle">Weekly spending · ${y}</span>
+        <span class="muted wk-sub">Mon–Sun · colour = share of your ${moneyWhole(T)} weekly threshold</span>
+        <div class="spacer"></div>
+        ${legend}
+        <button type="button" class="dash-link" id="wkEditT">Edit threshold</button>
+      </div>
+      <div class="wk-body">
+        <div class="wk-wrap" id="wkWrap">
+          <div class="wk-grid" role="group" aria-label="Weeks of ${y}${phone ? '' : ', click one to see it in Transactions'}" style="--wk-cols:${cols};">
+            ${rows.map((r, ri)=> `<span class="wk-q" aria-hidden="true">Q${ri+1}</span>${r.map(cell).join('')}${'<span class="wk-pad" aria-hidden="true"></span>'.repeat(cols - r.length)}`).join('')}
+          </div>
+          ${phone ? '' : '<div class="wk-tip" id="wkTip" aria-hidden="true" hidden></div>'}
+        </div>
+        <div class="wk-stats">
+          <div><b class="num-font">${D.doneCount ? moneyWhole(D.avg) : '—'}</b><span>average week</span></div>
+          <div><b class="num-font neg">${D.over}</b><span>week${D.over === 1 ? '' : 's'} over ${moneyWhole(T)}</span></div>
+          <div><b class="num-font">${D.max ? moneyWhole(D.max.total) : '—'}</b><span>${D.max ? `highest · week ${D.max.i+1} (${wkFmt(D.max.start)})` : 'highest week'}</span></div>
+          <div><b class="num-font pos">${D.streak}</b><span>week${D.streak === 1 ? '' : 's'} under in a row</span></div>
+        </div>
+      </div>
+      ${phone && sel ? `<div class="wk-detail" id="wkDetail" role="status">${wkInfoHTML(sel, T, y)}
+        ${sel.future ? '' : `<button type="button" class="wk-open" data-wkopen="${sel.key}">See these days in Activity<span aria-hidden="true">›</span></button>`}</div>` : ''}
+    </section>`;
+}
+
+function openWeekInTransactions(key){
+  state.ui.txWeek = key;
+  state.ui.txFilterMonth = 'All';
+  state.ui.txFilterType = 'Expenses';
+  state.ui.txSearch = '';
+  state.ui.activeTab = 'transactions';
+  saveState(); render();
+  try{ window.scrollTo(0, 0); }catch(e){}
+}
+function wkCanHover(){
+  try{ return !(window.matchMedia && window.matchMedia('(hover: none)').matches); }catch(e){ return true; }
+}
+function wkShowTip(btn){
+  const tip = document.getElementById('wkTip'), wrap = document.getElementById('wkWrap');
+  if(!tip || !wrap || !wkGridCache) return;
+  const w = wkGridCache.weeks.find(x=> x.key === btn.dataset.wk);
+  if(!w) return;
+  tip.innerHTML = wkInfoHTML(w, wkGridCache.T, wkGridCache.y) + (w.future ? '' : `<div class="wk-tip-n">${wkCanHover() ? 'Click' : 'Tap again'} to see these days in Transactions</div>`);
+  tip.hidden = false;
+  tip.dataset.for = w.key;
+  const half = (tip.offsetWidth || 240) / 2, ww = wrap.clientWidth || 600;
+  const cx = btn.offsetLeft + btn.offsetWidth / 2;
+  tip.style.left = Math.min(Math.max(cx, half), Math.max(half, ww - half)) + 'px';
+  const h = tip.offsetHeight || 170;
+  const below = btn.offsetTop - 8 - h < -40;           // top rows: open downwards instead of over the figures
+  tip.style.top = (below ? btn.offsetTop + btn.offsetHeight + 8 : btn.offsetTop - 8) + 'px';
+  tip.style.transform = below ? 'translate(-50%, 0)' : 'translate(-50%, -100%)';
+  wrap.querySelectorAll('.wk.hot').forEach(b=> b.classList.remove('hot'));
+  btn.classList.add('hot');
+}
+function wkHideTip(){
+  const tip = document.getElementById('wkTip');
+  if(tip){ tip.hidden = true; delete tip.dataset.for; }
+  document.querySelectorAll('#wkWrap .wk.hot').forEach(b=> b.classList.remove('hot'));
+}
+function wireWeekGrid(c){
+  const card = c.querySelector('#wkCard');
+  if(!card) return;
+  const edit = card.querySelector('#wkEditT');
+  if(edit) edit.onclick = ()=>{
+    dashWeekPopOpen = true; render();
+    const p = document.getElementById('dashWeekPop');
+    if(p){ if(p.scrollIntoView) p.scrollIntoView({ block:'center' }); const f = document.getElementById('weekThreshold'); if(f) f.focus(); }
+  };
+  const cells = [...card.querySelectorAll('.wk[data-wk]')];
+  const phone = isPhone();
+  cells.forEach((b, idx)=>{
+    if(!phone){
+      b.onmouseenter = ()=> wkShowTip(b);
+      b.onfocus = ()=> wkShowTip(b);
+      b.onblur = ()=> wkHideTip();
+    }
+    b.onclick = ()=>{
+      const w = wkGridCache && wkGridCache.weeks.find(x=> x.key === b.dataset.wk);
+      if(!w) return;
+      if(phone){ wkPhoneSel = w.key; render(); const n = document.querySelector(`#wkCard [data-wk="${w.key}"]`); if(n) n.focus(); return; }
+      if(w.future) return;
+      const tip = document.getElementById('wkTip');
+      if(!wkCanHover() && (!tip || tip.hidden || tip.dataset.for !== w.key)){ wkShowTip(b); return; }
+      openWeekInTransactions(w.key);
+    };
+    b.onkeydown = e=>{
+      const step = { ArrowLeft:-1, ArrowRight:1, ArrowUp:-13, ArrowDown:13 }[e.key];
+      if(step === undefined) return;
+      e.preventDefault();
+      const n = cells[Math.min(cells.length - 1, Math.max(0, idx + step))];
+      cells.forEach(x=> x.tabIndex = -1);
+      n.tabIndex = 0; n.focus();
+    };
+  });
+  const wrap = card.querySelector('#wkWrap');
+  if(wrap && !phone) wrap.onmouseleave = ()=>{ if(!wrap.contains(document.activeElement)) wkHideTip(); };
+  const open = card.querySelector('[data-wkopen]');
+  if(open) open.onclick = ()=> openWeekInTransactions(open.dataset.wkopen);
+}
+
+/* The bar above Transactions while one week is showing */
+function txWeekBarHTML(){
+  const k = state.ui.txWeek;
+  if(!k) return '';
+  const s = new Date(k + 'T00:00:00'), e = addDays(s, 6);
+  return `<div class="tx-weekbar" role="status"><span>Showing <b>Mon ${wkFmt(s)} – Sun ${wkFmt(e)} ${e.getFullYear()}</b> from the weekly grid</span>
+    <button type="button" class="dash-link" data-txweekclear>Show all dates</button></div>`;
+}
+
 function renderDashboard(c){
   if(_dashPopCleanup){ _dashPopCleanup(); _dashPopCleanup = null; }
 
@@ -5564,6 +5845,8 @@ function renderDashboard(c){
       <div class="dash-kpi"><div class="k-label">This week</div><div class="k-val neg">${moneyWhole(currentWeek.total)} <span class="week-badge ${currentWeek.total>threshold?'over':'under'}">${currentWeek.total>threshold?'Over':'Under'}</span></div><div class="k-sub muted">${vsAvgPct===null ? '' : `${vsAvgPct>=0?'+':''}${vsAvgPct.toFixed(0)}% vs 4-wk avg · `}${shortIsoDate(currentWeek.start)}–${shortIsoDate(currentWeek.end)}</div></div>
     </div>
 
+    ${weekGridCardHTML(y, m, viewMode)}
+
     <div class="dash-grid">
       <div class="dash-col">${breakdownSections}</div>
       <div class="dash-col">${summaryDonuts}</div>
@@ -5623,12 +5906,15 @@ function renderDashboard(c){
       prog.insertAdjacentHTML('afterend', phoneHeroHTML(y, m, viewMode, memo));
       const hero = c.querySelector('#phHero'), kpis = c.querySelector('.dash-main-kpis');
       if(hero && kpis) hero.after(kpis);
+      const wkc = c.querySelector('#wkCard');
+      if(hero && wkc) hero.after(wkc);
     }
     const pace = c.querySelector('#dashPace'), up = comingUpHTML();
     if(pace && up) pace.insertAdjacentHTML('afterend', up);
     c.querySelectorAll('[data-phgoto]').forEach(b=> b.onclick = ()=> goToTab(b.dataset.phgoto));
   }
 
+  wireWeekGrid(c);
   const go = (yy, mm)=>{ state.ui.dashYear = yy; if(mm!==undefined) state.ui.dashMonth = mm; saveState(); render(); };
   document.getElementById('dashModeMonth').onclick = ()=>{ if(viewMode!=='month'){ state.ui.dashViewMode = 'month'; saveState(); render(); } };
   document.getElementById('dashModeYear').onclick = ()=>{ if(viewMode!=='year'){ state.ui.dashViewMode = 'year'; saveState(); render(); } };
@@ -5723,7 +6009,11 @@ function renderTransactions(c){
 
   let rows = transactionsWithBalance();
   if(filterType!=='All') rows = rows.filter(r=>r.type===filterType);
-  if(filterMonth!=='All'){
+  const weekFrom = state.ui.txWeek || '';
+  if(weekFrom){
+    const weekTo = isoDate(addDays(new Date(weekFrom + 'T00:00:00'), 6));
+    rows = rows.filter(r=> r.date >= weekFrom && r.date <= weekTo);
+  } else if(filterMonth!=='All'){
     rows = rows.filter(r=> r.date.slice(0,7) === filterMonth);
   }
   if(search) rows = rows.filter(r=> (r.details||'').toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase()));
@@ -5815,6 +6105,7 @@ function renderTransactions(c){
       <button class="btn secondary" id="exportCsvBtn">Export CSV</button>
       <button class="btn" id="addTxBtn">+ Add transaction</button>
     </div>
+    ${txWeekBarHTML()}
 
     <div class="dash-kpis tx-kpis">
       <div class="dash-kpi"><div class="k-label">Last record</div><div class="k-val">${lastRecord ? shortIsoDate(lastRecord.date) : '—'}</div>
@@ -5838,7 +6129,8 @@ function renderTransactions(c){
   `;
 
   c.querySelectorAll('[data-txtype]').forEach(b=> b.onclick = ()=>{ state.ui.txFilterType = b.dataset.txtype; saveState(); render(); });
-  document.getElementById('txMonth').onchange = e=>{ state.ui.txFilterMonth=e.target.value; saveState(); render(); };
+  document.getElementById('txMonth').onchange = e=>{ state.ui.txFilterMonth=e.target.value; state.ui.txWeek = null; saveState(); render(); };
+  c.querySelectorAll('[data-txweekclear]').forEach(b=> b.onclick = ()=>{ state.ui.txWeek = null; saveState(); render(); });
   // Searching re-renders the list, so put the cursor back where it was — before V4.10
   // every keystroke dropped focus from the box.
   const txSearchBox = document.getElementById('txSearch');
@@ -12607,7 +12899,20 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.20', name: 'Phosphor, theme colours, a themed date picker', date: 'Oct 2026', current: true,
+    no: 'V4.21', name: 'The year in weeks', date: 'Oct 2026', current: true,
+    items: [
+      'Dashboard: a new Weekly spending card under the figures shows every Mon–Sun week of the year as a square, in four rows of 13 (one per quarter). Each square is coloured by how much of your weekly threshold you spent: empty, three shades up to the threshold, then red, and dark red past 1.5×. Red squares also carry a dot, so over-threshold weeks don\'t rely on colour alone.',
+      'Hover or tab to a week for its dates, total, share of the threshold, change against the four weeks before it and its biggest category. Click it to see those seven days in Transactions. On a touch screen the first tap shows the details and a second tap opens them.',
+      'This week has a ring, weeks still to come are outlined, and in Month view the weeks outside that month fade. Beside the grid: your average week, how many weeks went over, the highest week and how many weeks in a row you have stayed under.',
+      'A week that crosses New Year shows in both years, with the whole week\'s total and a dashed outline, so most years have 53 squares. Arrow keys move between weeks.',
+      'iPhone: the grid sits under the spend card on Home. Tap a week to see its details below the grid, with a link to those days in Activity.',
+      'Transactions: when you arrive from the grid it shows just that week (Expenses), with a bar saying so and Show all dates to go back. Picking a month clears it.',
+      'Weekly totals (the grid and the Weekly expenses card) now also leave out off-balance categories, as well as Special ones and the categories you tick there.',
+      'The grid follows the theme: gold on macOS, yellow and pink blocks with black edges in Brutal, green tones in Tonal, phosphor shades in Phosphor.'
+    ]
+  },
+  {
+    no: 'V4.20', name: 'Phosphor, theme colours, a themed date picker', date: 'Oct 2026', current: false,
     items: [
       'New theme, Phosphor: an old computer screen. A bitmap font, scan-lines, glowing text and darker edges like a curved tube; titles with a blinking cursor; panels as windows with hard shadows; reverse-video highlights; buttons that press in and switches that snap.',
       'Phosphor comes in green, amber or IBM blue (white on blue, like old DOS programs), chosen under Appearance. Light mode turns it into a grey-green LCD screen with no glow. A Glow switch turns the scan-lines and glow off for crisper small text.',
