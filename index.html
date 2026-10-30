@@ -2524,6 +2524,52 @@
   body[data-skin="phosphor"] .wk-tip-bar, body[data-skin="phosphor"] .wk-tip-bar i{ border-radius:0; }
   body[data-skin="phosphor"] .tx-weekbar{ border:2px solid var(--edge); border-radius:0; background:var(--sel); color:var(--seltext); text-shadow:none; }
   body[data-skin="phosphor"] .tx-weekbar .dash-link{ color:var(--seltext); }
+
+/* ===== V4.22 — unrealised (total) and click-to-edit order record ===== */
+.inv-th-sub{ display:block; font-size:10px; font-weight:400; opacity:.65; text-transform:none; letter-spacing:0; white-space:nowrap; }
+.inv-ut{ white-space:nowrap; }
+.inv-ut-t{ opacity:.72; font-size:.92em; }
+.invp-ret{ white-space:nowrap; margin-left:auto; }
+.invp-b{ flex-wrap:wrap; row-gap:2px; }
+.invp-b > span:first-child{ white-space:nowrap; }
+table.ol-table tr.ol-row:not(.ol-editing){ cursor:pointer; }
+table.ol-table tr.ol-row:not(.ol-editing):focus-visible td{ background:var(--hover, rgba(128,128,128,.12)); }
+table.ol-table tr.ol-row:not(.ol-editing):focus-visible{ outline:none; }
+table.ol-table td.ol-acts{ white-space:nowrap; text-align:right; }
+table.ol-table td.ol-acts .icon-btn{ opacity:.55; }
+table.ol-table tr.ol-row:hover td.ol-acts .icon-btn, table.ol-table tr.ol-row:focus-within td.ol-acts .icon-btn{ opacity:1; }
+table.ol-table tr.ol-editing td{ background:var(--hover, rgba(128,128,128,.12)); }
+table.ol-table tr.ol-editing td:first-child{ box-shadow:inset 3px 0 0 var(--accent, var(--gold, #c9a227)); }
+table.ol-table tr.ol-bar td{ background:var(--hover, rgba(128,128,128,.12)); border-top:none; padding-top:2px; padding-bottom:8px; }
+table.ol-table tr.ol-bar td{ text-align:right; }
+table.ol-table .ol-hint{ float:left; font-size:11.5px; padding-top:7px; }
+table.ol-table .ol-bar-btns{ display:inline-flex; gap:6px; }
+table.ol-table .ol-bar-btns .btn{ padding:5px 14px; }
+@media (max-width: 600px){
+  /* phone: each record is a small card of label / value pairs, so Save is never off-screen */
+  table.ol-table, table.ol-table tbody{ display:block; width:100%; }
+  table.ol-table thead{ display:none; }
+  table.ol-table tr.ol-row{ display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; padding:10px 8px; border-bottom:1px solid var(--line, rgba(128,128,128,.25)); }
+  table.ol-table tr.ol-row td{ display:block; padding:0; border:none; text-align:left; background:none; box-shadow:none; min-width:0; }
+  table.ol-table tr.ol-row td:nth-child(2){ text-align:right; }
+  table.ol-table tr.ol-row td:nth-child(3)::before, table.ol-table tr.ol-row td:nth-child(4)::before, table.ol-table tr.ol-row td:nth-child(5)::before{
+    display:block; font-size:10.5px; opacity:.6; margin-bottom:2px; }
+  table.ol-table tr.ol-row td:nth-child(3)::before{ content:"Units"; }
+  table.ol-table tr.ol-row td:nth-child(4)::before{ content:"Price"; }
+  table.ol-table tr.ol-row td:nth-child(5)::before{ content:"Amount"; }
+  table.ol-table tr.ol-row td.ol-acts{ text-align:right; align-self:end; }
+  table.ol-table tr.ol-row td.ol-acts .icon-btn{ opacity:1; min-width:36px; min-height:32px; }
+  table.ol-table tr.ol-editing{ background:var(--hover, rgba(128,128,128,.12)); box-shadow:inset 3px 0 0 var(--accent, var(--gold, #c9a227)); border-bottom:none; }
+  table.ol-table tr.ol-editing td:first-child{ grid-column:1 / -1; }
+  table.ol-table tr.ol-editing td:nth-child(2){ display:none; }
+  table.ol-table tr.ol-editing td:nth-child(6){ display:none; }
+  table.ol-table tr.ol-editing input, table.ol-table tr.ol-editing .dp-wrap{ width:100% !important; box-sizing:border-box; }
+  table.ol-table tr.ol-bar{ display:block; }
+  table.ol-table tr.ol-bar td{ display:flex; flex-wrap:wrap; gap:8px; padding:4px 8px 12px; border-bottom:1px solid var(--line, rgba(128,128,128,.25)); }
+  table.ol-table .ol-hint{ float:none; flex:1 1 100%; padding-top:0; text-align:left; }
+  table.ol-table .ol-bar-btns{ flex:1 1 100%; }
+  table.ol-table .ol-bar-btns .btn{ flex:1; padding:9px 14px; }
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -3382,7 +3428,8 @@ function invPhoneHeroHTML(v){
     <div class="card ph-hero inv-ph">
       <div class="ph-hero-h"><span class="k">Worth today</span><span class="muted">${rows.length} holding${rows.length === 1 ? '' : 's'}</span></div>
       <div class="ph-hero-v"><b class="num-font" style="color:var(--gold-bright);">${investMoney(totalValue)}</b></div>
-      <div class="${ret >= 0 ? 'pos' : 'neg'} num-font" style="font-size:14px;">${invSign(ret)} · ${invPct(totalPnl)} on what you put in</div>
+      <div class="num-font inv-ph-ret" style="font-size:14px;"><span class="${totalUnrealised >= 0 ? 'pos' : 'neg'}">${invSign(totalUnrealised)}</span> <span class="${ret >= 0 ? 'pos' : 'neg'} inv-ut-t">(${invSign(ret)})</span> · <span class="${totalUnrealised >= 0 ? 'pos' : 'neg'}">${invPct(totalCost > 0 ? totalUnrealised/totalCost*100 : null)}</span> <span class="${ret >= 0 ? 'pos' : 'neg'} inv-ut-t">(${invPct(totalPnl)})</span></div>
+      <div class="muted" style="font-size:11px; margin-top:1px;">unrealised (total incl. realised) on what you put in</div>
       <div class="ph-three">
         <span><b class="num-font">${investMoney(totalCost)}</b>invested</span>
         <span><b class="num-font ${totalUnrealised >= 0 ? 'pos' : 'neg'}">${invSign(totalUnrealised)}</b>unrealised</span>
@@ -3403,7 +3450,7 @@ function invPhoneHoldingsHTML(rows){
         return `
         <button type="button" class="invp" data-ledger="${r.key}">
           <span class="invp-a"><span><i style="background:${r.colour};"></i>${escHTML(r.name)} <span class="muted">${sleeveLabel(r.sleeve)}</span></span><b class="num-font">${investMoney(r.value)}</b></span>
-          <span class="invp-b"><span>${r.marketPct.toFixed(0)}%${t !== undefined ? ` · target ${t.toFixed(0)}%` : ''}</span><span class="num-font ${r.totalReturn >= 0 ? 'pos' : 'neg'}">${invSign(r.totalReturn)}${r.pnlPct !== null ? ` · ${invPct(r.pnlPct)}` : ''}</span></span>
+          <span class="invp-b"><span>${r.marketPct.toFixed(0)}%${t !== undefined ? ` · target ${t.toFixed(0)}%` : ''}</span><span class="num-font invp-ret"><span class="${r.unrealised >= 0 ? 'pos' : 'neg'}">${invSign(r.unrealised)}</span> <span class="${r.totalReturn >= 0 ? 'pos' : 'neg'} inv-ut-t">(${invSign(r.totalReturn)})</span>${r.pnlPct !== null ? ` · <span class="${(r.unrealPct||0) >= 0 ? 'pos' : 'neg'}">${invPct(r.unrealPct)}</span> <span class="${r.pnlPct >= 0 ? 'pos' : 'neg'} inv-ut-t">(${invPct(r.pnlPct)})</span>` : ''}</span></span>
           <span class="invp-bar"><span style="width:${Math.min(100, r.marketPct).toFixed(1)}%; background:${r.colour};"></span>${t !== undefined ? `<span class="tick" style="left:${Math.min(100, t).toFixed(1)}%;"></span>` : ''}</span>
         </button>`;}).join('')}
     </div>`;
@@ -4394,6 +4441,14 @@ function dpLong(iso){
 const DP_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
 
 /* Turn every <input type="date"> into a text box with a calendar button. */
+/* V4.22: a mouse wheel or trackpad over a focused number box nudged its value up or
+   down — easy to do by accident while scrolling a long form. Blur it instead, so the
+   wheel just scrolls the page. */
+document.addEventListener('wheel', e=>{
+  const t = e.target;
+  if(t && t.matches && t.matches('input[type="number"]') && document.activeElement === t) t.blur();
+}, { passive:true, capture:true });
+
 function dpEnhance(root){
   (root || document).querySelectorAll('input[type="date"]:not([data-dp])').forEach(inp=>{
     inp.setAttribute('data-dp', '1');
@@ -5264,7 +5319,7 @@ function paceMonthData(y, m){
   const billByDay = new Array(days+1).fill(0);
   const from = isoDate(new Date(y, m, 1)), to = isoDate(new Date(y, m, days));
   (state.bills || []).filter(b=> (b.kind||'expense')==='expense').forEach(b=>{
-    billOccurrences(b, from, to).forEach(iso=>{
+    billOccurrences(b, from, to, { all:true }).forEach(iso=>{
       billByDay[Number(iso.slice(8,10))] += toAUD(Number(b.amount)||0, b.currency||'AUD');
     });
   });
@@ -8308,7 +8363,8 @@ function investmentRows(){
       sleeve: u.sleeve, colour: INVEST_COLOURS[i % INVEST_COLOURS.length],
       cost, value, unrealised, realised, useLots,
       totalReturn: unrealised + realised,
-      pnlPct: cost > 0 ? (unrealised + realised)/cost*100 : null
+      pnlPct: cost > 0 ? (unrealised + realised)/cost*100 : null,
+      unrealPct: cost > 0 ? unrealised/cost*100 : null
     };
   });
   const totalCost = rows.reduce((t,r)=>t+r.cost,0);
@@ -8500,6 +8556,11 @@ function renderInvestments(c){
   const pct = v=> v===null ? '—' : (v>=0?'+':'') + v.toFixed(1) + '%';
   const sign = v=> (v>=0?'+':'') + investMoney(v);
   const totalPnl = totalCost > 0 ? (totalUnrealised+totalRealised)/totalCost*100 : null;
+  const totalUnrealPct = totalCost > 0 ? totalUnrealised/totalCost*100 : null;
+  const col = v=> (v||0) >= 0 ? 'var(--green)' : 'var(--red)';
+  // V4.22: the unrealised figure leads; the total (with realised) follows in brackets.
+  const utMoney = (u, t, b)=> `<span class="inv-ut"><span style="color:${col(u)}">${b?'<b>':''}${sign(u)}${b?'</b>':''}</span> <span class="inv-ut-t" style="color:${col(t)}">(${sign(t)})</span></span>`;
+  const utPct = (u, t, b)=> `<span class="inv-ut"><span style="color:${col(u)}">${b?'<b>':''}${pct(u)}${b?'</b>':''}</span> <span class="inv-ut-t" style="color:${col(t)}">(${pct(t)})</span></span>`;
 
   const table = `
     <table class="reb inv-table inv-hold">
@@ -8507,7 +8568,7 @@ function renderInvestments(c){
         <th>Holding</th>
         <th class="r">Invested</th><th class="r">Current value</th>
         <th class="r">Unrealised</th><th class="r">Realised</th>
-        <th class="r">Return</th><th class="r">P/L %</th>
+        <th class="r">Return<span class="inv-th-sub">unrealised (total)</span></th><th class="r">P/L %<span class="inv-th-sub">unrealised (total)</span></th>
         <th class="r">Alloc %</th><th class="r">Market %</th>
       </tr></thead>
       <tbody>
@@ -8518,8 +8579,8 @@ function renderInvestments(c){
           <td class="r">${investMoney(r.value)}</td>
           <td class="r" style="color:${r.unrealised>=0?'var(--green)':'var(--red)'}">${sign(r.unrealised)}</td>
           <td class="r muted">${Math.abs(r.realised)>0.005?sign(r.realised):'—'}</td>
-          <td class="r" style="color:${r.totalReturn>=0?'var(--green)':'var(--red)'}">${sign(r.totalReturn)}</td>
-          <td class="r" style="color:${(r.pnlPct||0)>=0?'var(--green)':'var(--red)'}">${pct(r.pnlPct)}</td>
+          <td class="r" data-ret="${r.key}">${utMoney(r.unrealised, r.totalReturn)}</td>
+          <td class="r" data-pl="${r.key}">${utPct(r.unrealPct, r.pnlPct)}</td>
           <td class="r muted">${r.allocPct.toFixed(1)}%</td>
           <td class="r muted">${r.marketPct.toFixed(1)}%</td>
         </tr>`).join('')}
@@ -8530,8 +8591,8 @@ function renderInvestments(c){
         <td class="r"><b>${investMoney(totalValue)}</b></td>
         <td class="r" style="color:${totalUnrealised>=0?'var(--green)':'var(--red)'}"><b>${sign(totalUnrealised)}</b></td>
         <td class="r muted">${Math.abs(totalRealised)>0.005?sign(totalRealised):'—'}</td>
-        <td class="r" style="color:${(totalUnrealised+totalRealised)>=0?'var(--green)':'var(--red)'}"><b>${sign(totalUnrealised+totalRealised)}</b></td>
-        <td class="r" style="color:${(totalPnl||0)>=0?'var(--green)':'var(--red)'}"><b>${pct(totalPnl)}</b></td>
+        <td class="r" data-ret="total">${utMoney(totalUnrealised, totalUnrealised+totalRealised, true)}</td>
+        <td class="r" data-pl="total">${utPct(totalUnrealPct, totalPnl, true)}</td>
         <td class="r muted">100%</td><td class="r muted">100%</td>
       </tr></tfoot>
     </table>`;
@@ -9479,6 +9540,7 @@ function openOrderLedger(key){
   const label = subId ? `${acc.name} — ${unit.name}` : acc.name;
   const cur = subId ? (unit.currency||acc.currency) : acc.currency;
   const root = document.getElementById('modalRoot');
+  let editId = null, editFocus = 'units';
 
   const paint = ()=>{
     const cb = costBasisAsOf(unit, null);
@@ -9489,34 +9551,39 @@ function openOrderLedger(key){
     ].sort((a,b)=> (a.rec.date||'').localeCompare(b.rec.date||'')
                 || ({ buy:0, div:1, sale:2 })[a.kind] - ({ buy:0, div:1, sale:2 })[b.kind]);
 
+    const fmtU = v=> (Number(v)||0).toLocaleString('en-AU', { maximumFractionDigits:4 });
+    const kindPill = e=> e.kind === 'buy' ? '<span class="pill kind-saving">Purchase</span>'
+                       : e.kind === 'sale' ? '<span class="pill kind-expense">Sale</span>'
+                       : `<span class="pill kind-income">Dividend</span><div class="muted" style="font-size:11px;">${Number(e.rec.units)>0?'reinvested':'cash'}</div>`;
+    const amountOf = e=> e.kind === 'buy' ? moneyCur(lotTotal(e.rec), cur, 2)
+                       : e.kind === 'sale' ? '−' + moneyCur(saleProceeds(e.rec), cur, 2)
+                       : moneyCur(Number(e.rec.amount)||0, cur, 2);
     const rows = entries.map(e=>{
       const r = e.rec;
-      if(e.kind === 'buy') return `
-        <tr>
-          <td><input type="date" data-oldate="${r.id}" value="${r.date||''}" style="width:135px;"></td>
-          <td><span class="pill kind-saving">Purchase</span></td>
-          <td class="num"><input type="number" step="any" min="0" data-olunits="${r.id}" value="${Number(r.units)||0}" style="width:88px;"></td>
-          <td class="num"><input type="number" step="any" min="0" data-olprice="${r.id}" value="${Number(r.price)||0}" style="width:96px;"></td>
-          <td class="num">${moneyCur(lotTotal(r), cur, 2)}</td>
-          <td><button class="icon-btn" data-oldel="${r.id}" title="Delete">✕</button></td>
-        </tr>`;
-      if(e.kind === 'sale') return `
-        <tr data-olsale="${r.id}">
-          <td><input type="date" data-oldate="${r.id}" value="${r.date||''}" style="width:135px;"></td>
-          <td><span class="pill kind-expense">Sale</span></td>
-          <td class="num"><input type="number" step="any" min="0" data-olunits="${r.id}" value="${Number(r.units)||0}" style="width:88px;"></td>
-          <td class="num"><input type="number" step="any" min="0" data-olprice="${r.id}" value="${Number(r.price)||0}" style="width:96px;"></td>
-          <td class="num">−${moneyCur(saleProceeds(r), cur, 2)}</td>
-          <td><button class="icon-btn" data-oldel="${r.id}" title="Delete">✕</button></td>
-        </tr>`;
+      const saleAttr = e.kind === 'sale' ? ` data-olsale="${r.id}"` : '';
+      if(r.id === editId){
+        return `
+        <tr class="ol-row ol-editing" data-olrow="${r.id}"${saleAttr}>
+          <td><input type="date" data-oldate="${r.id}" value="${r.date||''}" style="width:130px;"></td>
+          <td>${kindPill(e)}</td>
+          <td class="num"><input type="number" step="any" min="0" inputmode="decimal" data-olunits="${r.id}" value="${Number(r.units)||0}" style="width:88px;"></td>
+          <td class="num">${e.kind === 'div' ? '<span class="muted">—</span>' : `<input type="number" step="any" min="0" inputmode="decimal" data-olprice="${r.id}" value="${Number(r.price)||0}" style="width:96px;">`}</td>
+          <td class="num">${e.kind === 'div' ? `<input type="number" step="any" min="0" inputmode="decimal" data-olamt="${r.id}" value="${Number(r.amount)||0}" style="width:96px;">` : `<span data-olpreview>${amountOf(e)}</span>`}</td>
+          <td></td>
+        </tr>
+        <tr class="ol-bar"><td colspan="6">
+          <span class="muted ol-hint">Editing this ${e.kind === 'buy' ? 'purchase' : e.kind === 'sale' ? 'sale' : 'dividend'} · Enter saves · Esc cancels</span>
+          <span class="ol-bar-btns"><button type="button" class="btn secondary" id="olCancel">Cancel</button><button type="button" class="btn" id="olSave">Save</button></span>
+        </td></tr>`;
+      }
       return `
-        <tr>
-          <td><input type="date" data-oldate="${r.id}" value="${r.date||''}" style="width:135px;"></td>
-          <td><span class="pill kind-income">Dividend</span><div class="muted" style="font-size:11px;">${Number(r.units)>0?'reinvested':'cash'}</div></td>
-          <td class="num"><input type="number" step="any" min="0" data-olunits="${r.id}" value="${Number(r.units)||0}" style="width:88px;"></td>
-          <td class="num muted">—</td>
-          <td class="num"><input type="number" step="any" min="0" data-olamt="${r.id}" value="${Number(r.amount)||0}" style="width:96px;"></td>
-          <td><button class="icon-btn" data-oldel="${r.id}" title="Delete">✕</button></td>
+        <tr class="ol-row" data-olrow="${r.id}"${saleAttr} tabindex="0" title="Click to edit">
+          <td data-olcol="date">${r.date ? formatDateShort(r.date) : '—'}</td>
+          <td>${kindPill(e)}</td>
+          <td class="num" data-olcol="units">${fmtU(r.units)}</td>
+          <td class="num" data-olcol="${e.kind === 'div' ? 'amt' : 'price'}">${e.kind === 'div' ? '<span class="muted">—</span>' : moneyCur(Number(r.price)||0, cur, 2)}</td>
+          <td class="num" data-olcol="${e.kind === 'div' ? 'amt' : 'price'}">${amountOf(e)}</td>
+          <td class="ol-acts"><button type="button" class="icon-btn" data-oledit="${r.id}" title="Edit">✎</button><button type="button" class="icon-btn" data-oldel="${r.id}" title="Delete">✕</button></td>
         </tr>`;
     }).join('');
 
@@ -9527,7 +9594,7 @@ function openOrderLedger(key){
       <div class="modal-backdrop" id="olb">
         <div class="modal" style="width:680px; max-width:96vw;">
           <h2>Order record — ${label}</h2>
-          <div class="page-sub">Every purchase, sale and dividend behind this holding's cost and return. Sales take out their cost at the average cost on the day. Edit a figure and the return recalculates; the balance correction is dated to the record, not to today.</div>
+          <div class="page-sub">Every purchase, sale and dividend behind this holding's cost and return. Sales take out their cost at the average cost on the day. Click a record to edit it, then Save; the return recalculates and the balance correction is dated to the record, not to today.</div>
           <div class="row" style="margin-bottom:12px;">
             <div class="card metric"><h3>Cost basis</h3><div class="big">${moneyCur(cb.cost, cur)}</div><div class="cap">what you paid, ${cur}</div></div>
             <div class="card metric"><h3>Units from records</h3><div class="big">${cb.units.toLocaleString('en-AU',{maximumFractionDigits:4})}</div><div class="cap">${drift ? `holding shows ${liveUnits.toLocaleString('en-AU',{maximumFractionDigits:4})}` : 'matches the holding'}</div></div>
@@ -9536,7 +9603,7 @@ function openOrderLedger(key){
           </div>
           ${entries.length ? `
           <div style="max-height:320px; overflow-y:auto;">
-            <table class="data">
+            <table class="data ol-table">
               <thead><tr><th>Date</th><th>Type</th><th class="num">Units</th><th class="num">Price</th><th class="num">Amount</th><th></th></tr></thead>
               <tbody>${rows}</tbody>
             </table>
@@ -9548,69 +9615,111 @@ function openOrderLedger(key){
 
     const done = ()=>{ saveState(); paint(); render(); };
     document.getElementById('olClose').onclick = ()=> root.innerHTML = '';
-    document.getElementById('olb').addEventListener('click', e=>{ if(e.target.id==='olb') root.innerHTML=''; });
+    document.getElementById('olb').addEventListener('click', e=>{
+      if(e.target.id !== 'olb') return;
+      const er = root.querySelector('tr.ol-editing');
+      if(er && er.dataset.dirty === '1'){ toast('Save or cancel your edit first.'); return; }
+      root.innerHTML = '';
+    });
 
     const findLot = id=> unitLots(unit).find(x=> x.id === id);
     const findDiv = id=> unitDivs(unit).find(x=> x.id === id);
     const findSale = id=> unitSales(unit).find(x=> x.id === id);
 
-    root.querySelectorAll('[data-oldate]').forEach(inp=> inp.onchange = ()=>{
-      const id = inp.dataset.oldate;
-      const rec = findLot(id) || findDiv(id) || findSale(id);
-      if(!rec || !inp.value) return;
-      rec.date = inp.value;
-      done();
-    });
-    root.querySelectorAll('[data-olprice]').forEach(inp=> inp.onchange = ()=>{
-      const s = findSale(inp.dataset.olprice);
-      if(s){
-        // A sale takes money out of the holding, so more proceeds means a lower balance.
-        const before = saleProceeds(s);
-        s.price = Math.max(0, Number(inp.value)||0);
-        reconcileOrderChange(unit, s.date, 0, -(saleProceeds(s) - before), 'sale', 'Sale corrected');
-        return done();
+    /* V4.22: rows are read-only until you click one. Before, every figure was a live
+       input that saved on change — a scroll over a focused box could alter it, and the
+       repaint on each change swallowed the click into the next box, so edits felt
+       impossible. Now one row at a time opens with Save / Cancel. */
+    const editRow = editId ? root.querySelector(`tr.ol-editing[data-olrow="${editId}"]`) : null;
+    const isDirty = ()=> !!(editRow && editRow.dataset.dirty === '1');
+    const startEdit = (id, focusCol)=>{
+      if(editId === id) return;
+      if(isDirty()){ toast('Save or cancel the record you\'re editing first.'); return; }
+      editId = id; editFocus = focusCol || 'units'; paint();
+    };
+    const cancelEdit = ()=>{ editId = null; paint(); };
+    const saveEdit = ()=>{
+      const id = editId;
+      const l = findLot(id), d = l ? null : findDiv(id), s = (l || d) ? null : findSale(id);
+      const rec = l || d || s;
+      if(!rec){ editId = null; return paint(); }
+      const q = attr=> root.querySelector(`[${attr}="${id}"]`);
+      const dIn = q('data-oldate');
+      const rawDate = dIn ? String(dIn.value || '').trim() : rec.date;
+      const newDate = dpIsISO(rawDate) ? rawDate : dpParse(rawDate);
+      if(!newDate){ toast('That date doesn\'t look right.'); if(dIn) dIn.focus(); return; }
+      const nums = {};
+      for(const [k, attr] of [['units','data-olunits'], ['price','data-olprice'], ['amount','data-olamt']]){
+        const el = q(attr); if(!el) continue;
+        const v = String(el.value).trim();
+        if(v === '' || !isFinite(Number(v)) || Number(v) < 0){ toast('Enter a number of zero or more.'); el.focus(); return; }
+        nums[k] = Number(v);
       }
-      const l = findLot(inp.dataset.olprice); if(!l) return;
-      const before = lotTotal(l);
-      l.price = Math.max(0, Number(inp.value)||0);
-      l.total = lotTotal(l);
-      reconcileOrderChange(unit, l.date, 0, lotTotal(l) - before, 'contribution', 'Purchase corrected');
-      done();
-    });
-    root.querySelectorAll('[data-olunits]').forEach(inp=> inp.onchange = ()=>{
-      const id = inp.dataset.olunits;
-      const l = findLot(id);
+      let changed = false;
+      if(newDate !== rec.date){ rec.date = newDate; changed = true; }
+      const moved = (du, dv)=> Math.abs(du) > 1e-9 || Math.abs(dv) > 0.005;
       if(l){
-        const beforeU = Number(l.units)||0, beforeV = lotTotal(l);
-        l.units = Math.max(0, Number(inp.value)||0);
-        l.total = lotTotal(l);
-        reconcileOrderChange(unit, l.date, l.units - beforeU, lotTotal(l) - beforeV,
-                             'contribution', 'Purchase corrected');
-        return done();
+        const bU = Number(l.units)||0, bV = lotTotal(l);
+        l.units = nums.units; l.price = nums.price; l.total = lotTotal(l);
+        const dU = l.units - bU, dV = lotTotal(l) - bV;
+        if(moved(dU, dV)){ reconcileOrderChange(unit, l.date, dU, dV, 'contribution', 'Purchase corrected'); changed = true; }
+      } else if(s){
+        // A sale takes shares and money out of the holding, so the correction runs the other way.
+        const bU = Number(s.units)||0, bV = saleProceeds(s);
+        s.units = nums.units; s.price = nums.price;
+        const dU = s.units - bU, dV = saleProceeds(s) - bV;
+        if(moved(dU, dV)){ reconcileOrderChange(unit, s.date, -dU, -dV, 'sale', 'Sale corrected'); changed = true; }
+      } else {
+        const bU = Number(d.units)||0, bV = divBalanceValue(d), bA = Number(d.amount)||0;
+        d.units = nums.units; d.amount = nums.amount;
+        const dU = d.units - bU, dV = divBalanceValue(d) - bV;
+        if(moved(dU, dV)){ reconcileOrderChange(unit, d.date, dU, dV, 'dividend', 'Dividend corrected'); changed = true; }
+        else if(Math.abs(d.amount - bA) > 0.005) changed = true;
       }
-      const s = findSale(id);
-      if(s){
-        const beforeU = Number(s.units)||0, beforeV = saleProceeds(s);
-        s.units = Math.max(0, Number(inp.value)||0);
-        reconcileOrderChange(unit, s.date, -(s.units - beforeU), -(saleProceeds(s) - beforeV),
-                             'sale', 'Sale corrected');
-        return done();
-      }
-      const d = findDiv(id); if(!d) return;
-      const beforeU = Number(d.units)||0, beforeV = divBalanceValue(d);
-      d.units = Math.max(0, Number(inp.value)||0);
-      reconcileOrderChange(unit, d.date, d.units - beforeU, divBalanceValue(d) - beforeV,
-                           'dividend', 'Dividend corrected');
-      done();
+      editId = null;
+      if(changed){ done(); toast('Record updated.'); } else paint();
+    };
+
+    root.querySelectorAll('tr.ol-row:not(.ol-editing)').forEach(tr=>{
+      tr.addEventListener('click', e=>{
+        if(e.target.closest('[data-oldel]')) return;
+        const c = e.target.closest('[data-olcol]');
+        startEdit(tr.dataset.olrow, c ? c.dataset.olcol : 'units');
+      });
+      tr.addEventListener('keydown', e=>{
+        if(e.target !== tr) return;
+        if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); startEdit(tr.dataset.olrow, 'units'); }
+      });
     });
-    root.querySelectorAll('[data-olamt]').forEach(inp=> inp.onchange = ()=>{
-      const d = findDiv(inp.dataset.olamt); if(!d) return;
-      const beforeV = divBalanceValue(d);
-      d.amount = Math.max(0, Number(inp.value)||0);
-      reconcileOrderChange(unit, d.date, 0, divBalanceValue(d) - beforeV,
-                           'dividend', 'Dividend corrected');
-      done();
-    });
+    root.querySelectorAll('[data-oledit]').forEach(btn=> btn.onclick = e=>{ e.stopPropagation(); startEdit(btn.dataset.oledit, 'units'); });
+
+    if(editRow){
+      const sv = document.getElementById('olSave'), cn = document.getElementById('olCancel');
+      if(sv) sv.onclick = saveEdit;
+      if(cn) cn.onclick = cancelEdit;
+      const preview = editRow.querySelector('[data-olpreview]');
+      editRow.querySelectorAll('input').forEach(inp=>{
+        const mark = ()=>{
+          editRow.dataset.dirty = '1';
+          if(preview){
+            const u = Number((editRow.querySelector('[data-olunits]')||{}).value)||0;
+            const p = Number((editRow.querySelector('[data-olprice]')||{}).value)||0;
+            preview.textContent = (editRow.matches('[data-olsale]') ? '−' : '') + moneyCur(u*p, cur, 2);
+          }
+        };
+        inp.addEventListener('input', mark);
+        inp.addEventListener('change', mark);
+        inp.addEventListener('keydown', e=>{
+          if(typeof dpIsOpen === 'function' && dpIsOpen()) return;   // the calendar owns Enter / Esc while open
+          if(e.key === 'Enter'){ e.preventDefault(); saveEdit(); }
+          else if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); cancelEdit(); }
+        });
+      });
+      const focusSel = { date:'[data-oldate]', units:'[data-olunits]', price:'[data-olprice]', amt:'[data-olamt]' }[editFocus] || '[data-olunits]';
+      const f = editRow.querySelector(focusSel) || editRow.querySelector('[data-olunits]');
+      if(f && !isPhone()){ try{ f.focus(); if(f.select) f.select(); }catch(e){} }
+    }
+
     root.querySelectorAll('[data-oldel]').forEach(b=> b.onclick = ()=>{
       const id = b.dataset.oldel;
       const l = findLot(id), d = l ? null : findDiv(id), s = (l || d) ? null : findSale(id);
@@ -9639,6 +9748,7 @@ function openOrderLedger(key){
             reconcileOrderChange(unit, d.date, -(Number(d.units)||0), -divBalanceValue(d),
                                  'dividend', 'Dividend removed');
           }
+          editId = null;
           saveState(); render(); openOrderLedger(key);
         }
       });
@@ -9846,10 +9956,22 @@ function shiftDue(bill, n){
   return a ? billStepDate(bill, a, n) : null;
 }
 
-/* Every date this bill falls on inside a window, oldest first. */
-function billOccurrences(bill, fromISO, toISO){
+/* V4.23: the Next due date you type is where the bill starts. Before, it was only a
+   point on the cycle and dates before it were filled in too, so setting a bill's next
+   due to December still had it looking for October's payment. Dates before it are
+   only read to show the last time it was seen, never expected or flagged. */
+function billStartISO(bill){
+  return (bill && typeof bill.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(bill.dueDate)) ? bill.dueDate : '';
+}
+
+/* Every date this bill falls on inside a window, oldest first. From its Next due date
+   on, unless opts.all asks for the whole cycle (the pace line and the "last seen" scan). */
+function billOccurrences(bill, fromISO, toISO, opts){
   const out = [];
   if(!billAnchor(bill)) return out;
+  const startISO = (opts && opts.all) ? '' : billStartISO(bill);
+  if(startISO && startISO > fromISO) fromISO = startISO;
+  if(fromISO > toISO) return out;
   const from = new Date(fromISO+'T00:00:00');
   const to   = new Date(toISO+'T00:00:00');
   // Jump close to the window first rather than walking one cycle at a time.
@@ -9894,7 +10016,10 @@ function billStatus(bill, todayISO){
   if(!anchor) return { state:'nodate', next:null, lastSeen:null };
   const c = billCycle(bill);
   const cycleDays = c.unit==='week' ? 7*c.every : (c.unit==='month' ? 31*c.every : 366*c.every);
-  const ahead = isoDate(addDays(new Date(today+'T00:00:00'), 2*cycleDays + BILL_MATCH_DAYS + 1));
+  const startISO = billStartISO(bill);
+  // Look far enough ahead to reach a Next due set well into the future.
+  const aheadFrom = startISO > today ? startISO : today;
+  const ahead = isoDate(addDays(new Date(aheadFrom+'T00:00:00'), 2*cycleDays + BILL_MATCH_DAYS + 1));
   if(!billIsLinked(bill)){
     const next = billOccurrences(bill, today, ahead)[0] || null;
     return { state:'scheduled', next, lastSeen:null };
@@ -9903,15 +10028,16 @@ function billStatus(bill, todayISO){
   // so turning it on doesn't flag months you never asked it to check).
   let back = isoDate(addDays(new Date(today+'T00:00:00'), -Math.min(cycleDays + BILL_MATCH_DAYS, 45)));
   if(bill.match.since && bill.match.since > back) back = bill.match.since;
-  const occ = billOccurrences(bill, back, ahead);
+  const occ = billOccurrences(bill, back, ahead, { all:true });
   // Only the latest date that has come round can be waiting or late. An older one
   // that never showed up is superseded once the next is due, so one missed record
   // doesn't leave the bill stuck on a month long gone.
-  const latestDue = occ.filter(o=> o <= today).pop() || null;
+  const latestDue = occ.filter(o=> o <= today && o >= startISO).pop() || null;
   let lastSeen = null;
   for(const o of occ){
     const tx = billFindMatch(bill, o);
     if(tx){ lastSeen = { due:o, tx }; continue; }
+    if(o < startISO) continue;              // before Next due: can show ✓, never missing
     if(latestDue && o < latestDue) continue;
     const windowEnd = isoDate(addDays(new Date(o+'T00:00:00'), BILL_MATCH_DAYS));
     if(o > today) return { state:'upcoming', next:o, lastSeen };
@@ -10135,7 +10261,7 @@ function openBillModal(editId){
           </div>
           <label class="field">Next due
             <input type="date" id="bDue" value="${existing ? (existing.dueDate||'') : ''}">
-            <span class="muted" style="font-size:11px;">Any date it falls on — every other date follows from how often it repeats, and it moves on by itself. Leave blank to keep it off the calendar.</span>
+            <span class="muted" style="font-size:11px;">The next date it's due. Nothing before it is expected or flagged; later dates follow from how often it repeats, and it moves on by itself. Leave blank to keep it off the calendar.</span>
           </label>
           <label class="field">Notes <input type="text" id="bNotes" placeholder="optional" value="${existing ? escHTML(existing.notes||'') : ''}"></label>
         </div>
@@ -12899,7 +13025,24 @@ function liquidityTrendHTML(){
 ========================================================= */
 const VERSION_LOG = [
   {
-    no: 'V4.21', name: 'The year in weeks', date: 'Oct 2026', current: true,
+    no: 'V4.23', name: 'Next due means next', date: 'Oct 2026', current: true,
+    items: [
+      'Bills: the Next due date you set is now where an entry starts. Setting it in the future no longer leaves the entry looking for an earlier payment — dates before it are never shown as due, Looking for it or Not seen yet, and they stay out of the Calendar, Coming up and the forecast.',
+      'A payment found before Next due still shows as ✓ seen, so moving the date on after paying keeps the tick.',
+      'The Next due hint in the entry form now says this, and its preview of the next dates starts from the date you typed.'
+    ]
+  },
+  {
+    no: 'V4.22', name: 'Clearer returns, safer edits', date: 'Oct 2026', current: false,
+    items: [
+      'Investments: the Return and P/L % columns now read "unrealised (total)" — the first figure is the gain still in the holding, the bracketed one adds what you have already realised from sales and dividends. The totals row, the phone holdings list and the phone summary card follow the same layout.',
+      'Order record: rows are no longer live input boxes. Click a purchase, sale or dividend (or its ✎) to edit that one record, then Save — or press Enter to save and Esc to cancel. The amount updates as you type, and nothing changes until you save.',
+      'While a record has unsaved changes, clicking another row or outside the window asks you to save or cancel first, so a stray click can\'t lose or half-apply an edit.',
+      'Scrolling the mouse wheel or trackpad over a selected number box anywhere in Ledger no longer changes its value; the box lets go and the page scrolls instead.'
+    ]
+  },
+  {
+    no: 'V4.21', name: 'The year in weeks', date: 'Oct 2026', current: false,
     items: [
       'Dashboard: a new Weekly spending card under the figures shows every Mon–Sun week of the year as a square, in four rows of 13 (one per quarter). Each square is coloured by how much of your weekly threshold you spent: empty, three shades up to the threshold, then red, and dark red past 1.5×. Red squares also carry a dot, so over-threshold weeks don\'t rely on colour alone.',
       'Hover or tab to a week for its dates, total, share of the threshold, change against the four weeks before it and its biggest category. Click it to see those seven days in Transactions. On a touch screen the first tap shows the details and a second tap opens them.',
