@@ -2560,6 +2560,15 @@ table.ol-table .ol-bar-btns .btn{ padding:5px 14px; }
 .cu-alert .dash-link{ margin-left:4px; }
 .cal-todos .todo-head{ display:flex; align-items:center; gap:8px; }
 .cal-todos .todo-open{ font-size:12px; }
+
+/* ===== V4.26 — exchange rate on a transaction ===== */
+.tx-rate[hidden]{ display:none !important; }
+.tx-rate{ display:flex; flex-direction:column; gap:4px; }
+.tx-rate-note{ font-size:11.5px; line-height:1.4; }
+.qa-rate{ display:flex; align-items:center; gap:8px; margin:-2px 0 10px; font-size:13px; color:var(--text-dim); flex-wrap:wrap; }
+.qa-rate[hidden]{ display:none; }
+.qa-rate input{ width:110px; font-size:16px; }
+.tx-aud[title]{ cursor:help; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -2998,6 +3007,11 @@ function openQuickAdd(editId){
           <label class="sr-only" for="qaCur">Currency</label>
           <select id="qaCur">${NET_WORTH_CURRENCIES.map(c=> `<option ${(existing ? (existing.currency||'AUD') : 'AUD') === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
         </div>
+        <div class="qa-rate" id="qaRateRow" hidden>
+          <label for="qaRate" id="qaRateLbl">Rate</label>
+          <input id="qaRate" type="text" inputmode="decimal" autocomplete="off" value="${existing && existing.rate ? existing.rate : ''}">
+          <span class="muted" id="qaRateNote"></span>
+        </div>
         <div class="qa-lbl">Category</div>
         <div class="qa-cats" id="qaCats"></div>
         <label class="qa-lbl" for="qaDet">Details</label>
@@ -3048,16 +3062,36 @@ function openQuickAdd(editId){
   paint();
   if(!existing) setTimeout(()=>{ const a = $('qaAmt'); if(a) a.focus(); }, 30);
 
+  let qaRateTyped = false;
+  const qaRateUI = ()=>{
+    const cur = $('qaCur').value, row = $('qaRateRow');
+    const sign = root.querySelector('.qa-cur-sign'); if(sign) sign.textContent = CURRENCY_SYMBOLS[cur] || '$';
+    row.hidden = cur === 'AUD';
+    if(cur === 'AUD') return;
+    $('qaRateLbl').textContent = `${cur} per A$1`;
+    const live = state.fxRates && state.fxRates[cur];
+    const keep = existing && (existing.currency||'AUD') === cur && Number(existing.rate) > 0;
+    if(!qaRateTyped){ $('qaRate').value = keep ? existing.rate : ''; $('qaRate').placeholder = live ? Number(live).toFixed(3) : 'auto'; }
+    const amt = Number(String($('qaAmt').value).replace(/[^0-9.]/g, '')) || 0;
+    const r = Number($('qaRate').value) || (keep ? existing.rate : live);
+    $('qaRateNote').textContent = (amt && r ? `≈ ${moneyCur(amt / r, 'AUD', 2)}` : '') + (qaRateTyped && Number($('qaRate').value) > 0 ? ' · your rate' : ' · blank = the date’s rate');
+  };
+  $('qaCur').addEventListener('change', ()=>{ qaRateTyped = false; qaRateUI(); });
+  $('qaAmt').addEventListener('input', qaRateUI);
+  $('qaRate').addEventListener('input', ()=>{ qaRateTyped = true; qaRateUI(); });
+  qaRateUI();
   const save = again=>{
     const amt = Number(String($('qaAmt').value).replace(/[^0-9.]/g, ''));
     if(!amt || amt <= 0){ toast('Enter an amount greater than 0.'); return; }
     if(!qa.cat){ toast('Pick a category.'); return; }
     if(!qa.date || !isSaneYear(Number(qa.date.slice(0,4)))){ toast("That date doesn't look right."); return; }
-    const rec = { date: qa.date, type: qa.type, category: qa.cat, amount: amt, currency: $('qaCur').value, details: $('qaDet').value.trim() };
+    const typed = qaRateTyped ? Number(String($('qaRate').value).replace(/[^0-9.]/g, '')) : 0;
+    const rec = txSettleRate({ date: qa.date, type: qa.type, category: qa.cat, amount: amt, currency: $('qaCur').value, details: $('qaDet').value.trim() }, existing, typed);
     state.ui.qaLastType = qa.type;
-    if(existing){ Object.assign(existing, rec); toast('Transaction updated.'); }
-    else { state.transactions.push(Object.assign({ id: uid() }, rec)); toast(`${qa.type === 'Income' ? '+' : '−'}${moneyCur(amt, rec.currency, 2)} ${catShort(qa.cat)} saved.`); }
+    if(existing){ Object.assign(existing, rec); txCleanRate(existing); toast('Transaction updated.'); }
+    else { const tx = Object.assign({ id: uid() }, rec); txCleanRate(tx); state.transactions.push(tx); toast(`${qa.type === 'Income' ? '+' : '−'}${moneyCur(amt, rec.currency, 2)} ${catShort(qa.cat)} saved.`); }
     saveState(); render();
+    scheduleTxRateLock();
     if(again){
       // The sheet stays open for the next one: same type and date, fresh amount.
       $('qaAmt').value = ''; $('qaDet').value = '';
@@ -3361,7 +3395,7 @@ function nwPhoneSummaryHTML(v){
       <div class="nw-ph-line">${pt.amount
         ? `<span>Target ${Math.round(ptPct)}% · ${moneyCur(totalInTargetCur, pt.currency)} of ${moneyCur(pt.amount, pt.currency)}</span><button type="button" class="dash-link" id="editPortfolioTargetBtn">Edit</button>`
         : `<span class="muted">No overall target</span><button type="button" class="dash-link" id="editPortfolioTargetBtn">Set one</button>`}</div>
-      <div class="nw-ph-line"><span class="muted">${fx.fetchedAt ? `฿${fx.THB ? fx.THB.toFixed(2) : '—'} · US$${fx.USD ? fx.USD.toFixed(3) : '—'} per A$1` : 'Rates not loaded'}</span>
+      <div class="nw-ph-line"><span class="muted">${fx.fetchedAt ? `${fxRateText(fx)} per A$1` : 'Rates not loaded'}</span>
         <span><button type="button" class="dash-link" id="refreshFxBtn">Refresh</button> · <button type="button" class="dash-link" id="manualFxBtn">Enter</button> · <button type="button" class="dash-link" id="fxHistBtn">History (${fxCount})</button></span></div>
     </div>`;
 }
@@ -3542,7 +3576,7 @@ function defaultState(){
     planning: {},      // planning[year][type][category] = [12 numbers]
     transactions: [],  // {id,date,type,category,amount,details}
     accounts: [],      // {id,name,group,currency,openingBalance,openingDate,target,subCategories,history}
-    fxRates: { THB: null, USD: null, fetchedAt: null }, // auto-fetched, AUD as base
+    fxRates: { THB: null, USD: null, HKD: null, fetchedAt: null }, // auto-fetched, AUD as base
     fxHistory: {},     // fxHistory['YYYY-MM'] = {THB,USD,asOf,source} month-end rates, AUD as base
     portfolioTarget: { amount: null, currency: 'AUD' }, // one target for the WHOLE net worth, independent of per-account targets
     bills: [],         // {id,name,amount,currency,kind,frequency,dueDate,lastPaidDate,notes,paidMonths:[]}
@@ -3868,7 +3902,12 @@ function mergeWithDefaults(parsed){
   });
   // Transactions had no currency field before multi-currency support — every existing
   // entry was always meant as AUD, so that's exactly what gets set here, not a guess.
-  (merged.transactions||[]).forEach(t=>{ if(!t.currency) t.currency = 'AUD'; });
+  (merged.transactions||[]).forEach(t=>{
+    if(!t.currency) t.currency = 'AUD';
+    // V4.26 rate fields: optional; dropped when they can't be used.
+    if(t.rate !== undefined && (t.currency === 'AUD' || !(Number(t.rate) > 0))){ delete t.rate; delete t.rateSrc; delete t.rateDate; }
+    if(t.rateSrc !== undefined && !['ecb','manual','api','pending'].includes(t.rateSrc)) delete t.rateSrc;
+  });
   return merged;
 }
 
@@ -4349,12 +4388,104 @@ function effectiveDate(tx){
   return d;
 }
 
-/* A transaction's amount converted into AUD, using the currently-fetched FX rates.
-   Every AUD-denominated calculation in the app (Dashboard, weekly totals, running
-   balance) goes through this, so a transaction can be entered in its real currency
-   without silently distorting anything that assumes AUD. */
+/* A transaction's amount in AUD. Every AUD-denominated calculation in the app
+   (Dashboard, weekly totals, running balance, budgets) goes through this.
+   V4.26: a foreign-currency transaction carries the rate of its own date (tx.rate,
+   units per 1 AUD), so its AUD value is fixed once recorded — past spending doesn't
+   move when the baht does. Balances, bills and budgets still use today's rate.
+   tx.rateSrc: 'ecb' (published rate for the date, or the last one before it),
+   'manual' (typed in), 'api' (fallback source), 'pending' (today's rate for now,
+   replaced by the date's rate when online). Only a transaction with no rate at all,
+   from before V4.26 and not yet filled in, still floats. */
 function txAmountAUD(tx){
-  return toAUD(Number(tx.amount)||0, tx.currency||'AUD');
+  const amt = Number(tx.amount)||0, cur = tx.currency||'AUD';
+  if(cur === 'AUD') return amt;
+  const r = Number(tx.rate);
+  return r > 0 ? amt / r : toAUD(amt, cur);
+}
+function txRateNote(tx){
+  const cur = tx.currency || 'AUD';
+  if(cur === 'AUD') return '';
+  const r = Number(tx.rate);
+  const per = r > 0 ? `${CURRENCY_SYMBOLS[cur]}${r.toFixed(cur === 'USD' ? 4 : 3)} per A$1` : 'no rate yet';
+  const src = tx.rateSrc === 'manual' ? 'your rate'
+            : tx.rateSrc === 'ecb' ? `ECB rate for ${shortIsoDate(tx.rateDate || tx.date)}`
+            : tx.rateSrc === 'api' ? `rate for ${shortIsoDate(tx.rateDate || tx.date)}`
+            : r > 0 ? `today’s rate for now — the rate for ${shortIsoDate(tx.date)} is filled in when online`
+            : 'today’s rate until it’s filled in';
+  return `${per} · ${src}`;
+}
+/* Settle the rate fields on a record being saved. typed: a rate the person entered. */
+function txSettleRate(rec, existing, typed){
+  const cur = rec.currency || 'AUD';
+  if(cur === 'AUD'){ rec.rate = undefined; rec.rateSrc = undefined; rec.rateDate = undefined; return rec; }
+  if(typed > 0){ rec.rate = typed; rec.rateSrc = 'manual'; rec.rateDate = rec.date; return rec; }
+  const same = existing && Number(existing.rate) > 0 && (existing.currency||'AUD') === cur
+            && (existing.date === rec.date || existing.rateSrc === 'manual');
+  if(same){ rec.rate = existing.rate; rec.rateSrc = existing.rateSrc; rec.rateDate = existing.rateDate; return rec; }
+  const live = state.fxRates && state.fxRates[cur];
+  rec.rate = live > 0 ? live : undefined; rec.rateSrc = 'pending'; rec.rateDate = undefined;
+  return rec;
+}
+function txCleanRate(t){ ['rate','rateSrc','rateDate'].forEach(k=>{ if(t[k] === undefined) delete t[k]; }); }
+
+/* Fill in the published rate for each foreign-currency transaction still without one:
+   the European Central Bank reference rate for its date, or the last one before it
+   (weekends and holidays), via Frankfurter; currency-api if that fails. */
+let _txLockBusy = false, _txLockTimer = null;
+function scheduleTxRateLock(){ clearTimeout(_txLockTimer); _txLockTimer = setTimeout(()=> lockTxRates().catch(()=>{}), 800); }
+async function lockTxRates(){
+  if(_txLockBusy || typeof fetch !== 'function') return 0;
+  const today = isoDate(TODAY);
+  const need = (state.transactions||[]).filter(t=> FX_CURS.includes(t.currency) && t.date && t.date <= today
+    && !(Number(t.rate) > 0 && ['ecb','manual','api'].includes(t.rateSrc)));
+  if(!need.length) return 0;
+  _txLockBusy = true;
+  let n = 0;
+  try{
+    const dates = [...new Set(need.map(t=> t.date))].sort();
+    // Short windows (about three months) so a long history isn't one huge request.
+    const wins = [];
+    dates.forEach(d=>{
+      const w = wins[wins.length-1];
+      if(w && dayDiff(new Date(w.from+'T00:00:00'), new Date(d+'T00:00:00')) <= 95) w.to = d;
+      else wins.push({ from: isoDate(addDays(new Date(d+'T00:00:00'), -7)), to: d });
+    });
+    const series = {}; let failed = false;
+    for(const w of wins){
+      try{ const { rates } = await fetchFrankfurterSeries(w.from, w.to); Object.assign(series, rates); }
+      catch(e){ failed = true; break; }
+    }
+    const days = Object.keys(series).sort();
+    const rateOn = (iso, cur)=>{
+      let lo = 0, hi = days.length - 1, best = -1;
+      while(lo <= hi){ const mid = (lo + hi) >> 1; if(days[mid] <= iso){ best = mid; lo = mid + 1; } else hi = mid - 1; }
+      for(let i = best; i >= 0 && i >= best - 10; i--){ const r = series[days[i]]; if(r && r[cur] > 0) return { rate:Number(r[cur]), day:days[i] }; }
+      return null;
+    };
+    const left = [];
+    need.forEach(t=>{
+      const r = rateOn(t.date, t.currency);
+      if(r && dayDiff(new Date(r.day+'T00:00:00'), new Date(t.date+'T00:00:00')) <= 7){
+        t.rate = r.rate; t.rateSrc = 'ecb'; t.rateDate = r.day; n++;
+      } else left.push(t);
+    });
+    if(failed && left.length){
+      const byDate = {};
+      left.forEach(t=> (byDate[t.date] = byDate[t.date] || []).push(t));
+      for(const d of Object.keys(byDate).sort().slice(0, 20)){
+        try{
+          const r = await fetchFawazRate(d);
+          byDate[d].forEach(t=>{ if(r[t.currency] > 0){ t.rate = r[t.currency]; t.rateSrc = 'api'; t.rateDate = r.rateDate || d; n++; } });
+        }catch(e){ break; }
+      }
+    }
+    if(n){
+      saveState(); render();
+      if(n > 1) toast(`Locked the exchange rate on ${n} transactions, each at the rate for its date.`);
+    }
+    return n;
+  } finally { _txLockBusy = false; }
 }
 
 /* Categories that shouldn't move the running balance at all. Deliberately separate
@@ -6135,7 +6266,7 @@ function renderTransactions(c){
         <td>${r.category}</td>
         <td class="muted tx-details">${r.details||''}</td>
         <td class="num ${r.type==='Income'?'pos':(r.type==='Savings'?'tx-sav':'neg')}">
-          ${r.type==='Income'?'+':'−'}${moneyCur(r.amount, cur, 2)}${showAUD ? ` <span class="muted tx-aud">≈${moneyWhole(txAmountAUD(r))}</span>` : ''}
+          ${r.type==='Income'?'+':'−'}${moneyCur(r.amount, cur, 2)}${showAUD ? ` <span class="muted tx-aud" title="${escHTML(txRateNote(r))}">≈${moneyWhole(txAmountAUD(r))}</span>` : ''}
         </td>
         <td class="num muted">${r.offBalance ? '<span class="muted" title="This category is set to stay out of the running balance">—</span>' : money(r.balance)}</td>
         <td class="tx-actions">
@@ -6268,6 +6399,11 @@ function openTxModal(editId){
             <select id="fCurrency">${NET_WORTH_CURRENCIES.map(cur=>`<option ${(existing ? (existing.currency||'AUD') : 'AUD')===cur?'selected':''}>${cur}</option>`).join('')}</select>
           </label>
           <label class="field">Details <input type="text" id="fDetails" placeholder="Merchant, note…" value="${existing ? (existing.details||'') : ''}"></label>
+          <div class="field tx-rate" id="fRateWrap" hidden>
+            <label for="fRate">Exchange rate <span class="muted" id="fRateUnit"></span></label>
+            <input type="number" id="fRate" step="any" min="0" inputmode="decimal" value="${existing && existing.rate ? existing.rate : ''}">
+            <span class="muted tx-rate-note" id="fRateNote"></span>
+          </div>
         </div>
         <div class="form-actions">
           <button class="btn secondary" id="fCancel">Cancel</button>
@@ -6282,6 +6418,29 @@ function openTxModal(editId){
   }
   fillCats();
   document.getElementById('fType').onchange = fillCats;
+  // The rate: blank means "the rate for this date" (filled in automatically); a typed
+  // number is your own rate, e.g. what your bank actually charged.
+  let rateTyped = false;
+  const rateUI = ()=>{
+    const cur = document.getElementById('fCurrency').value;
+    const wrap = document.getElementById('fRateWrap'), inp = document.getElementById('fRate');
+    wrap.hidden = cur === 'AUD';
+    if(cur === 'AUD') return;
+    document.getElementById('fRateUnit').textContent = `${cur} per A$1`;
+    const live = state.fxRates && state.fxRates[cur];
+    const keep = existing && (existing.currency||'AUD') === cur && Number(existing.rate) > 0;
+    if(!rateTyped){ inp.value = keep ? existing.rate : ''; inp.placeholder = live ? `${Number(live).toFixed(3)} — leave blank for the date’s rate` : 'leave blank for the date’s rate'; }
+    const amt = Number(document.getElementById('fAmt').value) || 0;
+    const r = Number(inp.value) || (keep ? existing.rate : live);
+    const note = rateTyped && Number(inp.value) > 0 ? 'your rate'
+               : keep ? txRateNote(existing).split(' · ').slice(1).join(' · ')
+               : 'blank: the published rate for this date, filled in automatically';
+    document.getElementById('fRateNote').textContent = (amt && r ? `≈ ${moneyCur(amt / r, 'AUD', 2)} · ` : '') + note;
+  };
+  document.getElementById('fCurrency').addEventListener('change', ()=>{ rateTyped = false; rateUI(); });
+  document.getElementById('fAmt').addEventListener('input', rateUI);
+  document.getElementById('fRate').addEventListener('input', ()=>{ rateTyped = true; rateUI(); });
+  rateUI();
   document.getElementById('fCancel').onclick = ()=> root.innerHTML='';
   document.getElementById('mb').addEventListener('click', e=>{ if(e.target.id==='mb') root.innerHTML=''; });
   document.getElementById('fSave').onclick = ()=>{
@@ -6296,14 +6455,19 @@ function openTxModal(editId){
     // quietly pollutes the year dropdown and every year-based total.
     const yr = Number(date.slice(0,4));
     if(!isSaneYear(yr)){ toast(`Year ${date.slice(0,4)} doesn't look right — check the date.`); return; }
+    const typed = rateTyped ? Number(document.getElementById('fRate').value) : 0;
+    if(rateTyped && document.getElementById('fRate').value !== '' && !(typed > 0)){ toast('The exchange rate needs to be a positive number, or leave it blank.'); return; }
+    const rec = txSettleRate({date, type:t, category:cat, amount:amt, currency, details}, existing, typed);
     if(existing){
-      Object.assign(existing, {date, type:t, category:cat, amount:amt, currency, details});
+      Object.assign(existing, rec); txCleanRate(existing);
       toast('Transaction updated.');
     } else {
-      state.transactions.push({id:uid(), date, type:t, category:cat, amount:amt, currency, details});
+      const tx = Object.assign({id:uid()}, rec); txCleanRate(tx);
+      state.transactions.push(tx);
       toast('Transaction added.');
     }
     saveState(); root.innerHTML=''; render();
+    scheduleTxRateLock();
   };
 }
 
@@ -6494,8 +6658,22 @@ function renderPlanning(c){
    NET WORTH
 ========================================================= */
 /* Sum of all Savings-type transactions in a given category, all-time (by actual transaction date) */
-const NET_WORTH_CURRENCIES = ['AUD','THB','USD'];
-const CURRENCY_SYMBOLS = { AUD:'$', THB:'฿', USD:'US$' };
+const NET_WORTH_CURRENCIES = ['AUD','THB','USD','HKD'];
+const CURRENCY_SYMBOLS = { AUD:'$', THB:'฿', USD:'US$', HKD:'HK$' };
+/* V4.26 — every currency other than AUD that Ledger fetches a rate for, per 1 AUD.
+   THB and USD must come back from a source for it to count; HKD is taken when given. */
+const FX_CURS = ['THB','USD','HKD'];
+const FX_REQUIRED = ['THB','USD'];
+function fxPick(src, lower){
+  const out = {};
+  FX_CURS.forEach(c=>{ const v = src && src[lower ? c.toLowerCase() : c]; if(v > 0) out[c] = Number(v); });
+  return out;
+}
+function fxComplete(r){ return !!r && FX_REQUIRED.every(c=> r[c] > 0); }
+function fxRateText(r, decimals){
+  if(!r) return '';
+  return FX_CURS.filter(c=> r[c] > 0).map(c=> `${CURRENCY_SYMBOLS[c]}${Number(r[c]).toFixed(c === 'USD' ? 3 : (decimals || 2))}`).join(' · ');
+}
 
 /* A "unit" is either an account (no sub-categories) or a sub-category — both have
    openingBalance + openingDate + history, and can be reconstructed as of any date.
@@ -6603,12 +6781,12 @@ function netWorthAsOf(dateISO){
    with the published month-end rate. 'backfilled' entries are final.
 ========================================================= */
 function recordFxSnapshot(rates, source, dateISO){
-  if(!rates || !rates.THB || !rates.USD) return false;
+  if(!fxComplete(rates)) return false;
   const d = dateISO || isoDate(TODAY), key = d.slice(0,7);
   state.fxHistory = state.fxHistory || {};
   const cur = state.fxHistory[key];
   if(cur && (cur.source==='backfilled' || cur.asOf > d)) return false;
-  state.fxHistory[key] = { THB: rates.THB, USD: rates.USD, asOf: d, source };
+  state.fxHistory[key] = Object.assign(fxPick(rates), { asOf: d, source });
   return true;
 }
 
@@ -6627,7 +6805,7 @@ function fxMonthsNeeded(){
   const need = [];
   for(let k=fromK; k<nowK; k++){
     const s = hist[monthKeyOf(k)];
-    if(!s || s.source!=='backfilled') need.push(k);
+    if(!s || s.source!=='backfilled' || !(s.HKD > 0)) need.push(k);
   }
   return need;
 }
@@ -6644,7 +6822,7 @@ async function fetchFrankfurterSeries(fromISO, toISO){
   let lastErr = null;
   for(const host of FRANKFURTER_HOSTS){
     try{
-      const res = await fetch(`${host}/${fromISO}..${toISO}?base=AUD&symbols=THB,USD`);
+      const res = await fetch(`${host}/${fromISO}..${toISO}?base=AUD&symbols=${FX_CURS.join(',')}`);
       if(!res.ok) throw new Error(host.replace('https://','')+' HTTP '+res.status);
       const data = await res.json();
       if(!data || !data.rates || !Object.keys(data.rates).length) throw new Error(host.replace('https://','')+': no rates');
@@ -6664,7 +6842,7 @@ async function fetchFawazRate(dateISO){
       const data = await res.json();
       const r = data && data.aud;
       if(!r || !r.thb || !r.usd) throw new Error('currency-api: unexpected response');
-      return { THB: r.thb, USD: r.usd, rateDate: data.date || dateISO };
+      return Object.assign(fxPick(r, true), { rateDate: data.date || dateISO });
     }catch(e){ lastErr = e; }
   }
   throw lastErr;
@@ -6680,7 +6858,7 @@ async function backfillFxHistory(){
     state.fxHistory = state.fxHistory || {};
     let n = 0, errors = [];
     const put = (k, r, rateDate, provider)=>{
-      state.fxHistory[monthKeyOf(k)] = { THB: r.THB, USD: r.USD, asOf: monthEndISO(k), rateDate, source: 'backfilled', provider };
+      state.fxHistory[monthKeyOf(k)] = Object.assign(fxPick(r), { asOf: monthEndISO(k), rateDate, source: 'backfilled', provider });
       n++;
     };
     let left = need;
@@ -6693,7 +6871,7 @@ async function backfillFxHistory(){
         const inMonth = days.filter(d=> d.slice(0,7)===key);
         const last = inMonth[inMonth.length-1];
         const r = last && rates[last];
-        if(!r || !r.THB || !r.USD) return true;
+        if(!fxComplete(r)) return true;
         put(k, r, last, 'frankfurter');
         return false;
       });
@@ -6729,8 +6907,8 @@ function openFxHistoryModal(){
         ${keys.length===0 ? `<div class="empty-state"><div class="glyph">·</div>No rates recorded yet.</div>` : `
         <div class="plan-table-wrap" style="max-height:340px; overflow:auto;">
         <table class="data" id="fxHistTable">
-          <thead><tr><th>Month</th><th class="num">1 AUD = THB</th><th class="num">1 AUD = USD</th><th>Source</th></tr></thead>
-          <tbody>${keys.map(k=> `<tr data-fxmonth="${k}"><td>${label(k)}</td><td class="num">${Number(hist[k].THB).toFixed(3)}</td><td class="num">${Number(hist[k].USD).toFixed(4)}</td><td class="muted" style="font-size:12px;">${srcText(k, hist[k])}</td></tr>`).join('')}</tbody>
+          <thead><tr><th>Month</th><th class="num">1 AUD = THB</th><th class="num">1 AUD = USD</th><th class="num">1 AUD = HKD</th><th>Source</th></tr></thead>
+          <tbody>${keys.map(k=> `<tr data-fxmonth="${k}"><td>${label(k)}</td><td class="num">${Number(hist[k].THB).toFixed(3)}</td><td class="num">${Number(hist[k].USD).toFixed(4)}</td><td class="num">${hist[k].HKD ? Number(hist[k].HKD).toFixed(4) : '—'}</td><td class="muted" style="font-size:12px;">${srcText(k, hist[k])}</td></tr>`).join('')}</tbody>
         </table></div>`}
         <div class="muted" style="font-size:12px; margin-top:8px;" id="fxHistMissing">${missing ? `${missing} past month${missing===1?'':'s'} still without a final month-end rate.` : 'Every past month has its month-end rate.'}</div>
         <div class="form-actions">
@@ -6756,7 +6934,9 @@ async function refreshFxRates(force){
   // Rates already on hand still belong to the month they were fetched in.
   if(state.fxRates && state.fxRates.fetchedAt && recordFxSnapshot(state.fxRates, 'fetched', isoDate(new Date(state.fxRates.fetchedAt)))) saveState();
   backfillFxHistory().catch(()=>{});
-  const stale = !state.fxRates || !state.fxRates.fetchedAt || (Date.now() - new Date(state.fxRates.fetchedAt).getTime()) > 24*60*60*1000;
+  const stale = !state.fxRates || !state.fxRates.fetchedAt || (Date.now() - new Date(state.fxRates.fetchedAt).getTime()) > 24*60*60*1000
+             || FX_CURS.some(c=> !(state.fxRates[c] > 0));   // a currency added since the last fetch
+  lockTxRates().catch(()=>{});
   if(!force && !stale) return;
 
   // Frankfurter moved to api.frankfurter.dev; the old frankfurter.app host now
@@ -6764,18 +6944,18 @@ async function refreshFxRates(force){
   // fetch"). New host first, old host in case, then a second free API.
   const attempts = [
     ...FRANKFURTER_HOSTS.map(host=> async ()=>{
-      const res = await fetch(`${host}/latest?base=AUD&symbols=THB,USD`);
+      const res = await fetch(`${host}/latest?base=AUD&symbols=${FX_CURS.join(',')}`);
       if(!res.ok) throw new Error(host.replace('https://','')+' HTTP '+res.status);
       const data = await res.json();
-      if(!data.rates || !data.rates.THB || !data.rates.USD) throw new Error(host.replace('https://','')+': unexpected response');
-      return { THB: data.rates.THB, USD: data.rates.USD };
+      if(!fxComplete(data.rates)) throw new Error(host.replace('https://','')+': unexpected response');
+      return fxPick(data.rates);
     }),
     async ()=>{
       const res = await fetch('https://open.er-api.com/v6/latest/AUD');
       if(!res.ok) throw new Error('open.er-api.com HTTP '+res.status);
       const data = await res.json();
-      if(!data.rates || !data.rates.THB || !data.rates.USD) throw new Error('open.er-api.com: unexpected response');
-      return { THB: data.rates.THB, USD: data.rates.USD };
+      if(!fxComplete(data.rates)) throw new Error('open.er-api.com: unexpected response');
+      return fxPick(data.rates);
     }
   ];
 
@@ -6783,8 +6963,9 @@ async function refreshFxRates(force){
   for(const attempt of attempts){
     try{
       const rates = await attempt();
-      state.fxRates = { THB: rates.THB, USD: rates.USD, fetchedAt: new Date().toISOString() };
+      state.fxRates = Object.assign(fxPick(rates), { fetchedAt: new Date().toISOString() });
       recordFxSnapshot(state.fxRates, 'fetched');
+      lockTxRates().catch(()=>{});
       saveState();
       if(state.ui.activeTab==='networth') render();
       if(force) toast('Exchange rates updated.');
@@ -6812,6 +6993,7 @@ function openManualFxModal(){
         <div class="form-grid">
           <label class="field">THB per 1 AUD <input type="number" id="mfxThb" step="0.0001" min="0.0001" value="${fx.THB||''}" placeholder="e.g. 21.5"></label>
           <label class="field">USD per 1 AUD <input type="number" id="mfxUsd" step="0.0001" min="0.0001" value="${fx.USD||''}" placeholder="e.g. 0.65"></label>
+          <label class="field">HKD per 1 AUD <input type="number" id="mfxHkd" step="0.0001" min="0.0001" value="${fx.HKD||''}" placeholder="e.g. 5.1 — optional"></label>
         </div>
         <div class="form-actions">
           <button class="btn secondary" id="fCancel">Cancel</button>
@@ -6826,7 +7008,9 @@ function openManualFxModal(){
     const thb = Number(document.getElementById('mfxThb').value);
     const usd = Number(document.getElementById('mfxUsd').value);
     if(!thb || !usd || thb<=0 || usd<=0){ toast('Enter a positive rate for both currencies.'); return; }
-    state.fxRates = { THB: thb, USD: usd, fetchedAt: new Date().toISOString() };
+    const hkd = Number(document.getElementById('mfxHkd').value);
+    if(document.getElementById('mfxHkd').value && !(hkd > 0)){ toast('HKD needs a positive rate, or leave it blank.'); return; }
+    state.fxRates = { THB: thb, USD: usd, HKD: hkd > 0 ? hkd : (fx.HKD || null), fetchedAt: new Date().toISOString() };
     recordFxSnapshot(state.fxRates, 'manual');
     saveState(); root.innerHTML=''; render(); toast('Exchange rates saved.');
   };
@@ -7078,10 +7262,10 @@ function nwWaterfallRange(p){
 function fxRatesFor(dateISO){
   if(dateISO >= isoDate(TODAY)){
     const f = state.fxRates || {};
-    return f.THB && f.USD ? { THB: f.THB, USD: f.USD, source: 'live' } : null;
+    return fxComplete(f) ? Object.assign(fxPick(f), { source: 'live' }) : null;
   }
   const s = (state.fxHistory || {})[dateISO.slice(0,7)];
-  return s && s.THB && s.USD ? s : null;
+  return fxComplete(s) ? s : null;
 }
 
 function nwUnitsWithCurrency(){
@@ -7098,7 +7282,7 @@ function nwWaterfallData(p){
   const r0 = fxRatesFor(start), r1 = fxRatesFor(end);
   const fxOk = !!(r0 && r1);
   const R1 = r1 || state.fxRates || {};
-  const conv = (amt, cur, R)=> (!cur || cur==='AUD') ? amt : (R && R[cur] ? amt/R[cur] : amt);
+  const conv = (amt, cur, R)=> (!cur || cur==='AUD') ? amt : (R && R[cur] ? amt/R[cur] : toAUD(amt, cur));
   const t = { opening:0, added:0, withdrawn:0, market:0, fx:0, newAcc:0, closing:0 };
   nwUnitsWithCurrency().forEach(({ unit, cur })=>{
     const od = unit.openingDate || '';
@@ -7184,7 +7368,7 @@ function nwWaterfallHTML(){
   const exFx = change - d.fx - d.newAcc;
   const stat = (label, val, cls, sub, attr)=> `<div class="pace-stat" ${attr||''}><div class="k-label">${label}</div><div class="k-val ${cls||''}">${val}</div><div class="k-sub">${sub}</div></div>`;
   const signed = v=> (v>=0?'+':'−') + moneyWhole(Math.abs(v));
-  const rateLine = r=> r ? `฿${Number(r.THB).toFixed(2)} · US$${Number(r.USD).toFixed(3)}` : 'not recorded';
+  const rateLine = r=> r ? fxRateText(r) : 'not recorded';
   return `
     <div class="card dash-card nw-wf" id="nwWaterfall">
       <div class="dash-pace-main">
@@ -7299,6 +7483,7 @@ function renderNetWorth(c){
     ? `
       <div>1 AUD = ฿${fx.THB?fx.THB.toFixed(2):'—'} THB</div>
       <div>1 AUD = $${fx.USD?fx.USD.toFixed(3):'—'} USD</div>
+      <div>1 AUD = HK$${fx.HKD?fx.HKD.toFixed(3):'—'} HKD</div>
       <div>1 USD = ฿${(fx.THB && fx.USD) ? (fx.THB/fx.USD).toFixed(2) : '—'} THB</div>
       <div class="muted" style="margin-top:2px;">Updated ${formatDateShort(isoDate(new Date(fx.fetchedAt)))}</div>
     `
@@ -7412,7 +7597,7 @@ function renderNetWorth(c){
         ` : `<div class="k-val muted">—</div><div class="k-sub">one overall target, any currency · <button type="button" class="dash-link" id="editPortfolioTargetBtn">Set target</button></div>`}
       </div>
       <div class="dash-kpi"><div class="k-label">Exchange rates</div>
-        <div class="k-val nwt-fx">${fx.fetchedAt ? `฿${fx.THB?fx.THB.toFixed(2):'—'} <span class="muted">·</span> $${fx.USD?fx.USD.toFixed(3):'—'}` : '<span class="muted">not loaded</span>'}</div>
+        <div class="k-val nwt-fx">${fx.fetchedAt ? fxRateText(fx).split(' · ').join(' <span class="muted">·</span> ') : '<span class="muted">not loaded</span>'}</div>
         <div class="k-sub">${fx.fetchedAt ? `per 1 AUD · 1 USD = ฿${(fx.THB && fx.USD) ? (fx.THB/fx.USD).toFixed(2) : '—'} · ${formatDateShort(isoDate(new Date(fx.fetchedAt)))}` : 'per 1 AUD'}</div>
         <div class="nwt-fx-actions">
           <button type="button" class="dash-link" id="refreshFxBtn">Refresh</button>
@@ -8037,7 +8222,7 @@ function catColour(type, i){
 
 function investDisplayCurrency(){
   const c = state.ui.investCur;
-  return ['USD','AUD','THB'].includes(c) ? c : 'USD';
+  return ['USD','AUD','THB','HKD'].includes(c) ? c : 'USD';
 }
 /* Values are held in each holding's own currency; AUD is the common ground, so
    everything routes through it before being shown in whatever you've picked. */
@@ -8453,7 +8638,7 @@ function renderInvestments(c){
   c.innerHTML = `
     ${isPhone() ? `<div class="ph-top"><h1 class="page-title">Investments</h1>
       <div class="dash-seg" role="group" aria-label="Show amounts in">
-        ${['USD','AUD','THB'].map(x=>`<button type="button" data-invcur="${x}" class="${cur===x?'on':''}" aria-pressed="${cur===x}">${x}</button>`).join('')}
+        ${['USD','AUD','THB','HKD'].map(x=>`<button type="button" data-invcur="${x}" class="${cur===x?'on':''}" aria-pressed="${cur===x}">${x}</button>`).join('')}
       </div></div>
     <div class="inv-acts"><button type="button" id="invBuyBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Buy</button><button type="button" id="invSellBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>Sell</button><button type="button" id="invDivBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8"/></svg>Dividend</button><button type="button" id="invPriceBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg>Prices</button></div>` : `
     <div class="dash-head">
@@ -8461,7 +8646,7 @@ function renderInvestments(c){
       <span class="muted dash-head-sub">cost basis from your order records</span>
       <div class="spacer"></div>
       <div class="dash-seg" role="group" aria-label="Show amounts in">
-        ${['USD','AUD','THB'].map(x=>`<button type="button" data-invcur="${x}" class="${cur===x?'on':''}" aria-pressed="${cur===x}">${x}</button>`).join('')}
+        ${['USD','AUD','THB','HKD'].map(x=>`<button type="button" data-invcur="${x}" class="${cur===x?'on':''}" aria-pressed="${cur===x}">${x}</button>`).join('')}
       </div>
       <button class="btn" id="invBuyBtn">Record purchase</button>
       <button class="btn secondary" id="invSellBtn">Record sale</button>
@@ -13438,7 +13623,18 @@ function tdSyncBadge(){
 
 const VERSION_LOG = [
   {
-    no: 'V4.25', name: 'Leaner and lighter', date: 'Nov 2026', current: true,
+    no: 'V4.26', name: 'Rates that stay put, and HKD', date: 'Nov 2026', current: true,
+    items: [
+      'A transaction in THB, USD or HKD now keeps the exchange rate of its own date, so its AUD value no longer changes when the rate moves. Past months\' totals, budgets and savings rate stay as they were.',
+      'The rate is the European Central Bank reference rate for that date, or the last one before it for weekends and holidays. New transactions use today\'s rate until it is filled in, which happens automatically when Ledger is online.',
+      'Your existing foreign-currency transactions are given the rate for their dates once, the first time Ledger opens with internet; a note says how many.',
+      'Add or edit a transaction in another currency and you\'ll see the rate and the AUD it comes to. Type your own rate (e.g. what your bank charged) to use that instead. Hover the ≈ amount in Transactions to see which rate it used.',
+      'Account balances, bills, budgets and the calendar forecast still use today\'s rate: money you hold, or haven\'t spent yet, is worth what it converts to now.',
+      'Hong Kong dollars (HK$) are a currency throughout Ledger: accounts, transactions, bills, targets and the Investments display. Rates for HKD are fetched with the others, including past month-ends.'
+    ]
+  },
+  {
+    no: 'V4.25', name: 'Leaner and lighter', date: 'Nov 2026', current: false,
     items: [
       'macOS is now the only theme (with the iPhone look on a phone). Brutal, Tonal and Phosphor are gone, along with the fonts only they used, so Ledger is about 170 KB smaller. Settings › Appearance is just Light or Dark.',
       'Investments: Projection to 2060 (with its exchange-rate panel) and Assumed returns are removed. Your projection settings are kept in your data, so they can come back.',
