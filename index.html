@@ -2569,6 +2569,53 @@ table.ol-table .ol-bar-btns .btn{ padding:5px 14px; }
 .qa-rate[hidden]{ display:none; }
 .qa-rate input{ width:110px; font-size:16px; }
 .tx-aud[title]{ cursor:help; }
+
+/* ===== V4.27 ===== */
+.tx-await{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:space-between; padding:8px 12px; margin:0 0 12px; border:1px solid var(--border); border-radius:8px; font-size:12.5px; color:var(--text-dim); background:var(--surface); }
+.tx-more td{ text-align:center; padding:14px 8px; }
+.inv-fx{ margin-top:12px; }
+
+/* ===== V4.28 — Wishlist ===== */
+.wish-sum{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; margin-bottom:12px; }
+.wish-sum > div{ display:flex; flex-direction:column; gap:2px; }
+.wish-sum b{ font-size:20px; font-weight:600; }
+.wish-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.wish-sort{ font-size:12px; color:var(--text-dim); display:inline-flex; align-items:center; gap:6px; }
+.wish-sort select{ font-size:12px; width:auto; }
+.wish-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; margin-bottom:12px; }
+.wish{ padding:0; overflow:hidden; display:flex; flex-direction:column; }
+.wish.bought{ opacity:.62; }
+.wish-img{ width:100%; height:140px; object-fit:cover; display:block; background:var(--surface-raised); }
+.wish-body{ padding:12px 14px; display:flex; flex-direction:column; gap:4px; flex:1; }
+.wish-top{ display:flex; align-items:center; justify-content:space-between; }
+.wish-pri{ font-size:11px; font-weight:600; padding:2px 8px; border-radius:10px; background:var(--surface-raised); color:var(--text-dim); }
+.wish-pri.really{ background:rgba(217,139,61,.18); color:var(--amber); }
+.wish-pri.need{ background:rgba(217,105,95,.18); color:var(--red); }
+.wish-name{ margin:2px 0 0; font-size:15px; font-weight:600; line-height:1.3; word-break:break-word; text-transform:none; letter-spacing:0; color:var(--text); }
+.wish.bought .wish-name{ text-decoration:line-through; }
+.wish-price{ font-size:17px; font-weight:600; }
+.wish-price .muted{ font-size:12.5px; font-weight:400; }
+.wish-date{ font-size:12px; }
+.wish-note{ margin:4px 0 0; font-size:12.5px; color:var(--text-dim); line-height:1.45; white-space:pre-line; word-break:break-word; }
+.wish-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:auto; padding-top:10px; }
+.wish-check{ display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--text-dim); cursor:pointer; }
+.wish-check input{ width:15px; height:15px; margin:0; accent-color:var(--gold); }
+.wish-link{ font-size:12.5px; color:var(--gold-bright); text-decoration:none; max-width:55%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wish-link:hover{ text-decoration:underline; }
+.wish-two{ display:grid; grid-template-columns:minmax(0,1fr) 110px; gap:10px; }
+.wish-aud{ font-size:12px; min-height:16px; margin-top:-6px; }
+.wish-pri-seg{ width:100%; margin-top:4px; }
+.wish-pri-seg button{ flex:1; justify-content:center; }
+@media (max-width: 600px){
+  .wish-sum{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .wish-grid{ grid-template-columns:1fr; }
+  .wish-bar .seg{ width:100%; } .wish-bar .seg button{ flex:1; justify-content:center; padding:8px 4px; }
+  .wish-check{ font-size:15px; min-height:44px; } .wish-check input{ width:20px; height:20px; }
+  .wish-link{ font-size:15px; }
+  .wish-pri-seg button{ min-height:40px; }
+}
+#wNote{ font:inherit; line-height:1.45; resize:vertical; min-height:52px; }
+@media (max-width: 600px){ .wish-bar .seg button{ white-space:nowrap; font-size:12.5px; gap:4px; } }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
@@ -2677,6 +2724,7 @@ table.ol-table .ol-bar-btns .btn{ padding:5px 14px; }
       <button data-tab="bills" title="Bills"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span class="label">Bills</span></button>
       <button data-tab="calendar" title="Calendar"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span class="label">Calendar</span></button>
       <button data-tab="todos" title="To-dos"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="6" height="6" rx="1.5"/><path d="M4.5 7l1 1 2-2"/><path d="M12 7h9M12 17h9"/><rect x="3" y="14" width="6" height="6" rx="1.5"/></svg><span class="label">To-dos</span><span class="nav-badge" id="tdNavBadge" hidden></span></button>
+      <button data-tab="wishlist" title="Wishlist"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span class="label">Wishlist</span></button>
       <button data-tab="investments" title="Investments"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span class="label">Investments</span></button>
       <button data-tab="liquidity" title="Liquidity"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg><span class="label">Liquidity</span></button>
       <div class="nav-sec" aria-hidden="true">App</div>
@@ -2706,6 +2754,7 @@ table.ol-table .ol-bar-btns .btn{ padding:5px 14px; }
         <button class="mtb-tile" data-tab="networth"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M21 19H3"/></svg><span>Net Worth<small id="mtbHint-networth"></small></span></button>
         <button class="mtb-tile" data-tab="bills"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><span>Bills<small id="mtbHint-bills"></small></span></button>
         <button class="mtb-tile" data-tab="todos"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="6" height="6" rx="1.5"/><path d="M4.5 7l1 1 2-2"/><path d="M12 7h9M12 17h9"/><rect x="3" y="14" width="6" height="6" rx="1.5"/></svg><span>To-dos<small id="mtbHint-todos"></small></span></button>
+        <button class="mtb-tile" data-tab="wishlist"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span>Wishlist<small id="mtbHint-wishlist"></small></span></button>
         <button class="mtb-tile" data-tab="investments"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span>Investments<small id="mtbHint-investments"></small></span></button>
         <button class="mtb-tile" data-tab="liquidity"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg><span>Liquidity<small id="mtbHint-liquidity"></small></span></button>
         <button class="mtb-tile" data-tab="settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span>Settings<small id="mtbHint-settings"></small></span></button>
@@ -2925,6 +2974,7 @@ function fillMoreHints(){
     set('bills', n ? `${n} due in 7 days` : 'nothing due this week');
   }catch(e){}
   try{ const r = investmentRows(); set('investments', r.rows.length ? investMoney(r.totalValue) : 'no holdings yet'); }catch(e){}
+  try{ const n = wishItems().filter(w=> !w.bought).length; set('wishlist', n ? `${n} item${n===1?'':'s'}` : 'nothing yet'); }catch(e){}
   try{ const k = tdCounts(); set('todos', k.due ? `${k.due} due today${k.overdue ? ' or overdue' : ''}` : `${k.open} open`); }catch(e){}
   set('liquidity', 'cash you can reach');
   set('settings', 'categories, data');
@@ -3086,7 +3136,7 @@ function openQuickAdd(editId){
     if(!qa.cat){ toast('Pick a category.'); return; }
     if(!qa.date || !isSaneYear(Number(qa.date.slice(0,4)))){ toast("That date doesn't look right."); return; }
     const typed = qaRateTyped ? Number(String($('qaRate').value).replace(/[^0-9.]/g, '')) : 0;
-    const rec = txSettleRate({ date: qa.date, type: qa.type, category: qa.cat, amount: amt, currency: $('qaCur').value, details: $('qaDet').value.trim() }, existing, typed);
+    const rec = txSettleRate({ date: qa.date, type: qa.type, category: qa.cat, amount: amt, currency: $('qaCur').value, details: $('qaDet').value.trim() }, existing, typed, qaRateTyped && String($('qaRate').value).trim() === '');
     state.ui.qaLastType = qa.type;
     if(existing){ Object.assign(existing, rec); txCleanRate(existing); toast('Transaction updated.'); }
     else { const tx = Object.assign({ id: uid() }, rec); txCleanRate(tx); state.transactions.push(tx); toast(`${qa.type === 'Income' ? '+' : '−'}${moneyCur(amt, rec.currency, 2)} ${catShort(qa.cat)} saved.`); }
@@ -3589,6 +3639,7 @@ function defaultState(){
     // dates are worked out when the month is drawn, so editing the series changes
     // every occurrence and there is only ever one copy of the details.
     events: [],        // {id,title,note,startDate,startTime,endDate,categoryId,repeat:{...}}
+    wishes: [],        // V4.28 {id,name,price,currency,targetDate,priority,link,note,photo,createdAt,bought,boughtAt}
     eventCategories: [], // {id,name,colour} — the colour is set once here, not per event
     ui: { dashYear: TODAY.getFullYear(), dashMonth: TODAY.getMonth(), dashViewMode: 'month', planYear: TODAY.getFullYear(), activeTab:'dashboard',
       trendSeries: { Budget:true, Income:true, Expenses:true, Savings:true },
@@ -3826,6 +3877,17 @@ function mergeWithDefaults(parsed){
   });
   // Personal events. Normalised on load rather than trusted, because a bad repeat
   // rule would throw while drawing the month and take the whole tab down with it.
+  // V4.28 wishlist: kept only when a row is usable, and its fields are put in shape.
+  merged.wishes = (Array.isArray(merged.wishes) ? merged.wishes : []).filter(w=> w && typeof w.name === 'string' && w.name.trim());
+  merged.wishes.forEach(w=>{
+    if(!w.id) w.id = uid();
+    w.price = Number(w.price) >= 0 ? Number(w.price) : 0;
+    if(!['AUD','THB','USD','HKD'].includes(w.currency)) w.currency = 'AUD';
+    if(!['need','really','want'].includes(w.priority)) w.priority = 'want';
+    if(typeof w.targetDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(w.targetDate)) w.targetDate = '';
+    ['link','photo','note'].forEach(k=>{ if(typeof w[k] !== 'string') w[k] = ''; });
+    w.bought = !!w.bought;
+  });
   merged.events = Array.isArray(merged.events) ? merged.events : [];
   merged.events.forEach(ev=>{
     if(typeof ev.title !== 'string') ev.title = String(ev.title || 'Untitled');
@@ -4199,8 +4261,8 @@ function buildWorkbook(){
   const wb = XLSX.utils.book_new();
 
   // Transactions
-  const txRows = [['Date','Type','Category','Details','Amount','Currency','Amount (AUD)','Balance (AUD)']];
-  transactionsWithBalance().slice().reverse().forEach(t=> txRows.push([t.date, t.type, t.category, t.details||'', Number(t.amount), t.currency||'AUD', Math.round(txAmountAUD(t)*100)/100, Math.round(Number(t.balance)*100)/100]));
+  const txRows = [['Date','Type','Category','Details','Amount','Currency','Rate (per 1 AUD)','Amount (AUD)','Balance (AUD)']];
+  transactionsWithBalance().slice().reverse().forEach(t=> txRows.push([t.date, t.type, t.category, t.details||'', Number(t.amount), t.currency||'AUD', (t.currency && t.currency !== 'AUD' && Number(t.rate) > 0) ? Number(t.rate) : '', Math.round(txAmountAUD(t)*100)/100, Math.round(Number(t.balance)*100)/100]));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(txRows), 'Transactions');
 
   // Planning (every year that has been set up)
@@ -4416,11 +4478,12 @@ function txRateNote(tx){
   return `${per} · ${src}`;
 }
 /* Settle the rate fields on a record being saved. typed: a rate the person entered. */
-function txSettleRate(rec, existing, typed){
+function txSettleRate(rec, existing, typed, cleared){
   const cur = rec.currency || 'AUD';
   if(cur === 'AUD'){ rec.rate = undefined; rec.rateSrc = undefined; rec.rateDate = undefined; return rec; }
   if(typed > 0){ rec.rate = typed; rec.rateSrc = 'manual'; rec.rateDate = rec.date; return rec; }
-  const same = existing && Number(existing.rate) > 0 && (existing.currency||'AUD') === cur
+  // V4.27: emptying the box on a rate you typed means "use the date's rate again".
+  const same = !cleared && existing && Number(existing.rate) > 0 && (existing.currency||'AUD') === cur
             && (existing.date === rec.date || existing.rateSrc === 'manual');
   if(same){ rec.rate = existing.rate; rec.rateSrc = existing.rateSrc; rec.rateDate = existing.rateDate; return rec; }
   const live = state.fxRates && state.fxRates[cur];
@@ -4432,13 +4495,42 @@ function txCleanRate(t){ ['rate','rateSrc','rateDate'].forEach(k=>{ if(t[k] === 
 /* Fill in the published rate for each foreign-currency transaction still without one:
    the European Central Bank reference rate for its date, or the last one before it
    (weekends and holidays), via Frankfurter; currency-api if that fails. */
+function txAwaitingRate(){
+  const today = isoDate(TODAY);
+  return (state.transactions||[]).filter(t=> FX_CURS.includes(t.currency) && t.date && t.date <= today
+    && !(Number(t.rate) > 0 && ['ecb','manual','api'].includes(t.rateSrc)));
+}
+function txAwaitingBarHTML(){
+  const w = txAwaitingRate();
+  if(!w.length) return '';
+  const none = w.filter(t=> !(Number(t.rate) > 0) && !(state.fxRates && state.fxRates[t.currency] > 0)).length;
+  return `<div class="tx-await" role="status"><span><b>${w.length}</b> foreign-currency transaction${w.length===1?' is':'s are'} waiting for the rate of ${w.length===1?'its':'their'} date, and use${w.length===1?'s':''} today’s rate until then.${none ? ` <span class="neg">${none} ha${none===1?'s':'ve'} no rate at all, so ${none===1?'it counts':'they count'} at face value.</span>` : ''}</span>
+    <button type="button" class="dash-link" id="txAwaitFetch">Fetch now</button></div>`;
+}
+function wireTxAwaitBar(){
+  const b = document.getElementById('txAwaitFetch'); if(!b) return;
+  b.onclick = async ()=>{
+    b.disabled = true; b.textContent = 'Fetching…';
+    let n = 0;
+    try{ await refreshFxRates(false); n = await lockTxRates(true); }catch(e){}
+    const left = txAwaitingRate().length;
+    toast(n ? `Locked ${n} rate${n===1?'':'s'}.${left ? ` ${left} still waiting.` : ''}` : (left ? 'Couldn’t get the rates — check your connection and try again.' : 'All rates are in.'));
+    render();
+  };
+}
 let _txLockBusy = false, _txLockTimer = null;
 function scheduleTxRateLock(){ clearTimeout(_txLockTimer); _txLockTimer = setTimeout(()=> lockTxRates().catch(()=>{}), 800); }
-async function lockTxRates(){
+/* One run at a time: a second caller gets the run already in flight. quiet: the caller reports the result itself. */
+let _txLockP = null, _txLockQuiet = false;
+function lockTxRates(quiet){
+  if(quiet) _txLockQuiet = true;
+  if(!_txLockP) _txLockP = _lockTxRatesRun().finally(()=>{ _txLockP = null; _txLockQuiet = false; });
+  return _txLockP;
+}
+async function _lockTxRatesRun(){
   if(_txLockBusy || typeof fetch !== 'function') return 0;
   const today = isoDate(TODAY);
-  const need = (state.transactions||[]).filter(t=> FX_CURS.includes(t.currency) && t.date && t.date <= today
-    && !(Number(t.rate) > 0 && ['ecb','manual','api'].includes(t.rateSrc)));
+  const need = txAwaitingRate();
   if(!need.length) return 0;
   _txLockBusy = true;
   let n = 0;
@@ -4482,7 +4574,7 @@ async function lockTxRates(){
     }
     if(n){
       saveState(); render();
-      if(n > 1) toast(`Locked the exchange rate on ${n} transactions, each at the rate for its date.`);
+      if(n > 1 && !_txLockQuiet) toast(`Locked the exchange rate on ${n} transactions, each at the rate for its date.`);
     }
     return n;
   } finally { _txLockBusy = false; }
@@ -4871,7 +4963,7 @@ function handleNavClick(e){
 document.getElementById('navTabs').addEventListener('click', handleNavClick);
 document.getElementById('mobileTabBar').addEventListener('click', handleNavClick);
 
-const MORE_TABS = ['planning','networth','bills','todos','investments','liquidity','settings','versions'];
+const MORE_TABS = ['planning','networth','bills','todos','wishlist','investments','liquidity','settings','versions'];
 
 function openMoreSheet(open){
   const sheet = document.getElementById('mtbSheet');
@@ -5013,6 +5105,7 @@ function renderTab(c, tab){
   else if(tab==='bills') renderBills(c);
   else if(tab==='calendar') renderCalendar(c);
   else if(tab==='todos') renderTodos(c);
+  else if(tab==='wishlist') renderWishlist(c);
   else if(tab==='investments') renderInvestments(c);
   else if(tab==='liquidity') renderLiquidity(c);
   else if(tab==='settings') renderSettings(c);
@@ -6275,7 +6368,11 @@ function renderTransactions(c){
         </td>
       </tr>`;
   };
-  const tableBody = groups.map(g=>{
+  // V4.27: whole months until about txShown rows are on screen; older ones on request.
+  let drawn = 0;
+  const shownGroups = isPhone() ? [] : groups.filter(g=>{ if(drawn >= txShown) return false; drawn += g.rows.length; return true; });
+  const hiddenRows = rows.length - drawn;
+  const tableBody = shownGroups.map(g=>{
     const s = monthSums(g.rows);
     return `
       <tr class="tx-month"><td colspan="7"><div class="tx-month-line">
@@ -6287,7 +6384,7 @@ function renderTransactions(c){
         ${s.sav ? `<span class="tx-sav">saved ${moneyWhole(s.sav)}</span>` : ''}
       </div></td></tr>
       ${g.rows.map(rowHTML).join('')}`;
-  }).join('');
+  }).join('') + (hiddenRows > 0 && !isPhone() ? `<tr class="tx-more"><td colspan="7"><button type="button" class="dash-link" id="txShowMore">Show earlier months · ${hiddenRows.toLocaleString('en-AU')} more record${hiddenRows===1?'':'s'}</button></td></tr>` : '');
 
   if(isPhone()) renderTransactionsPhone(c, { rows, filterType, filterMonth, search, monthsPresent, monthTitle, monthSums, allTimeBalance, totalRecords });
   else c.innerHTML = `
@@ -6322,6 +6419,7 @@ function renderTransactions(c){
         <div class="k-sub">in ${moneyWhole(thisMonth.inc)} · out ${moneyWhole(thisMonth.exp)} · saved ${moneyWhole(thisMonth.sav)}</div></div>
     </div>
 
+    ${txAwaitingBarHTML()}
     ${rows.length===0 ? `<div class="empty-state"><div class="glyph">·</div>${state.transactions.length ? 'No transactions match these filters.' : 'No transactions yet. Add one to get started.'}</div>` : `
     <div class="card dash-card tx-card">
       <div class="plan-table-wrap">
@@ -6333,6 +6431,9 @@ function renderTransactions(c){
     </div>`}
   `;
 
+  if(isPhone() && txAwaitingRate().length){ const top = c.querySelector('.ph-top'); if(top) top.insertAdjacentHTML('afterend', txAwaitingBarHTML()); }
+  wireTxAwaitBar();
+  const more = document.getElementById('txShowMore'); if(more) more.onclick = ()=>{ txShown += 600; render(); };
   c.querySelectorAll('[data-txtype]').forEach(b=> b.onclick = ()=>{ state.ui.txFilterType = b.dataset.txtype; saveState(); render(); });
   document.getElementById('txMonth').onchange = e=>{ state.ui.txFilterMonth=e.target.value; state.ui.txWeek = null; saveState(); render(); };
   c.querySelectorAll('[data-txweekclear]').forEach(b=> b.onclick = ()=>{ state.ui.txWeek = null; saveState(); render(); });
@@ -6362,6 +6463,7 @@ function renderTransactions(c){
   });
 }
 
+let txShown = 300;   // rows drawn on the Transactions tab before "Show earlier months"
 function csvEscape(v){
   const s = String(v==null ? '' : v);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
@@ -6369,11 +6471,11 @@ function csvEscape(v){
 
 function exportTransactionsCSV(){
   const rows = [...transactionsWithBalance()].reverse(); // oldest first for a natural ledger read
-  const header = ['Date','Type','Category','Details','Amount','Currency','Amount (AUD)','Balance (AUD)'];
+  const header = ['Date','Type','Category','Details','Amount','Currency','Rate (per 1 AUD)','Amount (AUD)','Balance (AUD)'];
   const lines = [header.join(',')];
   rows.forEach(r=>{
     const cur = r.currency || 'AUD';
-    lines.push([r.date, r.type, r.category, csvEscape(r.details||''), r.amount, cur, txAmountAUD(r).toFixed(2), r.balance.toFixed(2)].join(','));
+    lines.push([r.date, r.type, r.category, csvEscape(r.details||''), r.amount, cur, cur === 'AUD' ? '' : (Number(r.rate) > 0 ? r.rate : ''), txAmountAUD(r).toFixed(2), r.balance.toFixed(2)].join(','));
   });
   const blob = new Blob([lines.join('\n')], {type:'text/csv'});
   downloadBlob(blob, `transactions-${isoDate(TODAY)}.csv`);
@@ -6431,8 +6533,9 @@ function openTxModal(editId){
     const keep = existing && (existing.currency||'AUD') === cur && Number(existing.rate) > 0;
     if(!rateTyped){ inp.value = keep ? existing.rate : ''; inp.placeholder = live ? `${Number(live).toFixed(3)} — leave blank for the date’s rate` : 'leave blank for the date’s rate'; }
     const amt = Number(document.getElementById('fAmt').value) || 0;
-    const r = Number(inp.value) || (keep ? existing.rate : live);
+    const r = Number(inp.value) || (keep && !rateTyped ? existing.rate : live);
     const note = rateTyped && Number(inp.value) > 0 ? 'your rate'
+               : rateTyped && inp.value.trim() === '' ? 'blank: back to the published rate for this date'
                : keep ? txRateNote(existing).split(' · ').slice(1).join(' · ')
                : 'blank: the published rate for this date, filled in automatically';
     document.getElementById('fRateNote').textContent = (amt && r ? `≈ ${moneyCur(amt / r, 'AUD', 2)} · ` : '') + note;
@@ -6457,7 +6560,7 @@ function openTxModal(editId){
     if(!isSaneYear(yr)){ toast(`Year ${date.slice(0,4)} doesn't look right — check the date.`); return; }
     const typed = rateTyped ? Number(document.getElementById('fRate').value) : 0;
     if(rateTyped && document.getElementById('fRate').value !== '' && !(typed > 0)){ toast('The exchange rate needs to be a positive number, or leave it blank.'); return; }
-    const rec = txSettleRate({date, type:t, category:cat, amount:amt, currency, details}, existing, typed);
+    const rec = txSettleRate({date, type:t, category:cat, amount:amt, currency, details}, existing, typed, rateTyped && document.getElementById('fRate').value.trim() === '');
     if(existing){
       Object.assign(existing, rec); txCleanRate(existing);
       toast('Transaction updated.');
@@ -8075,99 +8178,6 @@ function toggleInvestingCategory(cat){
   saveState(); render();
 }
 
-function averageMonthlySavings(){
-  const flagged = (state.settings.investingCategories||[]).length > 0;
-  const months = completeMonths(6).filter(({year,month})=>{
-    const t = trackedTotals(year, month);
-    return sumType(t.Expenses) !== 0 || sumType(t.Income) !== 0 || sumType(t.Savings) !== 0;
-  });
-  if(!months.length) return { value:0, flagged, months:0 };
-  const total = months.reduce((sum,{year,month})=>{
-    const sav = trackedTotals(year, month).Savings;
-    if(!flagged) return sum + sumType(sav);
-    return sum + Object.entries(sav).reduce((t,[cat,v])=> t + (isInvestingCategory(cat) ? v : 0), 0);
-  }, 0);
-  return { value: total/months.length, flagged, months: months.length };
-}
-
-/* You type a NOMINAL return — the figure quoted everywhere you'd look one up —
-   and inflation is subtracted here to get the real rate the projection runs on.
-   Everything else in the app is in today's money, so a nominal projection could
-   not be compared against your essentials or your runway. */
-function nominalReturn(unit){
-  const IS = investSettings();
-  if(unit && unit.nominalReturn !== undefined && unit.nominalReturn !== null && unit.nominalReturn !== ''){
-    const v = Number(unit.nominalReturn);
-    if(isFinite(v)) return v;
-  }
-  return (Number(IS.baselineReturn)||0) + (Number(IS.inflation)||0);
-}
-
-function realReturn(unit){
-  return nominalReturn(unit) - (Number(investSettings().inflation)||0);
-}
-
-/* The rate actually used, after the ceiling. The cap applies to the real rate,
-   since that's what compounds through the projection. */
-function assumedReturn(unit){
-  const IS = investSettings();
-  const cap = Number(IS.returnCap);
-  const real = realReturn(unit);
-  if(!isFinite(real)) return Number(IS.baselineReturn)||0;
-  return isFinite(cap) && cap > 0 ? Math.min(real, cap) : real;
-}
-
-/* Returns the path plus the same path with every holding earning the baseline,
-   so the UI can show how much of the outcome rests on the per-asset assumptions. */
-function projectPortfolio(opts){
-  const IS = investSettings();
-  const weights = targetWeights();
-  if(!weights.length) return null;
-
-  const endYear = Number(IS.retireYear) || 2060;
-  const stepsPerYear = 2;
-  // Counted in months to the end of the retirement year, so the horizon shortens
-  // every month rather than jumping by a whole year each 1 January.
-  const monthsLeft = Math.max(0, (endYear - TODAY.getFullYear())*12 + (11 - TODAY.getMonth()));
-  const yearsLeft = monthsLeft/12;
-  const totalSteps = Math.max(0, Math.round(monthsLeft/6));
-  const savingsAvg = averageMonthlySavings();
-  const usingAverage = IS.monthlyContribution === null || IS.monthlyContribution === undefined;
-  const monthly = usingAverage ? savingsAvg.value : (Number(IS.monthlyContribution)||0);
-  const perStep = monthly * (12/stepsPerYear);
-
-  const run = (rateFor)=>{
-    let holdings = weights.map(w=> ({ w, value: w.unit.valueAUD }));
-    const path = [{ year: TODAY.getFullYear(), value: holdings.reduce((t,h)=>t+h.value,0) }];
-    for(let i=1; i<=totalSteps; i++){
-      holdings.forEach(h=>{
-        const r = rateFor(h.w)/100;
-        h.value *= Math.pow(1 + r, 1/stepsPerYear);
-      });
-      let total = holdings.reduce((t,h)=>t+h.value,0) + perStep;
-      // Rebalance: put everything back on target weight, which is also how the
-      // contribution gets allocated.
-      holdings.forEach(h=>{ h.value = total * h.w.weight; });
-      if(i % stepsPerYear === 0 || i === totalSteps){
-        path.push({ year: TODAY.getFullYear() + i/stepsPerYear, value: total });
-      }
-    }
-    return path;
-  };
-
-  const assumed  = run(w=> assumedReturn(w.unit.unit));
-  const baseline = run(()=> Number(IS.baselineReturn)||0);
-  const contributed = weights.reduce((t,w)=> t + w.unit.valueAUD, 0) + perStep * totalSteps;
-
-  return {
-    endYear, totalSteps, monthly, contributed, yearsLeft, monthsLeft,
-    usingAverage, savingsFlagged: savingsAvg.flagged,
-    assumed, baseline,
-    finalAssumed: assumed[assumed.length-1].value,
-    finalBaseline: baseline[baseline.length-1].value,
-    weights
-  };
-}
 
 /* What the invested sleeves were actually worth on a past date, from balance
    history. Only holdings currently tagged core or satellite are counted, so the
@@ -8358,6 +8368,55 @@ function historyTotals(unit, uptoISO){
 }
 
 /* One row per holding, all figures in AUD for the caller to convert. */
+/* V4.27 — for a holding priced in another currency, the gain in AUD has two parts:
+   what the investment did (price), and what the Australian dollar did (currency).
+   Each purchase is converted at the month-end rate of the month it was made (the
+   rates kept under Net Worth › month-end rates), with average cost applied in AUD
+   the same way it is in the holding's own currency. Returns null when a rate for
+   one of the months isn't on file yet. */
+function holdingFxSplit(u){
+  const cur = u.currency;
+  if(!cur || cur === 'AUD' || !hasOrderData(u.unit)) return null;
+  const live = state.fxRates && state.fxRates[cur];
+  if(!(live > 0)) return null;
+  let missing = false;
+  const rateOn = d=>{ const r = d ? fxRatesFor(d) : null; const v = r && r[cur]; if(!(v > 0)){ missing = true; return live; } return v; };
+  const shadow = {
+    openingCost: (Number(u.unit.openingCost)||0) / rateOn(u.unit.openingDate || isoDate(TODAY)),
+    openingUnits: u.unit.openingUnits,
+    lots: unitLots(u.unit).map(l=> ({ date:l.date, units:l.units, price:(Number(l.price)||0) / rateOn(l.date) })),
+    sales: unitSales(u.unit).map(x=> ({ date:x.date, units:x.units, price:0 })),
+    divs: unitDivs(u.unit).map(d=> ({ date:d.date, units:d.units, amount:0 }))
+  };
+  const today = isoDate(TODAY);
+  const cb = costBasisAsOf(u.unit, today), cbA = costBasisAsOf(shadow, today);
+  if(missing || !(cb.cost > 0)) return null;
+  const costNow = cb.cost / live, value = u.valueAUD;
+  return { cur, paidAUD: cbA.cost, price: value - costNow, fx: costNow - cbA.cost, total: value - cbA.cost };
+}
+function investFxSplitHTML(){
+  const list = investedUnits().map(u=> ({ u, s: holdingFxSplit(u) })).filter(x=> x.s);
+  const foreign = investedUnits().filter(u=> u.currency && u.currency !== 'AUD' && hasOrderData(u.unit)).length;
+  if(!foreign) return '';
+  const m = v=> (v >= 0 ? '+' : '−') + moneyWhole(Math.abs(v));
+  const c = v=> v >= 0 ? 'pos' : 'neg';
+  const sum = k=> list.reduce((t,x)=> t + x.s[k], 0);
+  return `
+    <div class="card dash-card inv-fx" id="invFxSplit">
+      <div class="dash-card-head wrap"><span class="dash-card-title">Price or currency?</span><span class="muted">unrealised gain on holdings in other currencies, in AUD</span></div>
+      ${list.length ? `<div class="plan-table-wrap"><table class="reb inv-table">
+        <thead><tr><th>Holding</th><th class="r">Paid, in AUD then</th><th class="r">Worth now</th><th class="r">From price</th><th class="r">From currency</th><th class="r">Total in AUD</th></tr></thead>
+        <tbody>${list.map(({u, s})=> `<tr data-fxsplit="${u.subId ? `${u.acc.id}|||${u.subId}` : u.acc.id}">
+          <td><b>${escHTML(u.subId ? u.unit.name : u.acc.name)}</b> <span class="inv-hsleeve">${s.cur}</span></td>
+          <td class="r">${moneyWhole(s.paidAUD)}</td><td class="r">${moneyWhole(u.valueAUD)}</td>
+          <td class="r ${c(s.price)}">${m(s.price)}</td><td class="r ${c(s.fx)}">${m(s.fx)}</td><td class="r ${c(s.total)}"><b>${m(s.total)}</b></td></tr>`).join('')}</tbody>
+        ${list.length > 1 ? `<tfoot><tr><td><b>Total</b></td><td class="r"><b>${moneyWhole(sum('paidAUD'))}</b></td><td class="r"><b>${moneyWhole(list.reduce((t,x)=> t + x.u.valueAUD, 0))}</b></td>
+          <td class="r ${c(sum('price'))}"><b>${m(sum('price'))}</b></td><td class="r ${c(sum('fx'))}"><b>${m(sum('fx'))}</b></td><td class="r ${c(sum('total'))}"><b>${m(sum('total'))}</b></td></tr></tfoot>` : ''}
+      </table></div>` : ''}
+      <div class="liq-note">From price is how the investment itself moved. From currency is the Australian dollar moving since you bought: a weaker AUD makes what you hold worth more in AUD. Purchases are converted at the month-end rate of the month they were made.${list.length < foreign ? ` ${foreign - list.length} holding${foreign - list.length === 1 ? ' is' : 's are'} left out until past month-end rates are on file (Net Worth › Exchange rates › History fills them in).` : ''}</div>
+    </div>`;
+}
+
 function investmentRows(){
   const today = isoDate(TODAY);
   const units = investedUnits();
@@ -8676,6 +8735,7 @@ function renderInvestments(c){
       <div class="dash-card-head"><span class="dash-card-title">Holdings</span><span class="muted">${rows.length} holding${rows.length===1?'':'s'} · Alloc % is your cost base, Market % is today's value</span></div>
       ${table}
     </div>`}
+    ${investFxSplitHTML()}
 
     <div class="inv-section-head"><span class="dash-card-title">Charts</span></div>
     <div class="ph-chips inv-chart-pick" role="group" aria-label="Which chart">
@@ -13621,9 +13681,209 @@ function tdSyncBadge(){
 }
 
 
+/* =========================================================
+   V4.28 — WISHLIST
+   A plain list of things you'd like to buy in the next six months. It stands on its
+   own: nothing here touches transactions, budgets, balances or the forecast. The
+   only link to the rest of Ledger is the exchange rate, so a price in another
+   currency also shows what it is in AUD today.
+   state.wishes = [{ id, name, price, currency, targetDate, priority, link, note,
+                     photo, createdAt, bought, boughtAt }]
+========================================================= */
+const WISH_PRI = [ ['need','Need'], ['really','Really want'], ['want','Want'] ];
+const WISH_MONTHS = 6;
+let wishFilter = 'all', wishSort = 'date', wishShowBought = false;
+
+function wishItems(){ return state.wishes || (state.wishes = []); }
+function wishMaxDate(){ return isoDate(new Date(TODAY.getFullYear(), TODAY.getMonth() + WISH_MONTHS, TODAY.getDate())); }
+function wishPriLabel(p){ const x = WISH_PRI.find(k=> k[0] === p); return x ? x[1] : 'Want'; }
+function wishAUD(w){ return toAUD(Number(w.price) || 0, w.currency || 'AUD'); }
+/* Only ordinary web links are kept; anything else typed into a link box is dropped. */
+function wishUrl(v){
+  const s = String(v || '').trim();
+  if(!s) return '';
+  const u = /^https?:\/\//i.test(s) ? s : (/^[\w-]+(\.[\w-]+)+(\/|$)/.test(s) ? 'https://' + s : '');
+  try{ return u && /^https?:$/.test(new URL(u).protocol) ? u : ''; }catch(e){ return ''; }
+}
+function wishHost(u){ try{ return new URL(u).hostname.replace(/^www\./, ''); }catch(e){ return 'link'; } }
+function wishSorted(list){
+  const rank = { need:0, really:1, want:2 };
+  const byDate = (a,b)=> (a.targetDate || '9999').localeCompare(b.targetDate || '9999');
+  const arr = list.slice();
+  if(wishSort === 'priority') arr.sort((a,b)=> rank[a.priority] - rank[b.priority] || byDate(a,b));
+  else if(wishSort === 'price') arr.sort((a,b)=> wishAUD(b) - wishAUD(a));
+  else arr.sort((a,b)=> byDate(a,b) || rank[a.priority] - rank[b.priority]);
+  return arr;
+}
+
+function wishCardHTML(w){
+  const cur = w.currency || 'AUD', today = isoDate(TODAY);
+  const late = !w.bought && w.targetDate && w.targetDate < today;
+  const link = wishUrl(w.link), photo = wishUrl(w.photo);
+  return `
+    <article class="card wish${w.bought ? ' bought' : ''}" data-wish="${w.id}">
+      ${photo ? `<img class="wish-img" src="${escHTML(photo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
+      <div class="wish-body">
+        <div class="wish-top"><span class="wish-pri ${w.priority}">${wishPriLabel(w.priority)}</span>
+          <button type="button" class="icon-btn" data-wishedit="${w.id}" aria-label="Edit ${escHTML(w.name)}" title="Edit">✎</button></div>
+        <h3 class="wish-name">${escHTML(w.name)}</h3>
+        <div class="wish-price num-font">${moneyCur(w.price, cur, Number(w.price) % 1 ? 2 : 0)}${cur !== 'AUD' ? ` <span class="muted">≈ ${moneyWhole(wishAUD(w))}</span>` : ''}</div>
+        ${w.bought ? `<div class="wish-date muted">Bought ${w.boughtAt ? formatDateShort(w.boughtAt) : ''}</div>`
+          : w.targetDate ? `<div class="wish-date ${late ? 'neg' : 'muted'}">By ${formatDateShort(w.targetDate)} · ${late ? 'date passed' : relFromToday(w.targetDate)}</div>`
+          : `<div class="wish-date muted">No date</div>`}
+        ${w.note ? `<p class="wish-note">${escHTML(w.note)}</p>` : ''}
+        <div class="wish-foot">
+          <label class="wish-check"><input type="checkbox" data-wishbought="${w.id}" ${w.bought ? 'checked' : ''}> Bought</label>
+          ${link ? `<a class="wish-link" href="${escHTML(link)}" target="_blank" rel="noopener noreferrer">${escHTML(wishHost(link))} ↗</a>` : ''}
+        </div>
+      </div>
+    </article>`;
+}
+
+function renderWishlist(c){
+  const all = wishItems(), open = all.filter(w=> !w.bought), bought = all.filter(w=> w.bought);
+  const shown = wishSorted(open.filter(w=> wishFilter === 'all' || w.priority === wishFilter));
+  const total = open.reduce((t,w)=> t + wishAUD(w), 0);
+  const count = k=> open.filter(w=> w.priority === k).length;
+  const foreign = open.some(w=> (w.currency || 'AUD') !== 'AUD');
+  const addBtn = isPhone()
+    ? `<button type="button" class="ph-ib gold" id="wishAdd" aria-label="Add a wish"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>`
+    : `<button type="button" class="btn" id="wishAdd">+ Add wish</button>`;
+  c.innerHTML = `
+    <div class="${isPhone() ? 'ph-top' : 'dash-head'}">
+      <h1 class="page-title">Wishlist</h1>
+      ${isPhone() ? '' : `<span class="muted dash-head-sub">things to buy in the next ${WISH_MONTHS} months</span><span style="flex:1"></span>`}
+      ${addBtn}
+    </div>
+    <div class="card wish-sum">
+      <div><span class="k-label">On the list</span><b class="num-font">${open.length}</b></div>
+      <div><span class="k-label">Total${foreign ? ', in AUD today' : ''}</span><b class="num-font">${moneyWhole(total)}</b></div>
+      <div><span class="k-label">Need</span><b class="num-font">${moneyWhole(open.filter(w=> w.priority === 'need').reduce((t,w)=> t + wishAUD(w), 0))}</b></div>
+      <div><span class="k-label">Bought</span><b class="num-font">${bought.length}</b></div>
+    </div>
+    <div class="wish-bar">
+      <div class="seg" role="group" aria-label="Show">
+        ${[['all', 'All', open.length]].concat(WISH_PRI.map(([k, l])=> [k, l, count(k)])).map(([k, l, n])=>
+          `<button type="button" class="${wishFilter === k ? 'on' : ''}" aria-pressed="${wishFilter === k}" data-wishfilter="${k}">${l} <span class="muted">${n}</span></button>`).join('')}
+      </div>
+      <label class="wish-sort">Sort <select id="wishSort">
+        <option value="date" ${wishSort === 'date' ? 'selected' : ''}>Soonest first</option>
+        <option value="priority" ${wishSort === 'priority' ? 'selected' : ''}>Priority</option>
+        <option value="price" ${wishSort === 'price' ? 'selected' : ''}>Price, high to low</option></select></label>
+    </div>
+    ${shown.length ? `<div class="wish-grid">${shown.map(wishCardHTML).join('')}</div>`
+      : `<div class="empty-state"><div class="glyph">·</div>${open.length ? 'Nothing with that priority.' : 'Nothing on your wishlist yet. Add the first thing you’d like to buy.'}</div>`}
+    ${bought.length ? `<button type="button" class="td-showdone" id="wishShowBought" aria-expanded="${wishShowBought}">${wishShowBought ? 'Hide' : 'Show'} ${bought.length} bought</button>
+      ${wishShowBought ? `<div class="wish-grid">${bought.slice().sort((a,b)=> (b.boughtAt || '').localeCompare(a.boughtAt || '')).map(wishCardHTML).join('')}</div>` : ''}` : ''}`;
+  c.querySelector('#wishAdd').onclick = ()=> openWishModal();
+  c.querySelectorAll('[data-wishfilter]').forEach(b=> b.onclick = ()=>{ wishFilter = b.dataset.wishfilter; render(); });
+  c.querySelector('#wishSort').onchange = e=>{ wishSort = e.target.value; render(); };
+  c.querySelectorAll('[data-wishedit]').forEach(b=> b.onclick = ()=> openWishModal(b.dataset.wishedit));
+  c.querySelectorAll('[data-wishbought]').forEach(cb=> cb.onchange = ()=>{
+    const w = wishItems().find(x=> x.id === cb.dataset.wishbought); if(!w) return;
+    w.bought = cb.checked;
+    if(cb.checked) w.boughtAt = isoDate(TODAY); else delete w.boughtAt;
+    saveState(); render();
+    toast(cb.checked ? `${w.name}: marked as bought.` : `${w.name}: back on the list.`);
+  });
+  const sb = c.querySelector('#wishShowBought'); if(sb) sb.onclick = ()=>{ wishShowBought = !wishShowBought; render(); };
+}
+
+function openWishModal(id){
+  const w = id ? wishItems().find(x=> x.id === id) : null;
+  const root = document.getElementById('modalRoot');
+  const today = isoDate(TODAY), max = wishMaxDate();
+  root.innerHTML = `
+    <div class="modal-backdrop" id="wishB">
+      <div class="modal" role="dialog" aria-label="${w ? 'Edit wish' : 'Add wish'}" style="max-width:460px;">
+        <h2>${w ? 'Edit wish' : 'Add wish'}</h2>
+        <div class="form-grid">
+          <label class="field">Name <input type="text" id="wName" placeholder="e.g. Mechanical keyboard" value="${w ? escHTML(w.name) : ''}"></label>
+          <div class="wish-two">
+            <label class="field">Price <input type="number" id="wPrice" min="0" step="0.01" inputmode="decimal" placeholder="0" value="${w ? w.price : ''}"></label>
+            <label class="field">Currency <select id="wCur">${NET_WORTH_CURRENCIES.map(c=> `<option ${(w ? (w.currency || 'AUD') : 'AUD') === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+          </div>
+          <div class="muted wish-aud" id="wAud" aria-live="polite"></div>
+          <label class="field">Target date
+            <input type="date" id="wDate" min="${w && w.targetDate && w.targetDate < today ? w.targetDate : today}" max="${max}" value="${w ? (w.targetDate || '') : ''}">
+            <span class="muted" style="font-size:11px;">Optional. Any day up to ${formatDateShort(max)} (${WISH_MONTHS} months from today).</span></label>
+          <div class="field"><span id="wPriLbl">Priority</span>
+            <div class="seg wish-pri-seg" role="group" aria-labelledby="wPriLbl">${WISH_PRI.slice().reverse().map(([k, l])=>
+              `<button type="button" data-wpri="${k}">${l}</button>`).join('')}</div></div>
+          <label class="field">Link <input type="text" inputmode="url" autocapitalize="off" spellcheck="false" id="wLink" placeholder="https://… (optional)" value="${w ? escHTML(w.link || '') : ''}"></label>
+          <label class="field">Photo link <input type="text" inputmode="url" autocapitalize="off" spellcheck="false" id="wPhoto" placeholder="https://…/picture.jpg (optional)" value="${w ? escHTML(w.photo || '') : ''}"></label>
+          <label class="field">Note <textarea id="wNote" rows="2" placeholder="optional — colour, size, where to buy…">${w ? escHTML(w.note || '') : ''}</textarea></label>
+        </div>
+        <div class="form-actions">
+          ${w ? `<button type="button" class="btn danger" id="wDel" style="margin-right:auto;">Delete</button>` : ''}
+          <button type="button" class="btn secondary" id="wCancel">Cancel</button>
+          <button type="button" class="btn" id="wSave">${w ? 'Save changes' : 'Add to wishlist'}</button>
+        </div>
+      </div>
+    </div>`;
+  const $ = i=> document.getElementById(i);
+  const close = ()=> root.innerHTML = '';
+  let pri = w ? w.priority : 'want';
+  const paintPri = ()=> root.querySelectorAll('[data-wpri]').forEach(b=>{ const on = b.dataset.wpri === pri; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  root.querySelectorAll('[data-wpri]').forEach(b=> b.onclick = ()=>{ pri = b.dataset.wpri; paintPri(); });
+  paintPri();
+  const aud = ()=>{
+    const cur = $('wCur').value, p = Number($('wPrice').value) || 0;
+    const rate = state.fxRates && state.fxRates[cur];
+    $('wAud').textContent = cur === 'AUD' || !p ? '' : rate > 0 ? `≈ ${moneyCur(p / rate, 'AUD', 2)} at today’s rate` : `No ${cur} rate loaded yet, so the AUD amount can’t be shown.`;
+  };
+  $('wPrice').addEventListener('input', aud); $('wCur').addEventListener('change', aud); aud();
+  $('wCancel').onclick = close;
+  $('wishB').addEventListener('click', e=>{ if(e.target.id === 'wishB') close(); });
+  if(w) $('wDel').onclick = ()=> confirmDestructive({
+    title:'Delete wish', what:escHTML(w.name), lines:['It comes off the wishlist. Nothing else in Ledger changes.'], confirmLabel:'Delete',
+    onConfirm:()=>{ state.wishes = wishItems().filter(x=> x.id !== w.id); saveState(); close(); render(); toast('Wish deleted.'); }
+  });
+  $('wSave').onclick = ()=>{
+    const name = $('wName').value.trim(), price = Number($('wPrice').value);
+    if(!name){ toast('Give it a name.'); $('wName').focus(); return; }
+    if(!(price >= 0) || $('wPrice').value.trim() === ''){ toast('Enter a price (0 is fine if you don’t know yet).'); $('wPrice').focus(); return; }
+    let date = $('wDate').value.trim();
+    if(date && !dpIsISO(date)) date = (typeof dpParse === 'function' ? dpParse(date) : '') || '';
+    if($('wDate').value.trim() && !date){ toast('That date doesn’t look right.'); return; }
+    const keepOld = w && w.targetDate === date;
+    if(date && !keepOld && (date < today || date > max)){ toast(`Pick a date between today and ${formatDateShort(max)}.`); return; }
+    const linkRaw = $('wLink').value.trim(), photoRaw = $('wPhoto').value.trim();
+    if(linkRaw && !wishUrl(linkRaw)){ toast('The link needs to be a web address, like https://shop.com/item.'); return; }
+    if(photoRaw && !wishUrl(photoRaw)){ toast('The photo link needs to be a web address ending in a picture.'); return; }
+    const rec = { name, price, currency:$('wCur').value, targetDate:date, priority:pri, link:wishUrl(linkRaw), photo:wishUrl(photoRaw), note:$('wNote').value.trim() };
+    if(w){ Object.assign(w, rec); toast('Wish updated.'); }
+    else { wishItems().push(Object.assign({ id:uid(), createdAt:new Date().toISOString(), bought:false }, rec)); toast('Added to your wishlist.'); }
+    saveState(); close(); render();
+  };
+  if(!w && !isPhone()) $('wName').focus();
+}
+
+
 const VERSION_LOG = [
   {
-    no: 'V4.26', name: 'Rates that stay put, and HKD', date: 'Nov 2026', current: true,
+    no: 'V4.28', name: 'Wishlist', date: 'Nov 2026', current: true,
+    items: [
+      'A new Wishlist tab, under To-dos in the sidebar and in More on iPhone: a simple list of things you\'d like to buy in the next 6 months.',
+      'Each wish has a name, a price in AUD, THB, USD or HKD (with what it comes to in AUD at today\'s rate), an optional target date up to 6 months ahead, and a priority: Want, Really want or Need. You can also add a link, a photo link and a note.',
+      'Filter by priority, and sort by soonest date, priority or price. The top of the tab shows how many items are on the list and what they add up to in AUD.',
+      'Tick Bought when you have it; bought items move to their own section. The wishlist is separate from the rest of Ledger: it doesn\'t create transactions or change budgets, balances or the forecast.'
+    ]
+  },
+  {
+    no: 'V4.27', name: 'Fixes, speed and offline', date: 'Nov 2026', current: false,
+    items: [
+      'Fixed: clearing an exchange rate you had typed on a transaction now goes back to the published rate for its date. Before, your typed rate stayed.',
+      'Transactions shows when foreign-currency records are still waiting for the rate of their date, with Fetch now. It also says if any have no rate at all.',
+      'The CSV and Excel exports have a Rate column for transactions in other currencies.',
+      'Transactions on a computer draws the most recent months (about 300 records) and offers Show earlier months, so the tab stays quick with years of history. Search and the month filter still look through everything.',
+      'Investments: a new Price or currency? card splits the unrealised gain on holdings in other currencies, in AUD, into what came from the price and what came from the Australian dollar moving.',
+      'Ledger can open with no signal once sw.js is uploaded next to index.html. It always loads the newest version when you are online.',
+      'Tidied: the projection maths left behind by V4.25 is removed.'
+    ]
+  },
+  {
+    no: 'V4.26', name: 'Rates that stay put, and HKD', date: 'Nov 2026', current: false,
     items: [
       'A transaction in THB, USD or HKD now keeps the exchange rate of its own date, so its AUD value no longer changes when the rate moves. Past months\' totals, budgets and savings rate stay as they were.',
       'The rate is the European Central Bank reference rate for that date, or the last one before it for weekends and holidays. New transactions use today\'s rate until it is filled in, which happens automatically when Ledger is online.',
@@ -14136,6 +14396,13 @@ if(AUTO_SAVE_SUPPORTED && state.settings.autoSaveEnabled && !autoSaveHandle){
 applyTheme(loadTheme());
 applySkin(loadSkin());
 wireDatePickerOnce();
+/* V4.27 — sw.js (a second file, next to index.html) keeps a copy of the page and its
+   libraries so Ledger opens with no signal. It always tries the network first, so a
+   new version you upload shows up on the next open as before. Without sw.js in the
+   repo this does nothing. */
+if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
 
 /* Sidebar collapse. Kept per device, like the theme, since an iPad and a desktop
    screen want different things. Only takes effect above 820px — narrower screens
