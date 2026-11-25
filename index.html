@@ -3527,7 +3527,13 @@ function invPhoneHeroHTML(v){
 
 function invPhoneHoldingsHTML(rows){
   const target = {};
-  try{ targetWeights().forEach(t=>{ const u = t.unit; target[u.subId ? `${u.acc.id}|||${u.subId}` : u.acc.id] = t.weight * 100; }); }catch(e){}
+  // Targets are shares of the DCA portfolio; the bar is a share of everything shown.
+  // Scaling by the DCA part keeps the tick and the bar on the same footing when
+  // Separate (outside DCA) holdings are in the list too.
+  const allV = rows.reduce((t,r)=> t + r.value, 0);
+  const dcaV = rows.filter(r=> isDcaSleeve(r.sleeve)).reduce((t,r)=> t + r.value, 0);
+  const scale = allV > 0 ? dcaV/allV : 1;
+  try{ targetWeights().forEach(t=>{ const u = t.unit; target[u.subId ? `${u.acc.id}|||${u.subId}` : u.acc.id] = t.weight * 100 * scale; }); }catch(e){}
   if(!rows.length) return `<div class="card"><div class="muted" style="font-size:13px;">No holdings yet. Tap Buy to record your first purchase.</div></div>`;
   return `
     <div class="card ph-list">
@@ -8021,6 +8027,12 @@ function effectiveTicker(unit, fallbackName){
   if(unit && unit.ticker) return unit.ticker;
   return looksLikeTicker(fallbackName) ? String(fallbackName).trim().toUpperCase() : '';
 }
+/* V4.30 — Thai holdings (THB, or a .BK symbol) are priced by hand. No free source
+   covering the Bangkok exchange can be called from a browser, and without this a
+   name like KBANK would be looked up as a US ticker and fill in the wrong price. */
+function isManualPriced(currency, ticker){
+  return currency === 'THB' || /\.BK$/i.test(String(ticker||'').trim());
+}
 
 /* The key can live in one of two places.
 
@@ -8052,6 +8064,7 @@ function setQuoteToken(v, synced){
 async function fetchQuote(ticker){
   const t = String(ticker||'').trim();
   if(!t) throw new Error('no ticker');
+  if(isManualPriced(null, t)) throw new Error('Thai prices are typed in');
 
   // 1. Stooq — keyless CSV. US tickers need the .us suffix.
   try{
@@ -8158,7 +8171,7 @@ function renderRestorePoints(){
    the rebalance engine would have you do anyway, and without it the fastest-growing
    holding quietly takes over an allocation you never chose. */
 function targetWeights(){
-  const inv = investedUnits();
+  const inv = dcaUnits();
   if(!inv.length) return [];
   const coreT = Math.max(0, Math.min(100, Number(investSettings().coreTarget)||0)) / 100;
   const out = [];
@@ -8632,7 +8645,7 @@ function renderInvestments(c){
     c.innerHTML = `
       <div class="section-title">Investments</div>
       <div class="card"><div class="muted" style="font-size:12.5px;">
-        No holdings are tagged Core or Satellite yet. Set an account's sleeve on the Net Worth tab
+        No holdings are tagged Core, Satellite or Separate yet. Set an account's sleeve on the Net Worth tab
         and record units and prices, and this tab will fill in.</div></div>`;
     return;
   }
@@ -8854,7 +8867,12 @@ function wireInvestingSection(c){
 }
 
 function investingSectionHTML(){
-  const inv = investedUnits();
+  const inv = dcaUnits();
+  const sep = investedUnits().filter(u=> u.sleeve === 'separate');
+  const sepValue = sep.reduce((t,u)=> t + u.valueAUD, 0);
+  const sepNote = sep.length
+    ? `<div class="muted inv-small inv-sep-note">Not included: ${sep.length} Separate (outside DCA) holding${sep.length===1?'':'s'} worth ${moneyWhole(sepValue)}. They're in the Holdings table and charts above, but not in this split or in Rebalance.</div>`
+    : '';
   if(!inv.length){
     return `
       <div class="card dash-card" style="margin-top:16px;">
@@ -8863,6 +8881,7 @@ function investingSectionHTML(){
           Set an account's sleeve to Core or Satellite on the Net Worth tab (Edit setup) and this section will track the split, flag drift,
           and work out where your next contribution should go.
         </div>
+        ${sepNote}
       </div>`;
   }
 
@@ -8961,12 +8980,13 @@ function investingSectionHTML(){
       <div class="card dash-card" id="invSleeves">
         <div class="dash-card-head"><span class="dash-card-title">Core &amp; satellite</span><span class="muted">all values in AUD</span></div>
         <div class="dash-kpis inv-mini">
-          <div class="dash-kpi"><div class="k-label">Invested value</div><div class="k-val" style="color:var(--gold-bright)">${moneyWhole(split.value)}</div><div class="k-sub">${inv.length} holding${inv.length>1?'s':''} across both sleeves</div></div>
+          <div class="dash-kpi"><div class="k-label">Invested value</div><div class="k-val" style="color:var(--gold-bright)">${moneyWhole(split.value)}</div><div class="k-sub">${inv.length} holding${inv.length>1?'s':''} across core and satellite</div></div>
           <div class="dash-kpi"><div class="k-label">You put in</div><div class="k-val">${moneyWhole(split.contributed)}</div><div class="k-sub">contributions and opening balances</div></div>
           <div class="dash-kpi"><div class="k-label">The market gave you</div><div class="k-val ${split.gained>=0?'pos':'neg'}">${split.gained>=0?'+':''}${moneyWhole(split.gained)}</div><div class="k-sub">${split.returnPct===null?'—':`${split.returnPct>=0?'+':''}${split.returnPct.toFixed(1)}% on what you contributed`}</div></div>
         </div>
         ${whole.rows.length ? `<div class="inv-sleeves">${sleeveBars}</div>
           <div class="muted inv-small">Bar: share of the portfolio now. Marker: target. Grey drift is inside your ${band}pp band, amber is outside it.</div>` : ''}
+        ${sepNote}
       </div>
 
       <div class="card dash-card" id="invRebalance">
@@ -9012,6 +9032,7 @@ function investingSectionHTML(){
         </table></div>
         <div class="liq-note">${verdict}</div>`}
         ${weightWarn}
+        ${sep.length ? `<div class="muted inv-small">Excludes Separate (outside DCA): ${moneyWhole(sepValue)}.</div>` : ''}
       </div>
     </div>
 `;
@@ -9379,7 +9400,7 @@ function openPriceModal(){
   const rows = allUnits().filter(u=> accountSleeve(u.acc) || isPriced(u.unit));
   const root = document.getElementById('modalRoot');
   if(!rows.length){
-    toast('Assign a holding to Core or Satellite first, then prices can be tracked here.');
+    toast('Assign a holding to Core, Satellite or Separate first, then prices can be tracked here.');
     return;
   }
   root.innerHTML = `
@@ -9395,14 +9416,15 @@ function openPriceModal(){
               const cur = u.currency;
               const bal = unitBalanceAsOf(u.unit, isoDate(TODAY));
               const age = daysSince(u.unit.pricedAt);
-              const auto = effectiveTicker(u.unit, u.unit.name);
+              const manual = isManualPriced(cur, u.unit.ticker);
+              const auto = manual ? '' : effectiveTicker(u.unit, u.unit.name);
               return `
               <tr>
                 <td class="hold">
                   <div class="hn">${u.unit.name || u.acc.name}</div>
                   <div class="sub" id="pn${i}">${u.subId ? u.acc.name + ' · ' : ''}${cur}${u.unit.pricedAt?` · priced ${age===0?'today':age+'d ago'}`:' · never priced'}</div>
                 </td>
-                <td><input type="text" id="pt${i}" value="${u.unit.ticker||''}" placeholder="${auto||'—'}" class="ticker-in" title="${auto?`Blank uses “${auto}”, taken from the name`:'No ticker detected from the name'}"></td>
+                <td><input type="text" id="pt${i}" value="${u.unit.ticker||''}" placeholder="${manual ? 'manual' : (auto||'—')}" class="ticker-in" title="${manual ? 'Thai holding — type the price in; Fetch prices skips it' : (auto?`Blank uses “${auto}”, taken from the name`:'No ticker detected from the name')}"></td>
                 <td class="r"><input type="number" step="any" min="0" id="pu${i}" value="${isPriced(u.unit)?u.unit.units:''}" placeholder="—"></td>
                 <td class="r"><input type="number" step="any" min="0" id="pp${i}" value="${isPriced(u.unit)?u.unit.price:''}" placeholder="—"></td>
                 <td class="r val" id="pv${i}">${moneyCur(bal, cur)}<div class="sub" id="ps${i}">${cur!=='AUD'?'≈'+moneyWhole(toAUD(bal,cur)):''}</div></td>
@@ -9419,6 +9441,7 @@ function openPriceModal(){
           Fetched prices fill the boxes for you to check —
           nothing saves until you press Save. Units are never fetched: buying is your decision, not the market's.
           The fetched price is assumed to be in the holding's own currency.
+          Thai holdings (THB accounts) are skipped by Fetch prices — type their price in.
         </div>
         <div class="form-actions" style="justify-content:space-between;">
           <div style="display:flex; gap:8px; align-items:center;">
@@ -9459,11 +9482,17 @@ function openPriceModal(){
   document.getElementById('fFetch').onclick = async ()=>{
     const btn = document.getElementById('fFetch');
     btn.disabled = true; btn.textContent = 'Fetching…';
-    let ok = 0, failed = [];
+    let ok = 0, failed = [], manual = 0;
     for(let i=0; i<rows.length; i++){
       const typed = document.getElementById('pt'+i).value.trim();
-      const tick = typed || effectiveTicker(rows[i].unit, rows[i].unit.name);
       const note = document.getElementById('pn'+i);
+      if(isManualPriced(rows[i].currency, typed)){
+        manual++;
+        note.textContent = `${rows[i].currency} · Thai price — type it in`;
+        note.style.color = 'var(--text-faint)';
+        continue;
+      }
+      const tick = typed || effectiveTicker(rows[i].unit, rows[i].unit.name);
       if(!tick){ continue; }
       try{
         const q = await fetchQuote(tick);
@@ -9482,7 +9511,9 @@ function openPriceModal(){
     if(!ok && failed.length){
       toast(`No prices could be fetched. Free sources block browser requests fairly often — add an API key, or type the prices in.`);
     } else if(ok){
-      toast(`${ok} price${ok>1?'s':''} filled in${failed.length?`, ${failed.length} failed`:''}. Check them, then Save.`);
+      toast(`${ok} price${ok>1?'s':''} filled in${failed.length?`, ${failed.length} failed`:''}.${manual ? ` ${manual} Thai price${manual>1?'s':''} to type in.` : ''} Check them, then Save.`);
+    } else if(manual){
+      toast('Thai prices are typed in by hand — enter them in the Price column, then Save.');
     } else {
       toast('Add a ticker to a holding first.');
     }
@@ -12152,8 +12183,13 @@ function investSettings(){ return state.settings.investing; }
    An account called "Core Invesment" is core, so asking the same question again
    for each of VT, QQQM and SCHD is just noise on the screen. */
 function accountSleeve(a){
-  return (a && (a.sleeve==='core' || a.sleeve==='satellite')) ? a.sleeve : null;
+  return (a && (a.sleeve==='core' || a.sleeve==='satellite' || a.sleeve==='separate')) ? a.sleeve : null;
 }
+/* V4.30 — "Separate (outside DCA)" holdings are investments like any other: they
+   show on Net Worth, in the Holdings table and in every chart. What they stay out
+   of is the monthly DCA plan — the core/satellite split, target weights and
+   Rebalance — because money there isn't put in on that schedule. */
+function isDcaSleeve(k){ return k === 'core' || k === 'satellite'; }
 
 /* What the dropdowns say, as plain text, when not editing. */
 function nwTagsHTML(a){
@@ -12171,11 +12207,11 @@ function sleeveSelectHTML(a){
   return `
     <div class="nw-inv">
       <span>Sleeve</span>
-      <select class="nw-speed" data-sleeve="${a.id}" title="Core or satellite — every holding in this account inherits it">
+      <select class="nw-speed" data-sleeve="${a.id}" title="Core, satellite, or separate (outside DCA) — every holding in this account inherits it">
         <option value="" ${!sleeve?'selected':''}>—</option>
         ${SLEEVES.map(([v,l])=>`<option value="${v}" ${sleeve===v?'selected':''}>${l}</option>`).join('')}
       </select>
-      ${sleeve ? `<span class="muted">applies to everything in this account · weights set under Rebalance</span>` : ''}
+      ${sleeve ? `<span class="muted">${sleeve==='separate' ? 'applies to everything in this account · shown in Investments, left out of the core/satellite split and Rebalance' : 'applies to everything in this account · weights set under Rebalance'}</span>` : ''}
     </div>`;
 }
 
@@ -12189,8 +12225,10 @@ function pricedInfoHTML(unit, currency){
   return `<div class="nw-inv ${stale?'nw-stale':''}" title="${unit.units} units">${fmtUnits(unit.units)} @ ${moneyCur(unit.price, currency||'AUD')} · ${age===null?'never priced':(age===0?'priced today':`priced ${age}d ago`)}</div>`;
 }
 
-const SLEEVES = [['core','Core'], ['satellite','Satellite']];
-function sleeveLabel(k){ const s = SLEEVES.find(x=>x[0]===k); return s ? s[1] : '—'; }
+const SLEEVES = [['core','Core'], ['satellite','Satellite'], ['separate','Separate (outside DCA)']];
+const SLEEVE_SHORT = { core:'Core', satellite:'Satellite', separate:'Separate' };
+/* The short name is what tags and tables show; the dropdown spells it out. */
+function sleeveLabel(k){ return SLEEVE_SHORT[k] || '—'; }
 
 /* A unit is "priced" once it carries both a holding size and a price. */
 function isPriced(unit){
@@ -12240,6 +12278,10 @@ function investedUnits(){
       };
     });
 }
+
+/* Only the holdings in the monthly DCA plan — core and satellite. The split,
+   target weights and Rebalance read these; everything else reads investedUnits(). */
+function dcaUnits(){ return investedUnits().filter(u=> isDcaSleeve(u.sleeve)); }
 
 /* Record a new holding size and price. The change in value is split three ways:
      contribution = units bought or sold, valued at the new price
@@ -12344,7 +12386,7 @@ const REB_MODES = [
 ];
 
 function rebalanceBuckets(scope){
-  const inv = investedUnits();
+  const inv = dcaUnits();
   if(!inv.length) return { buckets:[], total:0, scope };
 
   if(scope === 'whole'){
@@ -13873,7 +13915,18 @@ function openWishModal(id){
 
 const VERSION_LOG = [
   {
-    no: 'V4.29', name: 'Balance on iPhone', date: 'Nov 2026', current: true,
+    no: 'V4.30', name: 'Separate investments', date: 'Nov 2026', current: true,
+    items: [
+      'A third sleeve on the Net Worth tab (Edit setup): Separate (outside DCA). Use it for an account such as Satellite Investment (2) that you invest in outside your monthly plan.',
+      'Separate holdings count everywhere an investment counts: Net Worth, the Holdings table, Price or currency, Update prices and all six charts, where each holding has its own colour.',
+      'They are left out of the core/satellite split, target weights, the whole-portfolio targets and Rebalance. Both cards say how much is left out, so their totals don\'t look wrong next to Net Worth.',
+      'On iPhone, a holding\'s target tick is scaled to the DCA part of the list, so it stays comparable with the bar when separate holdings are shown as well.',
+      'Thai holdings (THB accounts, or a ticker ending .BK) are priced by hand: Fetch prices skips them and says so, so a name like KBANK is never looked up as a US ticker.',
+      'Older versions on another device treat a Separate account as untagged until they update; nothing is lost.'
+    ]
+  },
+  {
+    no: 'V4.29', name: 'Balance on iPhone', date: 'Nov 2026', current: false,
     items: [
       'iPhone: the Activity tab now shows how much you have left at the top: tracked income minus spending and savings, all time, the same figure as Lifetime tracking balance on a computer. If you have allocated more than you earned, it says Over-allocated in red.',
     ]
